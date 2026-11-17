@@ -1041,8 +1041,18 @@ namespace Fpv450.Sim.Log
         ///    FlightSetup.TetherBeforeDesign23 (in the header's tether entry; a log without it reads it as set) and
         ///    GoldenFlights.Model103Peel fly 103's line for the kept audits. The tether golden moved with the band and
         ///    is re-pinned; with the old band it is 103's pin. A flight without the line steps as 103 did.
+        /// 105: the drone feels the plants it flies through (w16-plants-in-the-air 1.5, on 104;
+        ///    unity/physics/physics-integration-2--w16-drone-plants). The field's stems push the legs, the skids and
+        ///    the body they meet (Contact/PartStems): the props' own stems and the field's shorter ones by one lean
+        ///    law, each stem's spring the cantilever at its contact (3EI/s), its root yielding at barley straw's
+        ///    tested strain and lodging; a crown's leaves press every part in the crown's shell by Newton's impact
+        ///    law. A crown slows the drone 7.7 and 2.3 times more than skimming weeds at 2 and 5 m/s, computed.
+        ///    EventKind.PlantPush (40) logs each leg's and the body's mean force a field. ContactSpec.PartStems
+        ///    (header entry 34; a log without it flew 104's contacts) is the switch for the kept audits. A hanging
+        ///    half's give out of a compliant layer is bounded by every rigid face it closes (range #61's jump). No
+        ///    golden pin moved: a flight that meets no stem or leaf with a part steps as 104 did.
         /// </summary>
-        public const int ModelVersion = 104;
+        public const int ModelVersion = 105;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

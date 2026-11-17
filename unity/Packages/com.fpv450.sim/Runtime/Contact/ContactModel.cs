@@ -266,6 +266,8 @@ namespace Fpv450.Sim.Contact
         readonly int[] _supports;       // the support shapes, in shape order
         readonly Pair[] _pairs;         // shape i's pairs at i·PairsPerShape
         readonly int[] _count;
+        readonly int[] _crownPair;      // shape i's crown pair carrying it after the last Sense (its deepest touching one), −1 none
+        bool _inCrown;                  // some shape's is
         readonly Pair[] _ground;        // a support's ground (index: shape)
         readonly bool _terrain;         // the ground is a terrain, not one plane (Geometry(Ground, 0) false: w3-farmland-ground 2.2)
         readonly Row[] _byMaterial;     // world material id → its row
@@ -410,6 +412,7 @@ namespace Fpv450.Sim.Contact
             if (n > 255) throw new ArgumentException("the contact spec holds more than 255 shapes", nameof(spec));
             _pairs = new Pair[n * PairsPerShape];
             _count = new int[n];
+            _crownPair = new int[n];
             _ground = new Pair[n];
             _order = new int[n];
             int at = 0, supports = 0;
@@ -862,6 +865,26 @@ namespace Fpv450.Sim.Contact
                     if (p.Touching && !p.Suppressed && p.Surface == WorldIds.NoSurface && p.Material == material) n++;
                 }
             return n;
+        }
+
+        /// <summary>Some part touched a crown's twig shell at the last Sense (w16-plants-in-the-air 1.5: its leaves, PartStems).</summary>
+        public bool InCrown => _inCrown;
+
+        /// <summary>The crown shape i is in at the last Sense: the object and material of its deepest touching crown pair, the one
+        /// that carries it (2.3's one crown a part); false for none.</summary>
+        public bool CrownOf(int i, out int obj, out ushort material)
+        {
+            int k = _off[i] ? -1 : _crownPair[i];
+            if (k < 0 || k >= _count[i])
+            {
+                obj = 0;
+                material = 0;
+                return false;
+            }
+            ref Pair p = ref _pairs[i * PairsPerShape + k];
+            obj = p.Object;
+            material = p.Material;
+            return true;
         }
 
         /// <summary>A blade's load in the last Forces (slot corner × blades + blade).</summary>
@@ -2145,6 +2168,13 @@ namespace Fpv450.Sim.Contact
                 if (rest < 0) rest = 0;
                 share = turn / (turn + rest); // the turn's share of a unit move at the deepest point along n
             }
+            // A give out of a compliant row (the half deepest in a layer past its stroke, or in a crown's twigs, with no rigid pair
+            // pressed) is bounded by every rigid face it closes, its turn's share too: the row yields before the half is driven into
+            // the solid beside it, as LegTrials' rule has it once that solid is pressed. Without it the give out of S04's straw tile's
+            // side (108 mm in, latched to the side) turned the half's end 9 mm into the soil box under it, and once the box's own
+            // overlap passed 0 the corner read the box and that give went in one step (range #61 Slide, steps 6895–6897: 93 mm → 0.3
+            // mm, the end 7.9 → 1.9 mm in the box).
+            bool yielding = !RowOf(d).Rigid;
             for (int i = 0; i < _shapes.Length; i++)
             {
                 ContactRole role = _shapes[i].Role;
@@ -2155,10 +2185,10 @@ namespace Fpv450.Sim.Contact
                     if (k < 0 ? role != ContactRole.Support : p.Suppressed) continue;
                     if (!RowOf(p).Rigid) continue;
                     Double3 nj = s.Attitude.InverseRotate(p.N), rj = back.Rotate(s.Attitude.InverseRotate(p.Point - bore));
-                    // Only a face that faces the move (FacingAway, more than 120° from n): a side face the half moves along is no stop
-                    // (range #429 Slide: a soil box's side 88° from the top it lies in, met by the turn's sideways share, held the half
-                    // 57 mm in the top).
-                    if (Double3.Dot(n, nj) > FacingAway) continue;
+                    // Out of a rigid row, only a face that faces the move (FacingAway, more than 120° from n): a side face the half moves
+                    // along is no stop (range #429 Slide: a soil box's side 88° from the top it lies in, met by the turn's sideways share,
+                    // held the half 57 mm in the top).
+                    if (!yielding && Double3.Dot(n, nj) > FacingAway) continue;
                     double closing = -(1 - share) * Double3.Dot(n, nj) - (share > 0 ? share / a2 * Double3.Dot(Double3.Cross(axis, rj), nj) : 0);
                     double gap = -(p.Depth + Unturned(c, p, s, placed));
                     if (!(closing > 0) || !(gap >= 0)) continue; // a pressed pair bears in the chain itself (its share of Trial's push)
@@ -3910,6 +3940,8 @@ namespace Fpv450.Sim.Contact
         public void Sense(in FlightState was, ref FlightState now, StepEvents events)
         {
             if (_rotors != null) PlaceBlades(was, now, events);
+            _inCrown = false;
+            for (int i = 0; i < _crownPair.Length; i++) _crownPair[i] = -1;
 
             // The supports' ground, in one batch.
             for (int k = 0; k < _supports.Length; k++)
@@ -4168,6 +4200,8 @@ namespace Fpv450.Sim.Contact
             }
             for (int k = 0; deepest >= 0 && k < kept; k++)
                 if (k != deepest && _pairs[first + k].Touching && RowOf(_pairs[first + k]).Crown != null) _pairs[first + k].Suppressed = true;
+            _crownPair[i] = deepest;
+            _inCrown |= deepest >= 0;
         }
 
         // A part found inside a rigid box with no first touch this step (a blade come back to rest, a piece a leg's set or break

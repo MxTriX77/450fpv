@@ -318,6 +318,15 @@ namespace Fpv450.Sim.Contact
         /// only for the kept audits of earlier models and a known-wrong's comparison.</summary>
         public bool Stems = true;
 
+        /// <summary>
+        /// The drone's parts feel what they fly through (w16-plants-in-the-air 1.5, PropStrikes' PartStems): the stem field's stems
+        /// on every part but a turning disc (the legs, the skids, the body; with Stems), each 1.2's link pushed as a cantilever at its
+        /// contact, and a crown's leaves on the same parts by Newton's impact law. On for every flight; off only for the known-wrong
+        /// and the kept audits against model 103, whose parts skimmed the stems and the leaves with no force. The header records it
+        /// in its own entry.
+        /// </summary>
+        public bool PartStems = true;
+
         /// <summary>Archard's wear coefficient k of the blade sliding on a harder face, V = k·F_n·s/H_b: 3e-3 (assumed, p7f-damage
         /// design 5: inside Lancaster 1969's published 1e-3–1e-2 for polymers abraded by harder asperities, its middle on a log
         /// scale; set by 1.3, which 1.1a left unset).</summary>
