@@ -1,0 +1,104 @@
+--- a/unity/Packages/com.fpv450.sim/Runtime/Tether/FiberLine.cs
++++ b/unity/Packages/com.fpv450.sim/Runtime/Tether/FiberLine.cs (the probe's scratch copy)
+@@ -1555,6 +1555,9 @@
+                     bug.A = _trail.Length;
+                     events.Add(bug);
+                 }
++#if HOOKS
++                QaFreeze?.Invoke(this, a);
++#endif
+                 _trail[_trailCount] = a.Position;
+                 _trailMaterial[_trailCount] = a.Material;
+                 _trailHeld[_trailCount] = _chain.Tension(1);
+@@ -1578,6 +1581,9 @@
+                 ? _chain.Tension(0) > _trailHeld[_trailCount - 1] + _hold || _airPerMetre[0] > _groundStatic * _weight
+                 : Pulled() || (_airless ? _airPerMetre[0] > _trailAir[_trailCount - 1] + _groundStatic * _weight : !changed && EndMoves())))
+             {
++#if HOOKS
++                if (QaLift != null) QaLift(this, QaWhy(changed));
++#endif
+                 LiftEnd();
+                 changed = true;
+             }
+@@ -1681,7 +1687,13 @@
+             bool known = (g.Flags & GroundFlags.Hole) == 0;
+             double ground = known ? g.Height : World.SoilUnder(p, _soilRay, _soilHit, out _);
+             if (!(ground > double.NegativeInfinity && ground < double.PositiveInfinity)) return; // no soil under it: no landing, no lift
++#if HOOKS
++            Double3 qaAir = _rotors.At(p, ground, out _);
++            if (!Moves(k, qaAir, ground, g.Surface, known, out double qaPush, out double qaHold)) return;
++            QaThaw?.Invoke(this, $"thaw depth {depth} k {k} s {_trailMaterial[k]:0.000} at ({p.X:0.00},{p.Y:0.00},{p.Z:0.00}) gap {p.Y - ground:0.000} air ({qaAir.X:0.00},{qaAir.Y:0.00},{qaAir.Z:0.00}) push {qaPush:G4} hold {qaHold:G4} froze {_trailAir[k]:G4} N/m");
++#else
+             if (!Moves(k, _rotors.At(p, ground, out _), ground, g.Surface, known, out _, out _)) return;
++#endif
+             for (int i = 0; i <= depth; i++) LiftEnd();
+             Thaws++;
+             Thawed += depth + 1;
+@@ -1689,6 +1701,67 @@
+ 
+         /// <summary>The window's thaws this flight (design 20: a point behind the trail's end in the wash), and the points they
+         /// gave back (forensics; the record's trail count carries each).</summary>
++#if HOOKS
++        // QA probe hooks (scratch copy only; read-only on the line's state).
++        public static Action<FiberLine, CableNode> QaFreeze;
++        public static Action<FiberLine, string> QaLift, QaThaw;
++        public double QaHoldPerMetre => _groundStatic * _weight;
++        public double QaWeightPerMetre => _weight;
++        public Double3 QaHub(int c) => _hubs[c];
++        public double QaDiscHalf(int c) => _discHalf[c];
++        public double QaHubRadius => _hubRadius;
++        public double QaRotorRadius => _rotorRadius;
++        public bool QaResting(int c) => _parts != null && _parts.Resting(c);
++        public int QaBlades => _blades;
++        public double QaSpin(int c) => _spin[c];
++        public double QaTip(int c, int bl) => _propulsion?.Rotor(c) != null ? _propulsion.Rotor(c).Blade(bl).TipRadius : 1;
++
++        // Why the trail's end lifts this step: Pulled's terms (a copy that reports), else the end's air.
++        string QaWhy(bool changed)
++        {
++            int t = _trailCount, r = t - 2;
++            double holds = _groundStatic * _weight;
++            Double3 run = _trail[t - 1] - _trail[r];
++            while (!(run.Length() > 0) && r > 0) run = _trail[t - 1] - _trail[--r];
++            Double3 first = _chain[1].Position - _chain[0].Position;
++            double lr = run.Length(), lf = first.Length(), tension = _chain.Tension(0);
++            double lumped = 0.5 * (_trailMaterial[t - 1] - _trailMaterial[r] + _chain[1].Material - _chain[0].Material);
++            Double3 e = _trail[t - 1];
++            string head = $"end {t - 1} s {_trailMaterial[t - 1]:0.000} at ({e.X:0.00},{e.Y:0.00},{e.Z:0.00}) T0 {tension:G4} N held {_trailHeld[t - 1]:G4} N holds {holds:G4} N/m lumped {lumped:0.000} m";
++            if (!(lr > 0) || !(lf > 0))
++                return (tension > _trailHeld[t - 1] + holds * lumped ? "pulled-size " : "air ") + head;
++            Double3 ut = run * (1 / lr), pull = first * (tension / lf);
++            double along = Double3.Dot(pull, ut), outward = along > 0 ? along : 0;
++            double across = (pull - ut * outward).Length();
++            Double3 uf = first * (1 / lf);
++            head += $" first ({uf.X:0.00},{uf.Y:0.00},{uf.Z:0.00}) run ({ut.X:0.00},{ut.Y:0.00},{ut.Z:0.00}) along {along:G4} across {across:G4} vs {holds * lumped:G4}";
++            if (across > holds * lumped) return "pulled-across " + head;
++            double excess = outward - _trailHeld[t - 1];
++            Double3 uOut = ut;
++            for (int k = r; k > 0 && excess > 0; k--)
++            {
++                excess -= holds * (_trailMaterial[k == r ? t - 1 : k + 1] - _trailMaterial[k]);
++                if (!(excess > 0)) break;
++                Double3 back = _trail[k] - _trail[k - 1];
++                double lb = back.Length();
++                if (!(lb > 0)) continue;
++                Double3 uIn = back * (1 / lb);
++                double turn = (uOut - uIn).Length();
++                double margin = holds * 0.5 * (_trailMaterial[k + 1] - _trailMaterial[k - 1]) - _trailHeld[k] * turn;
++                if (excess * turn > margin)
++                    return $"pulled-corner k {k} s {_trailMaterial[k]:0.000} at ({_trail[k].X:0.00},{_trail[k].Y:0.00},{_trail[k].Z:0.00}) turn {turn:G4} excess {excess:G4} margin {margin:G4} " + head;
++                uOut = uIn;
++            }
++            if (!changed && EndMoves())
++            {
++                GroundSample g = _ground[0];
++                Moves(_trailCount - 1, _airAt[0], _groundHeight[0], g.Surface, (g.Flags & GroundFlags.Hole) == 0, out double push, out double hold);
++                Double3 air = _airAt[0];
++                return $"air push {push:G4} hold {hold:G4} froze {_trailAir[t - 1]:G4} N/m air ({air.X:0.00},{air.Y:0.00},{air.Z:0.00}) " + head;
++            }
++            return "other " + head;
++        }
++#endif
+         public long Thaws { get; private set; }
+         public long Thawed { get; private set; }
+ 
