@@ -168,6 +168,13 @@ namespace Fpv450.Sim.Flight
         /// and the known-wrong for the line on a twig and on a ruin, never a pilot's flight.</summary>
         public bool TetherBeforeDesign21;
 
+        /// <summary>The known-wrong chain before p7d-tether design 23 (model 103's): a step that spends its Newton solves with a
+        /// segment's tension still off its model's keeps its last solve's end, so a segment that solve modelled slack ends stretched
+        /// by its nodes' free parting and the cuts read a tension no force in the step made (the U-turn's seed 5: 1.59 N where the
+        /// solve applied none). TetherBeforeDesign21 and every switch it is implied by imply it (every kept audit of an older line).
+        /// The audit against design 22's line and the known-wrong for the span's tension, never a pilot's flight.</summary>
+        public bool TetherBeforeDesign23;
+
         /// <summary>tether.json's table for the stems' air with StemWash in a flight without the line (w9-village-physics
         /// 2.13): the props' stems (PropStems) read the rotors' wash by its rotor_air rows, design 19's law the line reads
         /// (RotorAir). With the line the line's table is read and this one is not. The header records its rows and hash when the

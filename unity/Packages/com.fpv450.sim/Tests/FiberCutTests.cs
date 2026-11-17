@@ -567,7 +567,9 @@ namespace Fpv450.Sim.Tests
             Print($"{f.Free} steps hanging free, {f.Touching} touching; the most rate {f.MostRate:F0} °/s; the length's loss {f.LengthLoss:F4} dB, the lip's up to {f.LipLoss:F4} dB; "
                 + $"the margin against the budget less them {f.Worst:E2} dB, against a line at rest at the same lip {f.AtRest:E2} dB; dips {f.Dips}; {f.O}");
             Assert.That(f.MostRate, Is.GreaterThan(500), "the rolls and flips");
-            Assert.That(f.LengthLoss, Is.EqualTo(0.42).Within(0.01), "2 km at 0.21 dB/km");
+            // 2 km at 0.21 dB/km and what the 30 m climb pays out: 28.6 m at model 103, 66 m since p7d-tether design 22 (seed 11's
+            // pack 1.30 → 0.66 g, under the hanging line's 2.1 g, so the line pays out under its own weight as it climbs).
+            Assert.That(f.LengthLoss, Is.EqualTo(0.42).Within(0.02), "2 km at 0.21 dB/km, and the climb's payout");
             Assert.That(f.Free, Is.GreaterThan(5000), "the line hangs free over many steps");
             Assert.That(f.Worst, Is.LessThanOrEqualTo(0.01), "the budget less 0.42 dB and the lip's loss");
             Assert.That(f.AtRest, Is.LessThanOrEqualTo(0.01), "as at rest with the same lip");
@@ -580,6 +582,10 @@ namespace Fpv450.Sim.Tests
         // 19 N on 10–16 mm segments where the solve applied 0.01–0.05 N, and the span's tension check cuts the line there (12.946 s,
         // 19.3 N; 502 steps of the turn read over 1 N); with the chain's Newton solves the line is whole and the most end-of-step
         // tension in the turn is 0.2 N, what the step applied.
+        // p7d-tether design 23: a step that spends its 8 Newton solves unconverged is solved again on the majorizing models. With
+        // the known-wrong (FlightSetup.TetherBeforeDesign23, model 103's chain) such a step keeps its last solve: on the restated
+        // band (seed 5, 1.01 g) a 86 mm segment the solve modelled slack, its nodes parting at 0.16 m/s, ends 153 µm past its rest
+        // and reads 1.59 N where the solve applied none (a snap at that speed carries √(EA·μ)·v = 0.04 N).
         [Test]
         public void AUTurnsSpanReadsWhatTheStepApplied()
         {
@@ -597,7 +603,9 @@ namespace Fpv450.Sim.Tests
             FiberCutScenarios.Turned now;
             double oldMost;
             long oldOver;
-            FiberCutScenarios.Turned old;
+            FiberCutScenarios.Turned old, kept;
+            double keptMost;
+            long keptOver;
             try
             {
                 now = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180);
@@ -605,11 +613,18 @@ namespace Fpv450.Sim.Tests
                 long nowOver = over;
                 most = 0;
                 over = 0;
-                // Model 74's chain: the linear step on the line before design 18 (its exit's segment stretched by the slides too).
+                kept = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180, x => x.TetherBeforeDesign23 = true);
+                keptMost = most;
+                keptOver = over;
+                most = 0;
+                over = 0;
+                // Model 74's chain: the linear step on the line before design 18 (its exit's segment stretched by the slides too), on
+                // the peel band it flew to model 103 (GoldenFlights.Model103Peel: seed 5 draws 2.02 g there, 1.01 g on design 22's).
                 old = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180, x =>
                 {
                     x.TetherLinearStep = true;
                     x.TetherBeforeDesign18 = true;
+                    x.Tether = GoldenFlights.Model103Peel(x.Tether);
                 });
                 oldMost = most;
                 oldOver = over;
@@ -622,12 +637,14 @@ namespace Fpv450.Sim.Tests
             }
             Print($"Newton on the segments: {now.O}; the most span tension in the turn {most:0.000} N, {over} steps over 1 N");
             Print($"the linear step (model 74): {old.O}; the most span tension in the turn {oldMost:0.000} N, {oldOver} steps over 1 N");
+            Print($"an unconverged step kept (model 103's chain): {kept.O}; the most span tension in the turn {keptMost:0.000} N, {keptOver} steps over 1 N");
             Assert.That(old.O.Broken, Is.True, "the known-wrong cuts");
             Assert.That(old.O.Mechanism, Is.EqualTo(TetherMechanism.Tension));
             Assert.That(old.O.Place, Is.EqualTo(FiberMember.Span));
             Assert.That(now.O.Broken, Is.False, "the line is whole");
             Assert.That(most, Is.LessThan(1.0), "the span reads what the step applied");
             Assert.That(over * 10, Is.LessThan(oldOver), "a tenth of the known-wrong's steps over 1 N at most");
+            Assert.That(keptMost, Is.GreaterThan(1.0), "design 23's known-wrong reads a stretch its step never applied");
         }
 
         // The pilot's account (docs/pilot-questions.md, PHY-19): a normal liftoff does not cut the line.
@@ -732,14 +749,18 @@ namespace Fpv450.Sim.Tests
                 for (int s = 0; s < Seeds; s++) Print($"{rows[r].Name} seed {s + 1}: {o[r, s]}");
             for (int r = 0; r < 4; r++) Assert.That(Count(r, x => x.Broken), Is.EqualTo(0), rows[r].Name + " keeps the line");
             int cuts = Count(4, x => x.Broken), discs = Count(4, x => x.Broken && x.Mechanism == TetherMechanism.Prop);
-            Assert.That(cuts, Is.InRange(1, Seeds - 1), "a sharp reverse may or may not cut");
+            // Design 22: on the published peel band the reverse's slack reaches a rear disc on every seed (8 of 8; 20 of 20 in
+            // flightbench --tether), the one seed it spared before (seed 7) having drawn 6.7 g from the unsupported 2–10 g half. Its
+            // "may not" is printed below as not met, as design 17's are; "may" stays asserted.
+            Assert.That(cuts, Is.GreaterThan(0), "a sharp reverse may cut");
             Assert.That(Count(4, x => x.Broken && (x.Mechanism == TetherMechanism.Wedge || x.Place == FiberMember.None)), Is.EqualTo(0),
                 "each reverse cut names its mechanism and place");
             Assert.That(discs, Is.GreaterThan(0), "the reverse cuts by its slack at a rear disc");
             Assert.That(Count(5, x => x.Broken && x.Mechanism == TetherMechanism.Prop), Is.EqualTo(0), "the two-way spool leaves no slack for a disc (the known-wrong)");
             Assert.That(Count(6, x => x.Broken), Is.GreaterThan(0), "a tree snag cuts on some");
             Print($"not met (design 17): very sharp liftoff cuts {Count(7, x => x.Broken)} of {Seeds}, backward after liftoff {Count(8, x => x.Broken)} of {Seeds}; "
-                + $"the reverse at the hole's edge {Count(4, x => x.Broken && x.Place == FiberMember.Lip)} of {Seeds} (by a rear disc {discs})");
+                + $"the reverse at the hole's edge {Count(4, x => x.Broken && x.Place == FiberMember.Lip)} of {Seeds} (by a rear disc {discs}); "
+                + $"{(cuts < Seeds ? "met" : "not met")} (design 22): a sharp reverse may not cut, whole on {Seeds - cuts} of {Seeds}");
         }
 
         // D-087's grid: turns of 90° and 180° at each speed up to 100 km/h and each heading rate (0 the straight cruise), and sudden

@@ -176,7 +176,10 @@ namespace Fpv450.Sim.Tests
             MaterialRow[] without = (MaterialRow[])ContactScenarios.RepositoryMaterials(out _).Clone();
             for (int i = 0; i < without.Length; i++)
                 if (without[i].Name == "straw") without[i].AreaLaw = AreaLaw.None;
-            GoldenFlights.FlyRange(spec, out FlightCore wrong, rain: RainLevel.Rain, table: SoilScenarios.Table(), materials: without);
+            // The known-wrong differs from the model by the area law alone: S04's standing stems' push on the parts (w16 1.5) is held
+            // off for it, since with it they prop even the reference foot's drone near level (1.675° on c13b5a5c; −10.6° without them).
+            GoldenFlights.FlyRange(spec, out FlightCore wrong, rain: RainLevel.Rain, table: SoilScenarios.Table(), materials: without,
+                edit: s => s.Contacts.PartStems = false);
             TestContext.WriteLine($"  known-wrong (straw without its area law), Rain: rests rolled {Roll(wrong.State):F3}°");
             // Since model 46 (p7g-legs on the line) the known-wrong rests rolled 5.5° on the PVC-U legs (17.1° on model 26's
             // legs, 7.6° on p7g-legs' 52.3 kN/m legs without their side give: the legs' data, not the soil's coupling, moves

@@ -176,6 +176,16 @@ namespace Fpv450.Sim.Contact
             public long Loaded, Advanced, Seen;
             public double Phi, Sin, Cos, Len, Q, QLag, Top, Swirl;
             public bool Rest;
+
+            // The drone's parts' push (w16-plants-in-the-air 1.5, PartStems): the lean they add to the jet's φ along its way (a
+            // horizontal lean vector, rad, world X and Z), its set (where its root yielded to, lodged: its spring's rest moves by it),
+            // the arm of the last step's contact up the stem (m, 0 free), the part's normal there (world) and the shape, the step it
+            // last touched; Bent while any of it is not 0 (the jet's lean alone is the stem's, bit for bit, otherwise); Active while
+            // the parts' law leans it (PropStems' then holds its φ).
+            public double CX, CZ, SX, SZ, Arm, NX, NY, NZ;
+            public int Part;
+            public long Touch;
+            public bool Bent, Active;
         }
 
         readonly StemState[] _st = new StemState[StateSlots];
@@ -214,6 +224,7 @@ namespace Fpv450.Sim.Contact
         {
             _stemsOn = _spec.Stems && _spec.Surfaces != null;
             for (int i = 0; i < SquareSlots; i++) _qKey[i] = long.MinValue;
+            InitParts();
             if (!_stemsOn) return;
             CoverRow[] rows = _spec.Surfaces.Cover;
             for (int k = 0; k < rows.Length && k < _coverSets.Length; k++) _coverSets[k] = _contacts.Cover((CoverKind)k);
@@ -297,6 +308,10 @@ namespace Fpv450.Sim.Contact
             t.Top = double.NaN;
             t.Loaded = t.Advanced = -1;
             t.Seen = step;
+            t.CX = t.CZ = t.SX = t.SZ = t.Arm = t.NX = t.NY = t.NZ = 0;
+            t.Part = -1;
+            t.Touch = -1;
+            t.Bent = t.Active = false;
             if (_sAir != null) _sAir[oldest] = -1;
             return oldest;
         }
@@ -337,6 +352,7 @@ namespace Fpv450.Sim.Contact
             _qNx[at] = flat ? 0 : n.X;
             _qNz[at] = flat ? 0 : n.Z;
             _qNy[at] = flat ? 1 : n.Y;
+            _qHas0[at] = false; // its stems from the ground up are asked for only by the parts (PartStems)
             for (int l = 0; l < Layers; l++) _qDensity[at * Layers + l] = 0;
             int count = _world.StemsNear(centre, PointRadius, StemReference, _patches);
             if (count > _patches.Length) count = _patches.Length;
@@ -495,11 +511,33 @@ namespace Fpv450.Sim.Contact
             k.Slot = State(id, length, phi0, step);
         }
 
+        // A stem's lean as the drone's parts left it (w16 1.5, PartStems): the jet's φ along its way with the parts' bend added, its
+        // sine, cosine and horizontal way. A stem no part bent is its jet's alone, bit for bit.
+        void LeanOf(in Stalk k, in StemState t, out double sin, out double cos, out double ex, out double ez)
+        {
+            ex = k.Lean.X;
+            ez = k.Lean.Z;
+            if (!t.Bent)
+            {
+                sin = t.Sin;
+                cos = t.Cos;
+                return;
+            }
+            double bx = t.Phi * k.Lean.X + t.CX, bz = t.Phi * k.Lean.Z + t.CZ, phi = DetMath.Sqrt(bx * bx + bz * bz);
+            if (phi > 1e-12)
+            {
+                ex = bx / phi;
+                ez = bz / phi;
+            }
+            DetMath.SinCos(phi, out sin, out cos);
+        }
+
         // A stem's top over its base: leaning, L·cos φ (its drawn shape's rise at most); folded by a jet, its arch's crest.
         double TopOf(in Stalk k, int s)
         {
             ref readonly StemState t = ref _st[s];
             double len = t.Len, cp = t.Cos;
+            if (t.Bent) LeanOf(k, t, out _, out cp, out _, out _);
             double rise = k.Rise * (len / k.Length), top = DetMath.Min(rise, len * cp), q = t.QLag;
             // A stem standing to its natural lean's top or higher stands over any crest (the crest is at most that): no root.
             if (q > 0 && top < DetMath.Min(rise, len * k.CosPhi0))
@@ -697,11 +735,15 @@ namespace Fpv450.Sim.Contact
                     ref StemState t = ref _st[s];
                     if (t.Advanced == step) continue;
                     t.Advanced = step;
+                    if (t.Active) continue; // a stem a part touches leans by this law in two dimensions there (w16 1.5, PartStems)
                     double q = t.Loaded == step ? t.Q : 0, phi = t.Phi;
                     if (!(q > 0) && !(t.QLag > 0) && t.Rest) continue; // at rest, its top known
                     double len = t.Len, l3 = len * len * len, tau = len * len * k.Tau0;
                     double G = k.MuG8 * l3, m, slope, rate = dt / tau;
                     double sp = t.Sin, cp = t.Cos;
+                    // A lodged stem's rest is where its root yielded to (PartStems' set along its way); 0 for every other.
+                    double rest = k.Phi0;
+                    if (t.Bent) rest = k.Phi0 + (t.SX * k.Lean.X + t.SZ * k.Lean.Z);
                     if (_air != null)
                     {
                         // 2.13: the held air in the stem's plane of lean, u_φ = u·ê_φ along the lean's growth and u·â along the
@@ -713,7 +755,7 @@ namespace Fpv450.Sim.Contact
                             uy = _sUy[s];
                         }
                         double K = 0.5 * _rho * k.T.Kappa0 * l3, uphi = ul * cp - uy * sp, ua = ul * sp + uy * cp, au = DetMath.Abs(uphi);
-                        m = phi - k.Phi0 - K * au * uphi - G * sp;
+                        m = phi - rest - K * au * uphi - G * sp;
                         slope = 1 + 2 * K * au * ua - G * cp;
                     }
                     else
@@ -725,7 +767,7 @@ namespace Fpv450.Sim.Contact
                         double sj = sp, cj = cp;
                         if (beta != 0) DetMath.SinCos(phi + beta, out sj, out cj);
                         double aj = DetMath.Abs(sj);
-                        m = phi - k.Phi0 - A * sj * aj - G * sp;
+                        m = phi - rest - A * sj * aj - G * sp;
                         slope = 1 - 2 * A * aj * cj - G * cp;
                     }
                     double next = DetMath.Min(Pi / 2, DetMath.Max(-Pi / 2, phi - m * rate / (1 + DetMath.Max(0, slope) * rate)));
@@ -766,9 +808,10 @@ namespace Fpv450.Sim.Contact
                 rec.Over++;
                 double r = DetMath.Sqrt(r2);
                 Double3 dir = flat * (1 / r);
-                // The blade's speed across the stem's axis: ω·r·√(1 − (t̂·â)²), t̂ the blade's motion there, â the stem's axis.
-                double sp = t.Sin, cp = t.Cos;
-                Double3 motion = Double3.Cross(axis, dir) * -s, stem = new Double3(k.Lean.X * sp, cp, k.Lean.Z * sp);
+                // The blade's speed across the stem's axis: ω·r·√(1 − (t̂·â)²), t̂ the blade's motion there, â the stem's axis (as
+                // the parts left it, PartStems).
+                LeanOf(k, t, out double sp, out double cp, out double ex, out double ez);
+                Double3 motion = Double3.Cross(axis, dir) * -s, stem = new Double3(ex * sp, cp, ez * sp);
                 double along = Double3.Dot(motion, stem), across = omega * r * DetMath.Sqrt(DetMath.Max(0, 1 - along * along));
                 if (StemCritical && !(across >= k.T.Vc)) continue; // pushed aside
                 double psi = Azimuth(now.Attitude, dir, c);

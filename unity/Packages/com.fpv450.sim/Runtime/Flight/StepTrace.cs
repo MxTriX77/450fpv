@@ -390,6 +390,17 @@ namespace Fpv450.Sim.Flight
         /// episode, never one a cut (LOG-01); each step's cuts are in BladeStrikes (StrikeKind.Stem).
         /// </summary>
         StemEpisode = 39,
+
+        /// <summary>
+        /// The plants' push on a group of the drone's parts over a field (FlightCore.FieldSteps), at its last step, for each group a
+        /// stem or a crown's leaves touched in it (w16-plants-in-the-air 1.5, PropStrikes' PartStems): Index the group (Corners order
+        /// 0–3: a corner's supports, skid half and leg tube; 4 the body, its resting blades among it), | 0x40 for the leaves (else
+        /// the stems); Part the corner's leg part (NoPart for the body); Object the ground (−1) for stems, the crown's object for
+        /// leaves; Material the cover kind most met + 1 (Contact.CoverKind) for stems, the crown's material for leaves; Shape the
+        /// stems' pushes over the field (a stem a step); Point the impulse-weighted contact point (world). A, B, C: the field's mean
+        /// force on the group, world N (x, y, z).
+        /// </summary>
+        PlantPush = 40,
     }
 
     /// <summary>A blade pass's mode (BladeStrike's and BladeDamaged's Index, high 4 bits; p7f-damage design 5).</summary>

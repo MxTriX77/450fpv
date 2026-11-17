@@ -261,6 +261,10 @@ namespace Fpv450.Sim.Tether
         internal static bool BeforeDesign21(FlightSetup setup) => setup.TetherBeforeDesign21 || setup.TetherAirlessTrail || setup.TetherWakeReach4R
             || setup.TetherBeforeDesign18 || setup.TetherDesign4Air;
 
+        /// <summary>Whether a flight's chain keeps an unconverged step's last solve (p7d-tether design 23's known-wrong,
+        /// FlightSetup.TetherBeforeDesign23, implied by every older line's switch).</summary>
+        internal static bool BeforeDesign23(FlightSetup setup) => setup.TetherBeforeDesign23 || BeforeDesign21(setup);
+
         public FiberLine(TetherTable table, FlightSetup setup, MassModel mass, FlightRandom random, in FlightState start, double dt,
             ContactModel parts = null, Propulsion propulsion = null)
         {
@@ -335,7 +339,7 @@ namespace Fpv450.Sim.Tether
             _chain = new CableChain(nodes, _mass, table.Number("fiber.axial_stiffness_n"), _terrain ? CrestNodes : 0)
             {
                 Gravity = FlightCore.Gravity, ZeroForceHold = setup.TetherZeroForceHold, LinearStep = setup.TetherLinearStep,
-                KeepSlideStretch = setup.TetherBeforeDesign18, RunEndsOnly = BeforeDesign21(setup),
+                KeepSlideStretch = setup.TetherBeforeDesign18, RunEndsOnly = BeforeDesign21(setup), KeepUnconverged = BeforeDesign23(setup),
             };
             nodes = _chain.Capacity;
             _at = new XZ[nodes + 4];

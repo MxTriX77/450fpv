@@ -515,6 +515,14 @@ namespace Fpv450.Sim.Log
                         + ((e.Index & 0x80) == 0 ? " began cutting " : " stopped cutting ")
                         + (e.Material > 0 && e.Material <= SurfaceTable.CoverKinds.Length ? SurfaceTable.CoverKinds[e.Material - 1] : "stems") + ", "
                         + G(e.B) + " stems for " + G(e.A) + " J so far, " + G(e.C * 1000) + " mm across, hub at " + V(e.Point, "0.000") + " m";
+                case EventKind.PlantPush:
+                    return ((e.Index & 0x40) == 0 ? "STEMS ON " : "LEAVES ON ") + ((e.Index & 0x3F) < 4 ? "leg " + CornerName((byte)(e.Index & 0x3F)) : "the body")
+                        + ((e.Index & 0x40) == 0
+                            ? ": " + (e.Material > 0 && e.Material <= SurfaceTable.CoverKinds.Length ? SurfaceTable.CoverKinds[e.Material - 1] : "stems") + ", "
+                              + e.Shape + " pushes over the field"
+                            : " in " + Where(e))
+                        + ", mean force " + V(new Double3(e.A, e.B, e.C), "0.000") + " N (" + G(new Double3(e.A, e.B, e.C).Length()) + " N) at "
+                        + V(e.Point, "0.000") + " m";
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);

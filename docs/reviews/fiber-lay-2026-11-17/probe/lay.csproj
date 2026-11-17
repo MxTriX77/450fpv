@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- QA probe of the laid line (p7d-tether 1.11h): a scratch copy of the sim core's Runtime sources (model 103, the
+       w3-ground worktree at the pilot's build) with read-only probe hooks under HOOKS, compiled here so nothing is built
+       inside the worktree. Every replay checks each step against the log bit for bit. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <AssemblyName>lay</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DefineConstants>$(DefineConstants);HOOKS</DefineConstants>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <NoWarn>$(NoWarn);CS0162;CS0168;CS0219;CS0414;CS0649;CS1591;CS8632</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../rt/**/*.cs" />
+    <Compile Include="lay.cs" />
+  </ItemGroup>
+</Project>
