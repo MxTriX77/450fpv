@@ -116,7 +116,7 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 
 *Accept:* the setup screen offers exactly these five, plus the start point. *Source:* V§3, D-010, D-021.
 
-**PRD-05 Menu.** The app opens to **Train / Calibrate / Exit**, "prettier than uglier". No other item in any build: no **Explore** (the pilot, 2026-11-17, D-117). *Source:* V§3.
+**PRD-05 Menu.** The app opens to **Play / Calibrate / Exit** (Play since D-100), "prettier than uglier". No other item in any build: no **Explore**, and no text that only describes an item (the pilot, 2026-11-17, D-117). *Source:* V§3.
 
 **PRD-06 Physics logging.** Every flight writes a log that can explain any crash as physics or pilot error. *Accept:* LOG-01 to LOG-03. *Source:* V§4.
 
@@ -128,7 +128,7 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 - **Esc** releases the mouse and a click recaptures it; pitch clamps at ±89° and the view never flips; one mouse-sensitivity setting
 - movement is bound to **physical key positions**, so WASD works on Ukrainian and Russian keyboard layouts
 - base speed 6 m/s, the wheel steps it ×1.25 within 1–60 m/s, Shift multiplies it by 8; no collision (the camera passes through walls and ground)
-- **not in the player's menu** (D-117): it is the team's tool for captures and benches, opened by a command-line argument
+- **not in the player's menu** (D-117): in the game's player the farmland's noclip view is reached only by a command-line argument (`-farmbench`, `-smoketest` in a review build) or the editor's still capture. It is the team's tool for captures and benches
 
 *Accept:* used at gates G2 and G3; an EditMode or PlayMode test per control above. *Source:* V§5.2; gap review G16, G17 (D-037).
 
@@ -653,7 +653,7 @@ Train mode shows what the pilot needs; the layout positions come from the footag
 
 **APP-01 Wireframes first (gate G6).** Main menu, setup, calibration, in-flight pause, and the post-flight summary. The pilot approves before any UI is built. *Source:* V§4.3.
 
-**APP-02 Main menu.** Train, Calibrate and Exit, in every build. A clean, readable design: a screen carries only the texts the pilot needs to operate it (a key or stick prompt, a state that changes, a problem), and no label that describes an item, a map or an option (D-117).
+**APP-02 Main menu.** Play, Calibrate and Exit in every build, each by its name alone. A clean, readable design: a screen carries only the texts the pilot needs to operate it (a key or stick prompt, a state that changes, a problem), and no label that describes an item, a map or an option (D-117).
 
 **APP-03 Setup.**
 - payload 0–2.0 kg in 0.1 kg steps
