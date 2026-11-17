@@ -92,7 +92,8 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheRainGoldenHolds()
         {
-            ulong hash = GoldenFlights.FlyPowered(RepositoryDrone.Spec(), out FlightCore core, wind: WindSetup.Of(WindLevel.Calm),
+            // The golden on model 105's drone on its skids until the four legs' goldens are re-recorded (w17-four-legs 1.3).
+            ulong hash = GoldenFlights.FlyPowered(SkidsDrone.Spec(), out FlightCore core, wind: WindSetup.Of(WindLevel.Calm),
                 rain: RainLevel.SevereRain);
             Assert.That(hash, Is.EqualTo(GoldenFlights.RainPoweredHash), "the pinned golden (a re-record is audited and raises the model version)");
             Assert.That(core.Rain.FilmMass, Is.GreaterThan(0));

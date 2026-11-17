@@ -13,8 +13,9 @@ namespace Fpv450.Sim.Tests
     // (1,455 N·m on 41.5 N at 9.98° weeds, audit §1.6).
     public sealed class AnchorReachTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         static DroneSpec _drone;
-        static DroneSpec Drone() => _drone ??= DroneSpec.Parse(System.IO.File.ReadAllText(ContactScenarios.RepositoryFile("assets-src/drone/drone.json")));
+        static DroneSpec Drone() => _drone ??= DroneSpec.Parse(System.IO.File.ReadAllText(ContactScenarios.RepositoryFile(SkidsDrone.RelativePath)));
 
         static void Print(string s) => TestContext.Progress.WriteLine(s);
 

@@ -608,19 +608,20 @@ namespace Fpv450.Sim.Tests
             long keptOver;
             try
             {
-                now = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180);
+                // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
+                now = FiberCutScenarios.Turn(SkidsDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180);
                 double nowMost = most;
                 long nowOver = over;
                 most = 0;
                 over = 0;
-                kept = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180, x => x.TetherBeforeDesign23 = true);
+                kept = FiberCutScenarios.Turn(SkidsDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180, x => x.TetherBeforeDesign23 = true);
                 keptMost = most;
                 keptOver = over;
                 most = 0;
                 over = 0;
                 // Model 74's chain: the linear step on the line before design 18 (its exit's segment stretched by the slides too), on
                 // the peel band it flew to model 103 (GoldenFlights.Model103Peel: seed 5 draws 2.02 g there, 1.01 g on design 22's).
-                old = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180, x =>
+                old = FiberCutScenarios.Turn(SkidsDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180, x =>
                 {
                     x.TetherLinearStep = true;
                     x.TetherBeforeDesign18 = true;

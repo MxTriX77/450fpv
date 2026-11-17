@@ -13,6 +13,7 @@ namespace Fpv450.Sim.Tests
     // start, from the closed forms of design 3.
     public sealed class LegBuildTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         const double G = 9.80665;
 
         // ---- every value labelled and loaded ---------------------------------------------------------------------------
@@ -39,8 +40,8 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void EveryLegValueIsLabelledAndLoaded()
         {
-            string text = RepositoryDrone.Text();
-            DroneSpec spec = RepositoryDrone.Spec();
+            string text = SkidsDrone.Text();
+            DroneSpec spec = SkidsDrone.Spec();
             DroneLegs legs = spec.Legs;
             Assert.That(legs.Tube, Is.Not.Null, "the repository's legs say what they are built of");
             Assert.That(legs.Clamp, Is.Not.Null);
@@ -111,7 +112,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ABuildWithoutBoundsAroundItsValueIsRefused()
         {
-            string text = RepositoryDrone.Text();
+            string text = SkidsDrone.Text();
             string find = "\"yield_stress_bounds_pa\": {\"value\": [5.0e7, 5.8e7]";
             Assert.That(text.Contains(find), Is.True);
             var e = Assert.Throws<DroneSpecException>(() => DroneSpec.Parse(text.Replace(find, "\"yield_stress_bounds_pa\": {\"value\": [5.6e7, 5.8e7]")));
@@ -127,7 +128,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheLegsStiffnessComesFromTheirSection()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             DroneLegs legs = spec.Legs;
             LegTube t = legs.Tube;
             LegClamp c = legs.Clamp;
@@ -226,7 +227,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheFailureOnsetsArePrinted()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             DroneLegs legs = spec.Legs;
             LegTube t = legs.Tube;
             LegClamp c = legs.Clamp;

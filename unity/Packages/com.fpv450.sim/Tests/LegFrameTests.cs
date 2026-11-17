@@ -13,9 +13,10 @@ namespace Fpv450.Sim.Tests
     /// </summary>
     public class LegFrameTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         const double Move = 0.002; // the body's push across its legs, m
 
-        static DroneSpec Spec => RepositoryDrone.Spec();
+        static DroneSpec Spec => SkidsDrone.Spec();
 
         // The whole drone's give across its legs, N/m: the body set down level on the floor depth below its unloaded stance, held
         // 500 steps, moved by Move along direction over 400 and held 100 more; the restoring force's change over the move. A leg

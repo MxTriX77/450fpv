@@ -15,9 +15,10 @@ namespace Fpv450.Sim.Tests
     // the events and the leg's own give.
     public sealed class LegDamageTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         const double G = 9.80665;
 
-        static DroneSpec Spec => RepositoryDrone.Spec();
+        static DroneSpec Spec => SkidsDrone.Spec();
 
         static MaterialRow[] Materials(out ulong hash) => ContactScenarios.RepositoryMaterials(out hash);
 
@@ -443,7 +444,7 @@ namespace Fpv450.Sim.Tests
                 ulong ha = 0, hb = 0;
                 for (int pass = 0; pass < 2; pass++)
                 {
-                    DroneSpec spec = pass == 0 ? DroneSpec.Parse(RepositoryDrone.Text()) : GoldenFlights.WithModel37Legs(DroneSpec.Parse(RepositoryDrone.Text()));
+                    DroneSpec spec = pass == 0 ? DroneSpec.Parse(SkidsDrone.Text()) : GoldenFlights.WithModel37Legs(DroneSpec.Parse(SkidsDrone.Text()));
                     List<byte[]> into = pass == 0 ? now : was;
                     Action<byte[]> keep = r => into.Add((byte[])r.Clone());
                     FlightCore core;

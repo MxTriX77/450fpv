@@ -13,7 +13,8 @@ namespace Fpv450.Sim.Tests
     // drone's roll, which is the soft legs' sway, not a leg that parts under the static load.
     public sealed class LegKinkTests
     {
-        static DroneSpec Spec => RepositoryDrone.Spec();
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
+        static DroneSpec Spec => SkidsDrone.Spec();
 
         // The legs' law with every strength at its nominal value (each bound collapsed onto it).
         static LegDamage Nominal()
@@ -72,7 +73,7 @@ namespace Fpv450.Sim.Tests
         public void AcrossATenDegreeSlopeTheLegsOutlastTheRoll()
         {
             // The known-wrong: model 90's crack, the tube's stiffness halved at the edge's first yield (its lever's sway load with it).
-            string text = RepositoryDrone.Text();
+            string text = SkidsDrone.Text();
             const string now1 = "\"cracked_stiffness_factor\": {\"value\": 1.0";
             int at = text.IndexOf(now1, StringComparison.Ordinal);
             Assert.That(at, Is.GreaterThanOrEqualTo(0), "drone.json's crack factor");

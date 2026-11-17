@@ -12,8 +12,9 @@ namespace Fpv450.Sim.Tests
     // (SlopeScenarios: a plane tile of meadow_sod, 0° the stub floor of meadow_sod) and at the farmland's steps.
     public sealed class SlopeTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         static DroneSpec _drone;
-        static DroneSpec Drone() => _drone ??= DroneSpec.Parse(System.IO.File.ReadAllText(ContactScenarios.RepositoryFile("assets-src/drone/drone.json")));
+        static DroneSpec Drone() => _drone ??= DroneSpec.Parse(System.IO.File.ReadAllText(ContactScenarios.RepositoryFile(SkidsDrone.RelativePath)));
 
         static void Print(string s) => TestContext.Progress.WriteLine(s);
 

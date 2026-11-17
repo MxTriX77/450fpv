@@ -28,7 +28,8 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheDroneCarriesItsContactShapes()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
+            DroneSpec spec = SkidsDrone.Spec();
             Assert.That(spec.Contacts, Is.Not.Null);
             var roles = new Dictionary<ContactRole, int>();
             foreach (ContactShape s in spec.Contacts.Shapes) roles[s.Role] = roles.TryGetValue(s.Role, out int n) ? n + 1 : 1;
@@ -55,7 +56,8 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ShapesFollowTheirPartsThroughTheLoadout()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
+            DroneSpec spec = SkidsDrone.Spec();
             MaterialRow[] m = Materials(out ulong h);
             ContactSpec on = spec.BuildContacts(spec.Nominal, m, h);
             Loadout offLoadout = spec.Nominal;
@@ -95,7 +97,8 @@ namespace Fpv450.Sim.Tests
         [TestCase("\"role\": \"skid\"", "\"role\": \"sled\"", "is not one of")]
         public void AFaultyContactsBlockIsRefused(string from, string to, string expected)
         {
-            string text = RepositoryDrone.Text();
+            // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
+            string text = SkidsDrone.Text();
             int at = text.IndexOf(from, StringComparison.Ordinal);
             Assert.That(at, Is.GreaterThan(0), "the fixture text is in drone.json");
             string broken = text.Substring(0, at) + to + text.Substring(at + from.Length);
@@ -232,8 +235,9 @@ namespace Fpv450.Sim.Tests
         public void ATunnelIsLoggedAsABug()
         {
             MaterialRow[] m = Materials(out ulong h);
-            Assert.That(ContactScenarios.Overdriven(RepositoryDrone.Spec(), m, h, 2, out string slow), Is.EqualTo(0), slow);
-            Assert.That(ContactScenarios.Overdriven(RepositoryDrone.Spec(), m, h, 40, out string fast), Is.GreaterThanOrEqualTo(1), fast);
+            // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
+            Assert.That(ContactScenarios.Overdriven(SkidsDrone.Spec(), m, h, 2, out string slow), Is.EqualTo(0), slow);
+            Assert.That(ContactScenarios.Overdriven(SkidsDrone.Spec(), m, h, 40, out string fast), Is.GreaterThanOrEqualTo(1), fast);
         }
 
         // ---- the log -------------------------------------------------------------------------------------------------------

@@ -18,10 +18,11 @@ namespace Fpv450.Sim.Tests
     /// </summary>
     public class WetGroundTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         const double R = 0.005, L = 0.22; // drone.json's skid tube (measured)
 
         static DroneSpec _drone;
-        static DroneSpec Drone() => _drone ??= DroneSpec.Parse(File.ReadAllText(ContactScenarios.RepositoryFile("assets-src/drone/drone.json")));
+        static DroneSpec Drone() => _drone ??= DroneSpec.Parse(File.ReadAllText(ContactScenarios.RepositoryFile(SkidsDrone.RelativePath)));
 
         static SoilSet Set(string surface, Moisture m) => Array.Find(SoilScenarios.Table().Surfaces, s => s.Name == surface).Set(m);
 

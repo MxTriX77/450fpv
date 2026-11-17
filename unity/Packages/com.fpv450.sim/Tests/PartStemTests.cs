@@ -86,7 +86,8 @@ namespace Fpv450.Sim.Tests
         // over the stem's base and the speed while they touch, the steps they touch and the groups the stem pushed.
         static Sweep SkidThrough(double speed, double height, bool parts = true)
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
+            DroneSpec spec = SkidsDrone.Spec();
             var world = new FlightWorld(new ElementWorld(new[] { OneStem() }));
             double stand = SoilScenarios.Standing(spec), skid = stand - 0.005; // the skids' cores over the body origin's stand
             var at = new Double3(0, height + skid, 0);
@@ -468,8 +469,9 @@ namespace Fpv450.Sim.Tests
             Assert.That(a.Steps, Is.EqualTo(b.Steps));
             for (int k = 0; k < a.Steps; k++)
                 Assert.That(BitConverter.DoubleToInt64Bits(a.Pitch[k]), Is.EqualTo(BitConverter.DoubleToInt64Bits(b.Pitch[k])), "step " + (k + 1));
+            // w17-four-legs 1.3: StemScenarios fly model 105's drone on its skids (the fixture) until the four legs' tubes are refined.
             ContactScenarios.RepositoryMaterials(out ulong materials);
-            ReplayResult replay = FlightReplay.Run(new MemoryStream(log.ToArray()), StemScenarios.OpenFarmland, RepositoryDrone.Spec().ContentHash, null,
+            ReplayResult replay = FlightReplay.Run(new MemoryStream(log.ToArray()), StemScenarios.OpenFarmland, SkidsDrone.Spec().ContentHash, null,
                 SoilScenarios.Table().Hash, materialsHash: materials);
             TestContext.Out.WriteLine($"replay: {replay.Outcome}, {replay.Steps} steps; {replay.Message}");
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
