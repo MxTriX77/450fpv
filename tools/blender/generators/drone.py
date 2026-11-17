@@ -55,14 +55,15 @@ and the LODs. The spec's parts are mass shapes; each is drawn as follows.
   (m / the spec's mass)^(1/3), as the mass build scales the part (D01_bottle; the legs variants draw none).
 - **Legs** (leg_*), **clamps** (clamp_*): four separate legs (D-117: no skids; w17-four-legs 1.2), the leg tubes
   the parts' cylinders exactly, each from under its arm down to its own tip on the ground, the part's lower end: the
-  10/8 mm tube's own cut end, square and open (what photo U shows of the pilot's legs, a single narrow tip with
-  nothing below it, and the design's default where it cannot show more); the clamps the parts' size turned along the
-  arm and trimmed to clear the packs. Each corner's leg parts are their own meshes per LOD (p7g-legs 1.5: the player
+  narrow tube's own cut end, square and open (photo W, w17-four-legs 1.5: a plain end with nothing below it, and the
+  design's default where it cannot show more); the clamps photo W's sockets under the motor mounts, the parts' size
+  turned along the arm (trimmed to clear the packs where they meet), light printed grey, a small dark screw head on
+  the arm's aft-facing side. Each corner's leg parts are their own meshes per LOD (p7g-legs 1.5: the player
   draws each leg from PoseFrame, set, broken or gone), under the metadata's `readable` beside the coil pack,
   LEG_KINDS: the tube cut where the sim cuts it, at its clamp's edge (clamp_edge), into the stub in the clamp
   (stub_<c>, open at the edge, which the clamp's underside covers) and the free length below (leg_<c>, both its ends
-  the 10/8 mm tube's, at the edge and at the tip). They keep asset space, the drone's origin, as every LOD does: the
-  sim's own pivot (DroneSpec.BuildLegDamage's Clamp, body frame) turns them.
+  the tube's, its 1 mm wall, at the edge and at the tip). They keep asset space, the drone's origin, as every LOD
+  does: the sim's own pivot (DroneSpec.BuildLegDamage's Clamp, body frame) turns them.
 
 Collision (gallery noclip only: the flight's shapes come from drone.json through the core) follows the drawn parts;
 material ids follow the object sheet (the carbon parts `carbon_composite`, signed off by physics in p7b-airframe).
@@ -877,7 +878,7 @@ def _clamp_frame(params, layout, corner):
 
 def _clamp_footprint(params, layout, corner):
     f, size = _clamp_frame(params, layout, corner)
-    along, across = 0.035, size[0]  # the sheet's 25 x 25 x 35 mm, along the arm
+    along, across = size[2], size[0]  # the part's plan, turned along the arm (photo W's socket, w17-four-legs 1.5)
     return [f.at(a * along / 2, 0.0, b * across / 2) for a, b in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
 
 
@@ -888,25 +889,20 @@ def _plan_overlap(poly, lo, hi):
 
 
 def _clamp(m, q, params, layout, corner):
+    """Photo W's socket (w17-four-legs 1.5): a small light printed block under the arm, the tube's top in it, and at
+    LOD0 the small dark screw head W shows beside it, on the arm's aft-facing side; no wing nut."""
     if q == 3:
         return
     f, size = _clamp_frame(params, layout, corner)
     bottom, top = clamp_span(params, layout, corner)
-    along, across = 0.035, size[0]
-    box(m, f, (-along / 2, bottom, -across / 2), (along / 2, top, across / 2), BLACK)
-    if q == 0:  # the quick-release bolt across the arm: a hex head one side, the wing nut on the other
-        c = layout.part(f"clamp_{corner}")["position_m"]
-        side = 1.0 if dot(f.w, (0.0, 0.0, c[2])) > 0 else -1.0
-        yb = (bottom + top) / 2
-        bf = Frame(f.at(0.0, yb, 0.0), f.u, f.w, f.v)  # extrude along the bolt (across the arm)
-        head = [(math.cos(a) * 0.004, math.sin(a) * 0.004) for a in (k * math.pi / 3 + math.pi / 6 for k in range(6))]
-        nut0 = side * across / 2
-        prism(m, bf, head, -nut0, -nut0 - side * 0.003, ZINC)  # the bolt's head
-        prism(m, bf, head, nut0, nut0 + side * 0.005, ZINC)  # the wing nut's body
-        for wing in (-1, 1):  # two wings, 20 mm across the pair, standing up and out
-            wf = Frame(bf.at(0.0, nut0 + side * 0.0025, 0.0), f.u, f.v, f.w)
-            box(m, wf, (wing * 0.004 if wing > 0 else -0.010, -0.0005, -0.00075),
-                (0.010 if wing > 0 else -0.004, 0.006, 0.00075), ZINC)
+    along, across = size[2], size[0]
+    box(m, f, (-along / 2, bottom, -across / 2), (along / 2, top, across / 2), PRINT)
+    if q == 0:  # a hex head 5.5 mm across its flats, 2.5 mm proud (W: a dark part 4-6 mm beside the near socket)
+        side = 1.0 if f.w[2] < 0 else -1.0  # the arm's face that looks aft
+        bf = Frame(f.at(0.0, (bottom + top) / 2, 0.0), f.u, f.w, f.v)  # extruded across the arm
+        head = [(math.cos(a) * 0.00318, math.sin(a) * 0.00318)
+                for a in (k * math.pi / 3 + math.pi / 6 for k in range(6))]
+        prism(m, bf, head, side * across / 2, side * (across / 2 + 0.0025), BLACK)
 
 
 # --- packs --------------------------------------------------------------------------------------------------------
@@ -1446,7 +1442,7 @@ def _collision(params, layout):
                 f, size = _clamp_frame(params, layout, corner)
                 b0, b1 = clamp_span(params, layout, corner)
                 c = layout.part(name)["position_m"]
-                shapes.append(_box_shape((c[0], (b0 + b1) / 2, c[2]), (0.035, b1 - b0, size[0]), _yaw(f.u), plastic))
+                shapes.append(_box_shape((c[0], (b0 + b1) / 2, c[2]), (size[2], b1 - b0, size[0]), _yaw(f.u), plastic))
         if layout.has(f"leg_{corner}"):  # the tube down to its tip, the capsule's end within its radius of the cut end
             leg = layout.part(f"leg_{corner}")
             x, ly, z = leg["position_m"]
