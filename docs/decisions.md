@@ -1008,3 +1008,10 @@ The pilot, 2026-11-18, after every fiber change had gone too mild or too harsh: 
 - **The cuts stay physics.** A miss means a missing or wrong mechanism, which is found and fixed. Nothing is scaled to hit a rate. The randomness is a bounded draw of a named physical parameter (the glass's flaws along its length, the pack's adhesion along the spool), seeded and logged (PHY-24).
 - **Why it swung before:** each fix answered the last complaint alone (model 100's contact fault, model 104's light spool band) and nothing checked the other direction.
 - **From now on:** `flightbench --cuts` prints every row's rate against its band and fails outside it in either direction, and no fiber change merges without passing it (`p7d-tether` 1.11i).
+- **The pilot's exact rates** (2026-11-18, the same day; they replace the bands above):
+  - a sharp pitch or roll in flight parts the line 75 % of the time, about 5 points more with more throttle through it;
+  - at top speed to a target, then braked properly, it parts only 25 % of the time. "A proper braking means you find a balance of pitch backwards compensating your throttle as you lower it. coz our quad is heavy, so one need to take into account the inertia";
+  - a very sharp liftoff parts it 87 % of the time, 95 % at max throttle;
+  - going backwards too much at liftoff, even at low throttle, about 40 %: "the more the spool looks at the ground vertically - the more the edge of the hole affects the fiber";
+  - a flip always parts it.
+  Each row is accepted within its binomial spread over the seeds run.
