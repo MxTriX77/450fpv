@@ -307,6 +307,86 @@ namespace Fpv450.Sim.Tests
             return w.O;
         }
 
+        // ---- the pilot's cut targets (p7d-tether 1.11i) ----
+
+        /// <summary>
+        /// A stick snap at the pilot's rates (FcSettings' builder defaults, 225 °/s at full stick): up to 12 m, forward at 10 m/s (a
+        /// cruise's 35° tilt at most), then at 10 s the pitch (axis 0, nose up) or roll (axis 1, to the left) stick held full until
+        /// the body has turned degrees about that axis, then centred, the pilot recovering to the cruise's course; on to 16 s. A
+        /// flip is 360°. The line parts or not by its own mechanics.
+        /// </summary>
+        public static Outcome Snap(DroneSpec spec, WindLevel wind, ulong seed, int axis, double degrees, Action<FlightSetup> edit = null)
+        {
+            FlightSetup setup = Setup(spec, wind, seed, edit);
+            double stand = TetherScenarios.Stand(setup);
+            var w = new Watch(setup) { From = 10 };
+            var core = new FlightCore(setup);
+            var pilot = new SimPilot(core.Controller, setup.StartPosition);
+            double turned = 0;
+            bool snapping = false, done = false;
+            double throttle = 0.5;
+            for (int k = 0; k < 16000; k++)
+            {
+                double t = k * Dt;
+                StickSample stick;
+                if (k < 20) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
+                else
+                {
+                    double y = stand + DetMath.Min(12, 2 * t);
+                    if (t < 5)
+                    {
+                        pilot.HoldVelocity = false;
+                        pilot.Target = new Double3(0, y, 0);
+                    }
+                    else
+                    {
+                        pilot.HoldVelocity = true;
+                        pilot.TargetVelocity = new Double3(0, 0, 10);
+                        pilot.Target = new Double3(0, y, core.State.Position.Z);
+                    }
+                    stick = pilot.Sticks(core, k * FlightCore.StepUs);
+                    if (!snapping && !done && t >= 10)
+                    {
+                        snapping = true;
+                        throttle = stick.Throttle;
+                    }
+                    if (snapping)
+                    {
+                        Double3 rate = core.State.BodyRate;
+                        turned += (axis == 0 ? Math.Abs(rate.X) : Math.Abs(rate.Z)) * Dt * 180 / Pi;
+                        if (turned >= degrees)
+                        {
+                            snapping = false;
+                            done = true;
+                        }
+                        else
+                        {
+                            stick.Pitch = axis == 0 ? -1 : 0;
+                            stick.Roll = axis == 1 ? -1 : 0;
+                            stick.Yaw = 0;
+                            stick.Throttle = throttle;
+                        }
+                    }
+                }
+                core.Advance(stick);
+                w.Step(core);
+                if (w.O.Broken && StopAtBreak) break;
+            }
+            return w.O;
+        }
+
+        /// <summary>A careful hover: up to 3 m over the floor at 0.5 m/s and held there to 30 s (the normal set's hover).</summary>
+        public static Outcome Hover(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit = null)
+        {
+            FlightSetup setup = Setup(spec, wind, seed, edit);
+            double stand = TetherScenarios.Stand(setup);
+            return Run(setup, 30, (t, core, pilot) =>
+            {
+                pilot.HoldVelocity = false;
+                pilot.Target = new Double3(0, stand + DetMath.Min(3, 0.5 * t), 0);
+            });
+        }
+
         // ---- the pilot's four causes (PHY-19) ----
 
         /// <summary>
