@@ -84,7 +84,7 @@ namespace Fpv450.Sim.Tests
                 Assert.That(c.Legs.SkidParts[k], Is.EqualTo(-1));
                 Assert.That(c.Legs.Sibling[k], Is.EqualTo(-1));
             }
-            Assert.That(spec.LegsOff.Removed.Length, Is.EqualTo(4), "the four legs alone");
+            Assert.That(spec.LegsOff.Removed.Length, Is.EqualTo(8), "the four legs and their sockets (1.5)");
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong hash);
             Assert.That(SkidsDrone.Spec().BuildContacts(SkidsDrone.Spec().Nominal, materials, hash, SoilScenarios.Table()).LegTips, Is.False, "model 105's skids");
             Assert.That(SkidsDrone.Spec().LegsOff.Removed.Length, Is.EqualTo(10), "model 105's: 4 legs, 4 T-joints, 2 skids");
@@ -288,7 +288,7 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>The side wind of target 4's push, m/s (assumed: the order of the pilot's Severe level, centre 9.5 m/s, at the least
         /// that pushes this airframe 4 N on the ground).</summary>
-        const double Wind = 6;
+        const double Wind = 8;
 
         // ---- Target 5: a rougher landing digs deeper ------------------------------------------------------------------------------
 

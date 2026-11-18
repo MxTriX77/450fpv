@@ -83,7 +83,7 @@ namespace Fpv450.Sim.Tests
             }
             Assert.That(ah, Is.InRange(20.0, 35.0), "inside the pilot's 20–35 Ah");
             foreach (DroneMotor motor in spec.Motors) Assert.That(motor.Kv, Is.EqualTo(900));
-            Assert.That(spec.LegsOff.Removed.Length, Is.EqualTo(4), "the four legs alone (w17-four-legs 1.2: no T-joints, no skids; model 105's took 10, TipTests)");
+            Assert.That(spec.LegsOff.Removed.Length, Is.EqualTo(8), "the four legs and their sockets (w17-four-legs 1.2, 1.5: no T-joints, no skids; model 105's took 10, TipTests)");
             Assert.That(spec.LegsOff.Moved.Length, Is.EqualTo(0), "nothing moves (D-050): the coil stays beneath, the bottle on top");
             Assert.That(spec.CameraLens, Is.EqualTo(new Double3(0, 0.015, 0.115)), "the lens where the drone model puts it");
 
