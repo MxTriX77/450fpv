@@ -302,6 +302,10 @@ namespace Fpv450.Sim.Tether
         /// known-wrong for C1, FlightSetup.TetherHoldWithoutPress, implied by every older line's switch).</summary>
         internal static bool HoldWithoutPress(FlightSetup setup) => setup.TetherHoldWithoutPress || BeforeDesign23(setup);
 
+        /// <summary>Whether a flight's line meets the hole's edge with its section's drawn strength alone (p7d-tether design 25's
+        /// known-wrong, FlightSetup.TetherEdgeIntact: model 107's edge), implied by every older line's switch.</summary>
+        internal static bool EdgeIntact(FlightSetup setup) => setup.TetherEdgeIntact || BeforeDesign23(setup);
+
         /// <summary>Design 24: the members' contact nodes' own room past the spacing law's (assumed: where a contact node was
         /// refused in the pilot's model 103 flights the chain held a mean 6–19 nodes on members, and in five flights none it could
         /// give way, design 24's census; the room bounds the line's cost, PLT-04). Taken only once no free node can give way.</summary>
@@ -450,7 +454,7 @@ namespace Fpv450.Sim.Tether
             // The cuts (1.8): the strengths' draws after the spool's; the rotors' discs for the prop check.
             if (!setup.TetherWithoutCuts)
             {
-                _cuts = new FiberCuts(table, random, setup.TetherOneStrength, setup.TetherBeforeDesign18, BeforeDesign21(setup));
+                _cuts = new FiberCuts(table, random, setup.TetherOneStrength, setup.TetherBeforeDesign18, BeforeDesign21(setup), !EdgeIntact(setup));
                 _link = new FiberLink(table);
             }
             _propulsion = propulsion;

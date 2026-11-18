@@ -197,6 +197,12 @@ namespace Fpv450.Sim.Flight
         /// known-wrong for the corner, never a pilot's flight.</summary>
         public bool TetherHoldWithoutPress;
 
+        /// <summary>The known-wrong edge of p7d-tether design 25 (model 107's): the line passing the hole's edge meets it with its
+        /// section's drawn strength alone (an intact section 3–5 GPa, a flaw, an abraded one), never the strength the line keeps
+        /// over the pilot's hole (a Weibull of the hole's scale, spool.hole_edge_strength_pa). TetherBeforeDesign23 and every
+        /// switch it is implied by imply it. The audit against model 107 and the known-wrong for the pilot's cut table.</summary>
+        public bool TetherEdgeIntact;
+
         /// <summary>tether.json's table for the stems' air with StemWash in a flight without the line (w9-village-physics
         /// 2.13): the props' stems (PropStems) read the rotors' wash by its rotor_air rows, design 19's law the line reads
         /// (RotorAir). With the line the line's table is read and this one is not. The header records its rows and hash when the
