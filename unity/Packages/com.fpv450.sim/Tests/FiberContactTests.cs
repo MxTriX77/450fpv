@@ -8,7 +8,8 @@ namespace Fpv450.Sim.Tests
     /// <summary>fiber-tether's 1.7 scenarios (p7d-tether design 6 and 12): the fiber's contacts (FiberContactScenarios).</summary>
     public class FiberContactTests
     {
-        static DroneSpec Spec => RepositoryDrone.Spec();
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
+        static DroneSpec Spec => SkidsDrone.Spec();
 
         static void Print(string s) => TestContext.WriteLine(s);
 

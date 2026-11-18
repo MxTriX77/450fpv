@@ -19,6 +19,7 @@ namespace Fpv450.Sim.Tests
     /// </summary>
     public class StemWashTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         const double R = 0.127, Hub = 0.1598, Mass = 4.735, Rho = 1.225;
 
         // tools/flightbench/handcalc/stem_wash.py: the downward air (m/s) and the horizontal (m/s) at a stem's point in the stem
@@ -73,7 +74,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheStemsAndTheLineReadOneAir()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             MapWorld village = SlopeScenarios.Farmland();
             double y = StemScenarios.Ground(StemScenarios.Dense) + 2.0 - StemScenarios.HubOverOrigin;
             var at = new Double3(StemScenarios.Dense.X, y, StemScenarios.Dense.Z);

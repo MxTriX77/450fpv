@@ -36,6 +36,10 @@ namespace Fpv450.Sim.Contact
         /// <summary>Viscous damping per footprint area, N·s/m³.</summary>
         public double Damping;
 
+        /// <summary>A flat tip's penetration resistance at ContactSpec.TipReferenceDepth, q_t (Pa; w17-four-legs design 1): a leg's tip
+        /// meets q(z) = q_t·z/z_ref; wet and saturated sets the dry set's × wetting.bearing_wet and bearing_saturated.</summary>
+        public double TipResistance;
+
         /// <summary>μs and μk of the drone's polymer and carbon parts on the surface.</summary>
         public double StaticFriction, KineticFriction;
 
@@ -172,7 +176,7 @@ namespace Fpv450.Sim.Contact
 
         static readonly string[] SoilFields =
         {
-            "bearing_n_per_m3", "cohesive_share", "k_c_n_per_m2", "k_phi_n_per_m3", "unload_ratio", "max_sink_m", "damping_ns_per_m3",
+            "bearing_n_per_m3", "tip_resistance_pa", "cohesive_share", "k_c_n_per_m2", "k_phi_n_per_m3", "unload_ratio", "max_sink_m", "damping_ns_per_m3",
             "friction_static", "friction_kinetic", "adhesion_pa", "interface_adhesion_pa", "adhesion_release_m", "lip_edge_radius_m",
             "cohesion_pa", "bulk_density_kg_m3", "sand_share", "stone_fraction", "stone_diameter_m",
         };
@@ -339,6 +343,7 @@ namespace Fpv450.Sim.Contact
             }
 
             s.Bearing = r.Number(o, "bearing_n_per_m3", path, out string lb, 0, true);
+            s.TipResistance = r.Number(o, "tip_resistance_pa", path, out string lq, 0, true);
             s.CohesiveShare = r.Number(o, "cohesive_share", path, out string lsh, 0, false, 1);
             s.CohesiveModulus = r.Number(o, "k_c_n_per_m2", path, out string lkc);
             s.FrictionalModulus = r.Number(o, "k_phi_n_per_m3", path, out string lkp);
@@ -371,6 +376,8 @@ namespace Fpv450.Sim.Contact
 
             bool sat = m == Moisture.Saturated;
             r.Derived(lb, s.Bearing, dry.Bearing * (sat ? w.BearingSaturated : w.BearingWet), path + ".bearing_n_per_m3", "the dry set's × wetting.bearing_" + level);
+            r.Derived(lq, s.TipResistance, dry.TipResistance * (sat ? w.BearingSaturated : w.BearingWet), path + ".tip_resistance_pa",
+                "the dry set's × wetting.bearing_" + level);
             r.Derived(lsh, s.CohesiveShare, dry.CohesiveShare, path + ".cohesive_share", "the dry set's");
             r.Derived(lu, s.UnloadRatio, dry.UnloadRatio * (sat ? w.UnloadRatioSaturated : w.UnloadRatioWet), path + ".unload_ratio",
                 "the dry set's × wetting.unload_ratio_" + level);

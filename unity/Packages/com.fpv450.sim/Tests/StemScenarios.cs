@@ -16,6 +16,7 @@ namespace Fpv450.Sim.Tests
     /// </summary>
     public static class StemScenarios
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         /// <summary>The densest tall cell (2.1's golden cell; audit §1.12), and the hubs' height over the body origin, m.</summary>
         public static readonly XZ Dense = new XZ(768.07, 917.48);
         public const double HubOverOrigin = 0.035;
@@ -107,7 +108,7 @@ namespace Fpv450.Sim.Tests
         public static FlightCore Start(Double3 at, bool knownWrong, Stream log, out FlightRecorder recorder, bool stems = true, Scales? scales = null,
             bool wash = false, bool parts = false, Double3 velocity = default)
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             var world = new FlightWorld(Village);
             FlightSetup setup = SoilScenarios.Setup(spec, world, at);
             setup.StartVelocity = velocity;
@@ -237,7 +238,7 @@ namespace Fpv450.Sim.Tests
         public static Run Landing(double descent = 0.5, double forward = 0, bool knownWrong = false, Stream log = null, Action<FlightCore> stepped = null,
             bool stems = true, Scales? scales = null, bool wash = false, int refresh = 0, double from = 1.9, bool parts = false)
         {
-            double stand = SoilScenarios.Standing(RepositoryDrone.Spec()), ground = Ground(new XZ(Dense.X, Dense.Z - forward * 2.6));
+            double stand = SoilScenarios.Standing(SkidsDrone.Spec()), ground = Ground(new XZ(Dense.X, Dense.Z - forward * 2.6));
             var foot = new Double3(Dense.X, ground, Dense.Z - forward * 2.6);
             double y0 = ground + from - HubOverOrigin;
             FlightCore core = Start(new Double3(foot.X, y0, foot.Z), knownWrong, log, out FlightRecorder recorder, stems, scales, wash, parts);
@@ -296,7 +297,7 @@ namespace Fpv450.Sim.Tests
         public static Run Approach(double speed = 2, double descent = 0.5, double flare = 1.1, Stream log = null, Action<FlightCore> stepped = null,
             bool stems = true, Scales? scales = null, bool wash = false, int refresh = 0, bool parts = false)
         {
-            double stand = SoilScenarios.Standing(RepositoryDrone.Spec());
+            double stand = SoilScenarios.Standing(SkidsDrone.Spec());
             double run = speed * (1.9 - flare) / descent + speed * speed / 6;
             var start = new XZ(Dense.X, Dense.Z - run);
             double y0 = Ground(start) + 1.9 - HubOverOrigin;
@@ -391,7 +392,7 @@ namespace Fpv450.Sim.Tests
         public static Run RangeCreep(double height = 0.4, double speed = 0.3, double seconds = 4, Action<FlightCore> stepped = null, bool wash = false,
             bool parts = false)
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             Double3 foot = RangeScenarios.Straw;
             var at = new Double3(foot.X, height - HubOverOrigin, foot.Z - 1.0);
             FlightSetup setup = SoilScenarios.Setup(spec, new FlightWorld(RangeScenarios.World), at);

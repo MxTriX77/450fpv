@@ -18,7 +18,8 @@ namespace Fpv450.Tests.App
     public sealed class DroneLegPartsTests
     {
         static readonly string[] Corners = { "rr", "fr", "rl", "fl" };
-        static readonly string[] Kinds = { "stub", "leg", "tjoint", "skid" };
+        // Four separate legs (w17-four-legs): each corner's stub in its socket and its tube below; no T-joint, no skid.
+        static readonly string[] Kinds = { "stub", "leg" };
 
         [Test]
         public void EachLegsPartsAreTheirOwnChildrenWhereTheSimCutsThem()
@@ -36,11 +37,6 @@ namespace Fpv450.Tests.App
                     {
                         string name = $"{model.name}_LOD{q}_{kind}_{Corners[c]}";
                         Transform part = model.transform.Find(name);
-                        if (kind == "tjoint" && q == 3)
-                        {
-                            Assert.That(part, Is.Null, name + ": no T-joint at LOD3");
-                            continue;
-                        }
                         Assert.That(part, Is.Not.Null, name);
                         Assert.That(part.localPosition == Vector3.zero && part.localRotation == Quaternion.identity && part.localScale == Vector3.one,
                             name + ": at the model's origin");
@@ -51,7 +47,7 @@ namespace Fpv450.Tests.App
                     }
                     Bounds Part(string kind) => model.transform.Find($"{model.name}_LOD{q}_{kind}_{Corners[c]}").GetComponent<MeshFilter>().sharedMesh.bounds;
                     Vector3 edge = new Vector3((float)legs.Clamp[c].X, (float)legs.Clamp[c].Y, (float)legs.Clamp[c].Z);
-                    Bounds stub = Part("stub"), leg = Part("leg"), skid = Part("skid");
+                    Bounds stub = Part("stub"), leg = Part("leg");
                     string at = $"LOD{q} {Corners[c]}";
                     Assert.That(stub.min.y, Is.EqualTo(edge.y).Within(1e-6f), at + ": the stub from the sim's clamp edge up");
                     Assert.That(leg.max.y, Is.EqualTo(edge.y).Within(1e-6f), at + ": the leg up to it");
@@ -60,10 +56,7 @@ namespace Fpv450.Tests.App
                         Assert.That(tube.center.x, Is.EqualTo(edge.x).Within(1e-6f), at + ": on the leg's axis");
                         Assert.That(tube.center.z, Is.EqualTo(edge.z).Within(1e-6f), at + ": on the leg's axis");
                     }
-                    Vector3 bore = new Vector3((float)legs.Bore[c].X, (float)legs.Bore[c].Y, (float)legs.Bore[c].Z);
-                    float middle = (float)((legs.Bore[c].Z + legs.Bore[legs.Sibling[c]].Z) / 2);
-                    Assert.That(bore.z < middle ? skid.max.z : skid.min.z, Is.EqualTo(middle).Within(1e-6f), at + ": the half from midway between the bores");
-                    Assert.That(skid.Contains(bore), at + ": the half through its own bore");
+                    Assert.That(leg.min.y, Is.EqualTo((float)legs.Foot[c].Y).Within(1e-6f), at + ": the leg down to its tip");
                 }
             TestContext.WriteLine($"{model.name}: {lods.Sum(l => l.renderers.Length)} renderers over 4 LODs, leg parts " +
                                   string.Join(" / ", Enumerable.Range(0, 4).Select(q => lods[q].renderers.Count(r => Kinds.Any(k => r.name.Contains($"_{k}_"))))));

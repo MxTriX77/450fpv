@@ -13,10 +13,11 @@ namespace Fpv450.Sim.Tests
     // where a scenario needs hover. The numbers each scenario finds are written to the test output.
     public sealed class PropulsionTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         const double G = 9.80665;
         const double Rho = 1.225; // ISA sea level (published): APC's tables and k_T are at it
 
-        static DroneSpec Drone => RepositoryDrone.Spec();
+        static DroneSpec Drone => SkidsDrone.Spec();
 
         // p5-drone's loadouts (the sheet): L4 nominal in flight, L5 take-off, L6 the loaded drone, and K§5.2's 6.5 kg
         // heavy corner (2.34 kg of payload, past the setting's 2.0 kg, set on the mass model directly).

@@ -76,7 +76,8 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheCloseHoverIsNeverStill()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            // w17-four-legs 1.3: model 105's drone on its skids (the fixture), whose stance this hover's lifts were set on, until they are re-derived for the four legs' 0.234 m.
+            DroneSpec spec = SkidsDrone.Spec();
             GroundEffectScenario.Hover close = GroundEffectScenario.FlyHover(spec, true, GroundEffectScenario.HoverLift);
             GroundEffectScenario.Hover wrong = GroundEffectScenario.FlyHover(spec, false, GroundEffectScenario.HoverLift);
             GroundEffectScenario.Hover high = GroundEffectScenario.FlyHover(spec, true, GroundEffectScenario.HighLift);

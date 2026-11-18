@@ -12,7 +12,8 @@ namespace Fpv450.Sim.Tests
     // the stub's floor; the figures print for the as-built note.
     public sealed class TetherTests
     {
-        static DroneSpec Spec => RepositoryDrone.Spec();
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
+        static DroneSpec Spec => SkidsDrone.Spec();
 
         static void Print(string line) => TestContext.Progress.WriteLine(line);
 

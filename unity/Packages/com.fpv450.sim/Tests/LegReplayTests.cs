@@ -22,6 +22,7 @@ namespace Fpv450.Sim.Tests
     /// </summary>
     public sealed class LegReplayTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         const string World = "floor-pads";
 
         static FlightWorld Pads() => new FlightWorld(new FloorWorld(0, "belt_bare", "steel", "timber", "fabric", "straw"));
@@ -82,7 +83,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ReplayThroughABrokenAndADetachedLeg()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             byte[] log = Fly(spec, out FlightCore core);
             ContactScenarios.RepositoryMaterials(out ulong materials);
 
@@ -129,7 +130,7 @@ namespace Fpv450.Sim.Tests
 
             // One strength bound changed (the tube's yield stress's upper bound, 58 → 59 MPa): drone.json's hash moves and the
             // replay is refused before its first step.
-            string text = RepositoryDrone.Text(), from = "\"yield_stress_bounds_pa\": {\"value\": [5.0e7, 5.8e7]";
+            string text = SkidsDrone.Text(), from = "\"yield_stress_bounds_pa\": {\"value\": [5.0e7, 5.8e7]";
             Assert.That(text.Contains(from), Is.True);
             DroneSpec other = DroneSpec.Parse(text.Replace(from, "\"yield_stress_bounds_pa\": {\"value\": [5.0e7, 5.9e7]"));
             Assert.That(other.ContentHash, Is.Not.EqualTo(spec.ContentHash));

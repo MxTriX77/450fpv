@@ -23,6 +23,7 @@ namespace Fpv450.Sim.Tests
     /// </summary>
     public sealed class SenseGateTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         static void Print(string s) => TestContext.Progress.WriteLine(s);
 
         // The world as the model sees it, every call passed on; the gate's query (a sphere at both poses, the ground left out) noted.
@@ -114,7 +115,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheGateNeverSkipsAContactASweepFinds()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong hash);
             var range = new Scene { Map = MapWorld.Load(RangeScenarios.Root, "test-range") };
             var farm = new Scene { Map = MapWorld.Load(RangeScenarios.Root, "farmland") };

@@ -26,6 +26,10 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>A skid hanging from one T-joint folded at that T-joint's bore, past its first yield there (p7g-legs 1.3).</summary>
         SkidFold = 7,
+
+        /// <summary>A leg's printed socket cracked across its layers under the leg's moment at its edge, and let the tube go (w17-four-legs:
+        /// four separate legs in printed sockets).</summary>
+        SocketFracture = 8,
     }
 
     /// <summary>A leg's state, bit by bit (the step record's leg_state).</summary>
@@ -94,6 +98,14 @@ namespace Fpv450.Sim.Contact
         /// DrawnSigma and DrawnBound.
         /// </summary>
         public double StiffnessSigma, StiffnessBound;
+
+        /// <summary>
+        /// The play of a leg's tube in its printed socket (w17-four-legs, the pilot's "the clamps tend to play"): the angle the tube turns
+        /// freely in the socket's clearance before it bears on the socket's walls (rad, the whole clearance: half each way), each leg's a
+        /// draw within these bounds from the stream leg.play (hand-made sockets differ, PHY-24). Default (0) for none: a socket that holds
+        /// the tube without play (the skids' T-joints and the wing-nut clamps, model 105).
+        /// </summary>
+        public LegBound Play;
 
         /// <summary>The spread a drawn build flies: σ 3 %, bound 10 % (assumed, design 12: the clamps' and T-joints' fit and the
         /// tube's stock; nothing is published for a hand-cut PVC-U leg).</summary>
@@ -294,6 +306,7 @@ namespace Fpv450.Sim.Contact
             _modulus = { 1, 1, 1, 1 }, _ei = new double[Legs], _buckling = new double[Legs], _kink = new double[Legs];
 
         readonly LegFlags[] _flags = new LegFlags[Legs];
+        readonly double[] _play = new double[Legs];
         readonly double[] _envelope = { 1, 1, 1, 1 }, _twist = new double[Legs], _bow = new double[Legs], _slip = new double[Legs], _moment = new double[Legs];
         readonly Double3[] _bend = new Double3[Legs], _jaw = new Double3[Legs], _bowDir = new Double3[Legs];
         readonly bool[] _flowing = new bool[Legs], _turning = new bool[Legs];
@@ -334,8 +347,6 @@ namespace Fpv450.Sim.Contact
                 double torque = Draw(random, ref s, "clamp.torque_n_m", _spec.ClampTorque);
                 double nut = Draw(random, ref s, "clamp.nut_factor", _spec.NutFactor);
                 double mu = Draw(random, ref s, "clamp.friction", _spec.Friction);
-                double screw = Draw(random, ref s, "tjoint.torque_n_m", _spec.TJointTorque);
-                double layers = Draw(random, ref s, "tjoint.interlayer_strength_pa", _spec.Interlayer);
                 _yieldMoment[k] = yieldStress * i / _c;
                 _squash[k] = yieldStress * area;
                 _edge[k] = edge;
@@ -343,8 +354,21 @@ namespace Fpv450.Sim.Contact
                 double preload = torque / (nut * _spec.BoltDiameter);
                 _slipForce[k] = 2 * mu * preload;
                 _twistMoment[k] = mu * preload * _spec.OuterDiameter;
-                _skidSlip[k] = 2 * mu * (screw / (nut * _spec.ScrewDiameter));
-                _socketMoment[k] = layers * socket;
+                if (_spec.TJointParts[k] < 0)
+                {
+                    // Four separate legs (w17-four-legs): no T-joint to let go; the printed socket that holds the tube cracks across its
+                    // layers as the T-joint's did, past the interlayer strength times pi (D_s^4 - D^4) / (32 D_s) (drawn in the leg's stream).
+                    _skidSlip[k] = double.PositiveInfinity;
+                    _socketMoment[k] = _spec.Interlayer.Value > 0 && _spec.SocketDiameter > _spec.OuterDiameter
+                        ? Draw(random, ref s, "clamp.interlayer_strength_pa", _spec.Interlayer) * socket : double.PositiveInfinity;
+                }
+                else
+                {
+                    double screw = Draw(random, ref s, "tjoint.torque_n_m", _spec.TJointTorque);
+                    double layers = Draw(random, ref s, "tjoint.interlayer_strength_pa", _spec.Interlayer);
+                    _skidSlip[k] = 2 * mu * (screw / (nut * _spec.ScrewDiameter));
+                    _socketMoment[k] = layers * socket;
+                }
                 _jawFriction[k] = _twistMoment[k] / Lever(k);
             }
             // The legs' stiffness spread (2.9, design 12): a stream of its own after the strengths, so no other draw moves.
@@ -353,6 +377,12 @@ namespace Fpv450.Sim.Contact
                 SeedStream st = random.Open("leg.stiffness");
                 for (int k = 0; k < Legs; k++)
                     _modulus[k] = 1 + random.DrawNormal(ref st, "leg.stiffness." + Names[k], _spec.StiffnessSigma, _spec.StiffnessBound);
+            }
+            // The sockets' play (w17-four-legs), a stream of its own after the stiffness, so no other draw moves.
+            if (_spec.Play.Max > 0)
+            {
+                SeedStream sp = random.Open("leg.play");
+                for (int k = 0; k < Legs; k++) _play[k] = random.Draw(ref sp, "leg.play." + Names[k], _spec.Play.Min, _spec.Play.Max);
             }
             double wall = (_spec.OuterDiameter - _spec.InnerDiameter) / 2;
             for (int k = 0; k < Legs; k++)
@@ -387,6 +417,9 @@ namespace Fpv450.Sim.Contact
         /// <summary>The leg's drawn modulus over the nominal tube's (its leg.stiffness draw, 2.9; 1 without a spread): what its
         /// buckling and sway loads scale by.</summary>
         public double Modulus(int leg) => _modulus[leg];
+
+        /// <summary>The leg's drawn play in its socket, rad (the whole clearance; 0 without the sockets' play).</summary>
+        public double Play(int leg) => _play[leg];
 
         /// <summary>The leg spring's rest moved by the leg's give: along the leg (the bow's shortening less the clamp's slip,
         /// m) and across it at the foot by the jaws' turn (body, m). The set and the twist move the leg's shapes instead
@@ -661,6 +694,13 @@ namespace Fpv450.Sim.Contact
             Double3 mu = lateral * Lever(leg) + pDelta + loads.ShapeMoment + bow + couple;
             double m = mu.Length();
             _moment[leg] = m;
+            if (m > _socketMoment[leg] && _spec.TJointParts[leg] < 0)
+            {
+                // Four separate legs (w17-four-legs): the printed socket cracks and the tube leaves the drone.
+                flags |= LegFlags.Detached;
+                Emit(events, EventKind.LegDetached, leg, LegMode.SocketFracture, cause, m, _socketMoment[leg], speed);
+                return;
+            }
             double s = DetMath.Abs(carried) / _squash[leg];
             if (s > 0.999) s = 0.999;
             // The edge's first local yield (its K_t) cracks it; the section yields, sets and is lost by its own law (w9 2.6).

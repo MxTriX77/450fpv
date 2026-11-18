@@ -130,7 +130,8 @@ namespace Fpv450.Sim.Tests
             Assert.That(run.FreshBefore[1] + run.FreshBefore[3], Is.GreaterThan(1.3 * (run.FreshBefore[0] + run.FreshBefore[2])), "cut in front of the camera");
             Assert.That(run.Allocated, Is.Zero, "0 B in steady state" + AllocProbe.Report());
             Assert.That(run.Refused, Is.EqualTo(0));
-            ReplayResult replay = FlightReplay.Run(new MemoryStream(log.ToArray()), StemScenarios.OpenFarmland, RepositoryDrone.Spec().ContentHash, null,
+            // w17-four-legs 1.3: StemScenarios fly model 105's drone on its skids (the fixture) until the four legs' tubes are refined.
+            ReplayResult replay = FlightReplay.Run(new MemoryStream(log.ToArray()), StemScenarios.OpenFarmland, SkidsDrone.Spec().ContentHash, null,
                 SoilScenarios.Table().Hash, materialsHash: Hash());
             TestContext.Out.WriteLine($"replay: {replay.Outcome}, {replay.Steps} steps; {replay.Message}");
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
