@@ -996,3 +996,15 @@ The pilot, 2026-11-17, asked what the legs of photo W are made of: "legs themsel
 - **This explains the pilot's older account** (D-086): the legs "a little bit soft", "sometimes adds the stumbling effect when you land". It is checked against that account, never tuned to it.
 - **Supersedes for the sim's drone:** "usually plastic" (D-086), and the PVC-U tube and bolted clamp of `p7g-legs`. That change's method stays.
 - **Built in `w17-four-legs` 1.3,** with the tips' law in the soil, before the goldens are re-recorded once.
+
+## D-121 The fiber's cuts are held to the pilot's targets, in both directions · Accepted
+The pilot, 2026-11-18, after every fiber change had gone too mild or too harsh: "it's a simulator for pilots to [get their hand in] flying opto fiber fpvs. so they must get used to cuts (even if they are SOMETIMES random, not too often), and they don't forgive 75% of sharp pitch or roll. also they never forgive flips. just do it".
+- **The targets** (the pilot's words outrank any calculation, D-104):
+  - a sharp pitch or roll parts the line in about 3 of 4 tries (accepted 60–90 % over seeds);
+  - a flip parts it every time;
+  - normal flying cuts sometimes at random, not too often: at least one cut over the normal set, at most about 1 flight in 10 (the orchestrator's reading, labelled);
+  - the causes on record stay (an overly sharp reverse, a tree snag, a very sharp liftoff, sudden backward momentum right after liftoff, a prop winding its own line);
+  - everything else keeps the line.
+- **The cuts stay physics.** A miss means a missing or wrong mechanism, which is found and fixed. Nothing is scaled to hit a rate. The randomness is a bounded draw of a named physical parameter (the glass's flaws along its length, the pack's adhesion along the spool), seeded and logged (PHY-24).
+- **Why it swung before:** each fix answered the last complaint alone (model 100's contact fault, model 104's light spool band) and nothing checked the other direction.
+- **From now on:** `flightbench --cuts` prints every row's rate against its band and fails outside it in either direction, and no fiber change merges without passing it (`p7d-tether` 1.11i).
