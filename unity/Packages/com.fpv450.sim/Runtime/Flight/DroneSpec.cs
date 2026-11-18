@@ -421,6 +421,11 @@ namespace Fpv450.Sim.Flight
         /// <summary>The bolt's preload, N.</summary>
         public double Preload => Torque.Value / (NutFactor.Value * BoltDiameter);
 
+        /// <summary>The printed socket (w17-four-legs, photo W's): the tube's free play in it (rad, the whole clearance), its outer diameter
+        /// (m) and its print's strength across its layers (Pa); default for a clamp without them (model 105's wing-nut clamps).</summary>
+        public LegBound Play, Interlayer;
+        public double SocketDiameter;
+
         /// <summary>The pull the two jaws hold before the tube slides, 2μP, N.</summary>
         public double SlipForce => 2 * Friction.Value * Preload;
 
@@ -950,6 +955,7 @@ namespace Fpv450.Sim.Flight
                 YieldStress = Legs.Tube.YieldStress, Elongation = Legs.Tube.Elongation, EdgeFactor = Legs.Clamp.EdgeFactor,
                 ClampTorque = Legs.Clamp.Torque, NutFactor = Legs.Clamp.NutFactor, Friction = Legs.Clamp.Friction,
                 StubStiffness = Legs.Clamp.MountSideStiffness, StubStiffnessUp = Legs.Clamp.MountStiffness,
+                SocketDiameter = Legs.Clamp.SocketDiameter, Interlayer = Legs.Clamp.Interlayer, Play = Legs.Clamp.Play,
             };
             for (int c = 0; c < 4; c++)
             {
@@ -1558,7 +1564,7 @@ namespace Fpv450.Sim.Flight
             }
 
             // The legs' build (p7g-legs 1.1): the materials a closed list, physics signing off additions.
-            static readonly string[] TubeMaterials = { "pvc_u" }, PrintMaterials = { "petg_printed" };
+            static readonly string[] TubeMaterials = { "pvc_u", "aluminium_6061_t6" }, PrintMaterials = { "petg_printed" };
 
             LegTube ReadLegTube(JsonNode p, string at)
             {
@@ -1589,7 +1595,8 @@ namespace Fpv450.Sim.Flight
                 var c = new LegClamp();
                 if (!IsObject(p, at)) return c;
                 Members(p, at, "material", "modulus_pa", "grip_length_m", "bolt_diameter_m", "mount_stiffness_n_per_m", "mount_side_stiffness_n_per_m",
-                    "torque_n_m", "torque_bounds_n_m", "nut_factor", "nut_factor_bounds", "friction", "friction_bounds", "edge_stress_factor", "edge_stress_factor_bounds");
+                    "torque_n_m", "torque_bounds_n_m", "nut_factor", "nut_factor_bounds", "friction", "friction_bounds", "edge_stress_factor", "edge_stress_factor_bounds",
+                    "play_rad", "play_bounds_rad", "socket_outer_diameter_m", "interlayer_strength_pa", "interlayer_strength_bounds_pa");
                 c.Material = Text(p, "material", at, PrintMaterials);
                 c.Modulus = Positive(p, "modulus_pa", at);
                 c.GripLength = Positive(p, "grip_length_m", at);
@@ -1601,6 +1608,10 @@ namespace Fpv450.Sim.Flight
                 c.Friction = Bounded(p, "friction", "friction_bounds", at);
                 c.EdgeFactor = Bounded(p, "edge_stress_factor", "edge_stress_factor_bounds", at);
                 if (c.EdgeFactor.Min < 1) Fail(at + ".edge_stress_factor_bounds", "a stress raiser never lowers the stress: at least 1");
+                // A printed socket (w17-four-legs): its play and its print's strength, each with its bounds.
+                if (p.Member("play_rad") != null) c.Play = Bounded(p, "play_rad", "play_bounds_rad", at);
+                if (p.Member("socket_outer_diameter_m") != null) c.SocketDiameter = Positive(p, "socket_outer_diameter_m", at);
+                if (p.Member("interlayer_strength_pa") != null) c.Interlayer = Bounded(p, "interlayer_strength_pa", "interlayer_strength_bounds_pa", at);
                 return c;
             }
 

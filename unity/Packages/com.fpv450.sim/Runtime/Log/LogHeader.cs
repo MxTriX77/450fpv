@@ -192,6 +192,7 @@ namespace Fpv450.Sim.Log
             "Friction", "TJointTorque", "Interlayer",
             "SkidParts", "Sibling", "Bore", "AirDensity", "LooseDrag", "RestSpeed", "RestRate", "RestSteps", "StubStiffness", "StubStiffnessUp",
             "FrameTopShare", "FrameJointShare", "FrameSelfStiffness", "StiffnessSigma", "StiffnessBound",
+            "Play", // w17-four-legs, in its own entry (TagTips)
         };
         public static readonly string[] ContactShapeFieldsLogged =
             { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
@@ -1465,6 +1466,12 @@ namespace Fpv450.Sim.Log
                     e.Write(row.Wet.TipResistance);
                     e.Write(row.Saturated.TipResistance);
                 }
+                // The sockets' play's bounds (the legs' law's; its four draws are in the randomness entry).
+                e.Write(c.Legs != null);
+                if (c.Legs == null) return;
+                e.Write(c.Legs.Play.Value);
+                e.Write(c.Legs.Play.Min);
+                e.Write(c.Legs.Play.Max);
             });
             w.Flush();
 
@@ -1684,6 +1691,11 @@ namespace Fpv450.Sim.Log
                                 row.Wet.TipResistance = wet;
                                 row.Saturated.TipResistance = saturated;
                                 Contacts.Surfaces.Surfaces[i] = row;
+                            }
+                            if (r.ReadBoolean())
+                            {
+                                var play = new LegBound { Value = r.ReadDouble(), Min = r.ReadDouble(), Max = r.ReadDouble() };
+                                if (Contacts?.Legs != null) Contacts.Legs.Play = play;
                             }
                         }
                         break;

@@ -294,7 +294,7 @@ namespace Fpv450.Sim.Contact
             {
                 Double3 d0 = n * t.X - dt;
                 double a0 = Double3.Dot(legUp, d0) - along;
-                Double3 lat0 = d0 - legUp * Double3.Dot(legUp, d0) - across;
+                Double3 lat0 = Played(d0 - legUp * Double3.Dot(legUp, d0) - across, PlayRadius(c));
                 Lever(a0, lat0.Length(), k0, 0, legSide, _spec.LegLeverLength, SwayCap(c), out double secant0, out rise);
                 kq0 = OnAnchor(secant0, ratio * k0);
             }
@@ -425,7 +425,7 @@ namespace Fpv450.Sim.Contact
             Double3 v = PointVelocity(s, held);
             Double3 d = n * x - dt;
             double a = Double3.Dot(up, d) - along, va = Double3.Dot(up, v);
-            Double3 lat = d - up * Double3.Dot(up, d) - across;
+            Double3 lat = Played(d - up * Double3.Dot(up, d) - across, PlayRadius(c));
             Double3 trial;
             if (lever)
             {
@@ -602,6 +602,19 @@ namespace Fpv450.Sim.Contact
             t.Anchored = t.Sliding = false;
             t.Embedded = t.Lateral = 0;
             t.Last = default;
+        }
+
+        // The tube's play in its socket at the tip (w17-four-legs, the pilot's "the clamps tend to play"), m: half the drawn clearance's
+        // angle over the free length; 0 without it.
+        double PlayRadius(int c) => _legs != null ? 0.5 * _legs.Play(c) * _spec.Legs.FreeLength : 0;
+
+        // A push across the tube less the play it takes up freely (a frictionless clearance, quasi-static: the massless tube lies where the
+        // push puts it until it bears on the socket's wall); the push itself without play.
+        static Double3 Played(Double3 lat, double play)
+        {
+            if (!(play > 0)) return lat;
+            double l = lat.Length();
+            return l > play ? lat * ((l - play) / l) : default;
         }
 
         /// <summary>Corner c's tip in soil as the last Forces left it (default when it is not in soil, on skids, or without
