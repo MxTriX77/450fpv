@@ -1051,8 +1051,19 @@ namespace Fpv450.Sim.Log
         ///    (header entry 34; a log without it flew 104's contacts) is the switch for the kept audits. A hanging
         ///    half's give out of a compliant layer is bounded by every rigid face it closes (range #61's jump). No
         ///    golden pin moved: a flight that meets no stem or leaf with a part steps as 104 did.
+        /// 106: four separate legs that dig into the soil (w17-four-legs 1.1 to 1.3 and 1.5, D-117, D-119, D-120, on 105;
+        ///    unity/physics/physics-integration-2--w17-four-legs; merged raw into the pilot's build). The skids, T-joints and
+        ///    hanging half leave; each leg is a 6 x 1 mm 6061-T6 aluminium tube in a printed PETG socket whose play is drawn
+        ///    per leg (stream leg.play, 0.006-0.024 rad) and which cracks across its layers. Each tip is a plugged disc in
+        ///    the surface's soil (surfaces.json tip_resistance_pa): it sinks on its loading line, unloads on Wong's line,
+        ///    holds on the way out by the shaft's grip and wet adhesion only (storing nothing), and holds across by Matlock's
+        ///    resistance while it is in. Each flight starts with each tip set down to its own leg.setdown draw (uniform
+        ///    1 to 1.5 of its share). Events TipFreed (41), TipPloughed (42). ContactSpec.LegTips (header tag 35; a log
+        ///    without it flew 105's skids) with assets-src/drone/drone_skids.json flies 105's pins for the kept audits.
+        ///    The goldens are re-recorded once. Open: four tip tests (the play's frictionless rattle, the rest time on sod,
+        ///    a push across in an 8 m/s side wind, one wet start settling 2 mm).
         /// </summary>
-        public const int ModelVersion = 105;
+        public const int ModelVersion = 106;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
