@@ -1,6 +1,6 @@
 # Proposal: w17-four-legs
 
-**Owners:** physics-engineer (the law), asset-artist (the model), game-developer (the player) · **Reviewers:** qa-engineer · **Requirements:** DRN-01, DRN-03, PHY-01, PHY-02, PHY-03, PHY-24, REAL-05, LOG-01, PLT-04 · **Decisions:** D-024, D-086, D-104, D-117 · **Tier:** Complex
+**Owners:** physics-engineer (the law), asset-artist (the model), game-developer (the player) · **Reviewers:** qa-engineer · **Requirements:** DRN-01, DRN-03, PHY-01, PHY-02, PHY-03, PHY-24, REAL-05, LOG-01, PLT-04 · **Decisions:** D-024, D-086, D-104, D-117, D-119, D-120 · **Tier:** Complex
 
 ## Why
 The pilot, 2026-11-17, after about 30 flights on the model 103 build (their words are in Russian in D-117; rendered here):
@@ -11,8 +11,10 @@ The pilot, 2026-11-17, after about 30 flights on the model 103 build (their word
 
 The drone was modelled from letter T: four legs standing on two fore-aft skids (DRN-01). The pilot's own kit has four separate legs, and their account outranks the reading of a photo (D-104).
 
+**The pilot's word on the legs' shape** (2026-11-17, D-119, which replaces D-118). Task 1.2 built four straight tubes 0.25 m tall. Photo U was then read as showing loops of bent stock about 0.10–0.13 m tall, the pilot answered "Copy the photo" when asked, and D-118 planned the loops. Shown that reading, the pilot corrected it at once with a new photo (W): the legs "shouldn't be bent loops … like on this photo - narrow tubes pointing perpendicularly into the ground". So the legs stay straight tubes, and photo W is their reference.
+
 ## What Changes
-- **Four separate legs.** The two skid rails leave the model and `drone.json`. Each leg is a tube on its clamp, ending in its own tip as photos T and U show it. The collision follows what is drawn (REAL-05).
+- **Four separate legs, as photo W shows them.** The two skid rails leave the model and `drone.json`. Each leg is a narrow straight aluminium tube under its arm, held in a 3D-printed clamp, pointing perpendicularly into the ground and ending in its own tip (the pilot: "legs themselves are of aluminum. but they are fixed to the drone using 3d-printed clamps", D-120). The collision follows what is drawn (REAL-05).
 - **A leg's tip digs into soil by the soil's own law.**
   - Under the drone's weight and at a touchdown the tip penetrates by the surface's bearing resistance. A rough landing drives it deeper; hard ground takes none.
   - A dug-in tip resists sliding by the soil in front of it, so the drone does not run along the ground like a sled.
@@ -23,7 +25,8 @@ The drone was modelled from letter T: four legs standing on two fore-aft skids (
 
 ## Non-goals
 - No change to the rotors, the air, the controller, the fiber or the wind.
-- No new leg material or failure law (`p7g-legs` stays; a broken leg has no neighbour to hang from any more, so the hanging half leaves with the skids).
+- **The give is in the clamps.** "Even though the legs are more or less stable - the clamps are tend to play" (D-120). The tube is aluminium with its published properties and failure (it bends and stays bent, dents, buckles). The printed clamp has free play before it bears, its own compliance and its own failure (the print cracks, the tube slips or pulls out). The play is hand-made and differs per drone: a bounded, seeded and logged draw (PHY-24). `p7g-legs`' method stays; its PVC-U tube and bolted clamp are replaced. A broken leg has no neighbour to hang from any more, so the hanging half leaves with the skids.
+- Only the legs follow photo W. Its other differences from the model stay as they are.
 - No tuning to a feel: every number is measured, published, derived or assumed and labelled.
 - The stems' push on the legs (`w16-plants-in-the-air` 1.5) lands first; this change builds on it.
 
@@ -31,5 +34,5 @@ The drone was modelled from letter T: four legs standing on two fore-aft skids (
 - The asset: `tools/blender/generators/drone.py`, `assets-src/drone/D01_legs_on.json`, `assets-src/drone/drone.json` (the parts, the legs' contact shapes), the drone's object sheet, the Unity prefab and its review sheet.
 - The sim core: `Runtime/Contact/` (the legs' contact with soil, the start's embedment, the events), `Runtime/Log/` (a header entry and the draws), the kept audits (the skids' drone as a fixture).
 - The player: the drone's view and leg placement, the leg shots, the summary's names, the smoke test.
-- Every legs-on golden moves with the drone's mass (36.6 g of skids leave) and with the law: one model number.
+- Every legs-on golden moves with the drone's mass (the skids and their joints leave, the legs' place and size follow photo W) and with the law: one model number.
 - The branch is `unity/physics/physics-integration-2--w17-four-legs`, cut from the physics line. It merges into the line, then the pilot's build branch.

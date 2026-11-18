@@ -15,8 +15,9 @@ namespace Fpv450.Sim.Tests
     // same flights pass it. And the sweep is deterministic: the same seed draws the same points and flies the same rows.
     public sealed class SweepTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         static Context _context;
-        static Context Village() => _context ??= new Context(SlopeScenarios.Farmland(), RepositoryDrone.Spec(), WindLevel.Calm);
+        static Context Village() => _context ??= new Context(SlopeScenarios.Farmland(), SkidsDrone.Spec(), WindLevel.Calm);
 
         static void Print(string s) => TestContext.Progress.WriteLine(s);
 
@@ -63,7 +64,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void OnE01sSoilShapesTheReachHoldsTheLever()
         {
-            var range = new Context(MapWorld.Load(RangeScenarios.Root, "test-range"), RepositoryDrone.Spec(), WindLevel.Calm);
+            var range = new Context(MapWorld.Load(RangeScenarios.Root, "test-range"), SkidsDrone.Spec(), WindLevel.Calm);
             Point[] points = Draw(range.Map, 400, 1, out _);
             Point p440 = Array.Find(points, q => q.Index == 440);
             Assert.That(p440.X, Is.EqualTo(59.38).Within(0.01), "the premise: the sweep's #440 on E01's 22° end");
@@ -93,7 +94,7 @@ namespace Fpv450.Sim.Tests
 
         static Context _range;
         static Point[] _rangePoints;
-        static Context Range() => _range ??= new Context(MapWorld.Load(RangeScenarios.Root, "test-range"), RepositoryDrone.Spec(), WindLevel.Calm);
+        static Context Range() => _range ??= new Context(MapWorld.Load(RangeScenarios.Root, "test-range"), SkidsDrone.Spec(), WindLevel.Calm);
         static Point RangePoint(int index) => Array.Find(_rangePoints ??= Draw(Range().Map, 400, 1, out _), q => q.Index == index);
 
         static Row FlyRange(int point, Manoeuvre m, Action<FlightCore> prepare = null)

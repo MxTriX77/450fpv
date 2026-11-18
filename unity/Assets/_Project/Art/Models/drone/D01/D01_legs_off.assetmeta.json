@@ -3,7 +3,7 @@
   "id": "D01",
   "variant": "D01_legs_off",
   "generator": "drone",
-  "params_sha256": "096150310f90fae8541f72a18f8cd96d6f287bf0f84a0617c665442f072a2847",
+  "params_sha256": "d72f07924b82deebd2150fc6890cf4f3f747936355e3fc80e7466345dcc28700",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -21,19 +21,19 @@
   "lods": [
     {
       "mesh": "D01_legs_off_LOD0",
-      "tris": 12930,
+      "tris": 12626,
       "switch_distance_m": 0.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_off_LOD1",
-      "tris": 5380,
+      "tris": 5332,
       "switch_distance_m": 3.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_off_LOD2",
-      "tris": 2028,
+      "tris": 1980,
       "switch_distance_m": 10.0,
       "thin_wire": false
     },
@@ -225,27 +225,6 @@
     {
       "shape": "box",
       "center": [
-        0.1025,
-        -0.01125,
-        -0.1025
-      ],
-      "size": [
-        0.035,
-        0.0165,
-        0.025
-      ],
-      "rotation": [
-        0.0,
-        0.382683,
-        0.0,
-        0.92388
-      ],
-      "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "box",
-      "center": [
         0.095815,
         0,
         0.095815
@@ -356,27 +335,6 @@
         0.995969,
         0.0,
         0.089704
-      ],
-      "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "box",
-      "center": [
-        0.1025,
-        -0.01125,
-        0.1025
-      ],
-      "size": [
-        0.035,
-        0.0165,
-        0.025
-      ],
-      "rotation": [
-        0.0,
-        -0.382683,
-        0.0,
-        0.92388
       ],
       "material": "plastic",
       "landable": false
@@ -501,27 +459,6 @@
     {
       "shape": "box",
       "center": [
-        -0.1025,
-        -0.01125,
-        -0.1025
-      ],
-      "size": [
-        0.035,
-        0.0165,
-        0.025
-      ],
-      "rotation": [
-        0.0,
-        0.92388,
-        0.0,
-        0.382683
-      ],
-      "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "box",
-      "center": [
         -0.095815,
         0,
         0.095815
@@ -632,27 +569,6 @@
         0.997115,
         0.0,
         0.075909
-      ],
-      "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "box",
-      "center": [
-        -0.1025,
-        -0.01125,
-        0.1025
-      ],
-      "size": [
-        0.035,
-        0.0165,
-        0.025
-      ],
-      "rotation": [
-        0.0,
-        -0.92388,
-        0.0,
-        0.382683
       ],
       "material": "plastic",
       "landable": false

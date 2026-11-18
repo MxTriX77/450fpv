@@ -179,6 +179,9 @@ namespace Fpv450.Sim.Log
             "MotorShaft", "ShaftHingeShare", "BearingFriction", "BearingDentDrag",
             "MotorHeat", "AirTemperature", "CopperSpecificHeat", "CopperTemperatureCoefficient", "IronSpecificHeat", "AirConductivity",
             "AirViscosity", "AirPrandtl", "ArmConductance", "WindingTimeConstant", "ScrapeWearCoefficient",
+            // w17-four-legs, in their own entry (TagTips)
+            "LegTips", "TipRadius", "ShaftDiameter", "TipReferenceDepth", "TipModulusRatio", "TipPoisson", "ShaftFriction", "ConeFactor",
+            "LateralGrowth", "SetDownMin", "SetDownMax",
         };
 
         /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
@@ -189,6 +192,7 @@ namespace Fpv450.Sim.Log
             "Friction", "TJointTorque", "Interlayer",
             "SkidParts", "Sibling", "Bore", "AirDensity", "LooseDrag", "RestSpeed", "RestRate", "RestSteps", "StubStiffness", "StubStiffnessUp",
             "FrameTopShare", "FrameJointShare", "FrameSelfStiffness", "StiffnessSigma", "StiffnessBound",
+            "Play", // w17-four-legs, in its own entry (TagTips)
         };
         public static readonly string[] ContactShapeFieldsLogged =
             { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
@@ -208,6 +212,7 @@ namespace Fpv450.Sim.Log
             "Rigid", "Bearing", "CohesiveShare", "CohesiveModulus", "FrictionalModulus", "UnloadRatio", "MaxSink", "Damping", "StaticFriction",
             "KineticFriction", "Adhesion", "InterfaceAdhesion", "AdhesionRelease", "LipEdgeRadius", "Cohesion", "BulkDensity", "SandShare", "StoneFraction",
             "StoneDiameter", "Hardness", "CrushStrength", "Density",
+            "TipResistance", // w17-four-legs, in its own entry (TagTips)
         };
         public static readonly string[] CoverRowFieldsLogged = { "Kind", "Dry", "Wet" };
         public static readonly string[] CoverSetFieldsLogged =
@@ -289,7 +294,7 @@ namespace Fpv450.Sim.Log
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
             TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26,
-            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30, TagStemAir = 31, TagHanging = 32, TagMembers = 33, TagPartStems = 34;
+            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30, TagStemAir = 31, TagHanging = 32, TagMembers = 33, TagPartStems = 34, TagTips = 35;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -1434,6 +1439,40 @@ namespace Fpv450.Sim.Log
                 e.Write(Contacts != null);
                 if (Contacts != null) e.Write(Contacts.PartStems);
             });
+            // The legs' tips in the soil since w17-four-legs 1.3, an entry of its own (no format change): the switch, the tip and its
+            // law's values, and surfaces.json's tip_resistance_pa rows (each surface's dry, wet and saturated sets, under the table's
+            // hash in the contacts entry). A log without it flew the skids (model 105 and earlier).
+            Entry(w, TagTips, e =>
+            {
+                e.Write(Contacts != null);
+                if (Contacts == null) return;
+                ContactSpec c = Contacts;
+                e.Write(c.LegTips);
+                e.Write(c.TipRadius);
+                e.Write(c.ShaftDiameter);
+                e.Write(c.TipReferenceDepth);
+                e.Write(c.TipModulusRatio);
+                e.Write(c.TipPoisson);
+                e.Write(c.ShaftFriction);
+                e.Write(c.ConeFactor);
+                e.Write(c.LateralGrowth);
+                e.Write(c.SetDownMin);
+                e.Write(c.SetDownMax);
+                SurfaceRow[] rows = c.Surfaces != null ? c.Surfaces.Surfaces : new SurfaceRow[0];
+                e.Write((ushort)rows.Length);
+                foreach (SurfaceRow row in rows)
+                {
+                    e.Write(row.Dry.TipResistance);
+                    e.Write(row.Wet.TipResistance);
+                    e.Write(row.Saturated.TipResistance);
+                }
+                // The sockets' play's bounds (the legs' law's; its four draws are in the randomness entry).
+                e.Write(c.Legs != null);
+                if (c.Legs == null) return;
+                e.Write(c.Legs.Play.Value);
+                e.Write(c.Legs.Play.Min);
+                e.Write(c.Legs.Play.Max);
+            });
             w.Flush();
 
             var file = new MemoryStream();
@@ -1620,6 +1659,44 @@ namespace Fpv450.Sim.Log
                         {
                             bool partStems = r.ReadBoolean();
                             if (Contacts != null) Contacts.PartStems = partStems;
+                        }
+                        break;
+                    case TagTips:
+                        if (r.ReadBoolean())
+                        {
+                            bool tips = r.ReadBoolean();
+                            double tipRadius = r.ReadDouble(), shaft = r.ReadDouble(), zRef = r.ReadDouble(), alpha = r.ReadDouble(), nu = r.ReadDouble();
+                            double rs = r.ReadDouble(), nkt = r.ReadDouble(), j = r.ReadDouble(), lo = r.ReadDouble(), hi = r.ReadDouble();
+                            int tipRows = r.ReadUInt16();
+                            if (Contacts != null)
+                            {
+                                Contacts.LegTips = tips;
+                                Contacts.TipRadius = tipRadius;
+                                Contacts.ShaftDiameter = shaft;
+                                Contacts.TipReferenceDepth = zRef;
+                                Contacts.TipModulusRatio = alpha;
+                                Contacts.TipPoisson = nu;
+                                Contacts.ShaftFriction = rs;
+                                Contacts.ConeFactor = nkt;
+                                Contacts.LateralGrowth = j;
+                                Contacts.SetDownMin = lo;
+                                Contacts.SetDownMax = hi;
+                            }
+                            for (int i = 0; i < tipRows; i++)
+                            {
+                                double dry = r.ReadDouble(), wet = r.ReadDouble(), saturated = r.ReadDouble();
+                                if (Contacts?.Surfaces == null || i >= Contacts.Surfaces.Surfaces.Length) continue;
+                                SurfaceRow row = Contacts.Surfaces.Surfaces[i];
+                                row.Dry.TipResistance = dry;
+                                row.Wet.TipResistance = wet;
+                                row.Saturated.TipResistance = saturated;
+                                Contacts.Surfaces.Surfaces[i] = row;
+                            }
+                            if (r.ReadBoolean())
+                            {
+                                var play = new LegBound { Value = r.ReadDouble(), Min = r.ReadDouble(), Max = r.ReadDouble() };
+                                if (Contacts?.Legs != null) Contacts.Legs.Play = play;
+                            }
                         }
                         break;
                     case TagMembers:

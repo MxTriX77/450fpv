@@ -12,6 +12,7 @@ namespace Fpv450.Sim.Tests
     // sum of drone.json's parts.
     public sealed class MassBuildTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         // ---- the repository's drone.json at the seven loadouts ----
 
         // One of the object sheet's seven loadouts (docs/object-sheets/drone.md), with D-050's build of it from drone.json,
@@ -63,8 +64,8 @@ namespace Fpv450.Sim.Tests
         // inner face where the file's is (x ±0.050).
         static DroneSpec SpecFor(BuildLoadout l)
         {
-            if (!l.SixP) return RepositoryDrone.Spec();
-            DroneSpec spec = DroneSpec.Parse(File.ReadAllText(TestFiles.Find(RepositoryDrone.RelativePath)));
+            if (!l.SixP) return SkidsDrone.Spec();
+            DroneSpec spec = DroneSpec.Parse(File.ReadAllText(TestFiles.Find(SkidsDrone.RelativePath)));
             foreach (DronePack pack in spec.Packs)
             {
                 ref DronePart p = ref spec.Parts[pack.Part];
@@ -164,7 +165,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheCoilIsBelowTheCentreOfMassOnBothBuilds()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             double onMin = double.MaxValue, onMax = double.MinValue, offMin = double.MaxValue, offMax = double.MinValue;
             for (int tenths = 0; tenths <= 20; tenths++)
             for (int paid = 0; paid <= 2; paid++)
@@ -190,7 +191,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void D050sLayoutPutsPitchAboveRollWithABottle()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             foreach (double left in new[] { 0.0, 0.5, 1.0 })
             {
                 int lowest = 21; // tenths of a kg: the lowest payload of the run, from 2.0 kg down, with pitch above roll
@@ -216,7 +217,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheProductOfInertiaCouplesRollIntoYaw()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             foreach (BuildLoadout l in Builds)
             {
                 if (l.SixP) continue;
@@ -238,7 +239,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ThePayloadScalesWithItsMass()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             DronePart file = spec.Parts[spec.Payload.Part];
             Loadout nominal = spec.Nominal;
 
@@ -271,7 +272,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void APartsMassChangeRebuildsTheBody()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             MassModel model = spec.BuildMass(spec.Nominal);
             MassProperties before = model.Properties;
             int coil = spec.Coil.Part;
@@ -296,7 +297,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void LegsOffIsTheLegsOffBuild()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             Loadout off = spec.Nominal;
             off.Legs = false;
             MassModel model = spec.BuildMass(off);
@@ -319,7 +320,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ALoadoutOutsideTheSpecIsRefused()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = SkidsDrone.Spec();
             Loadout l = spec.Nominal;
             l.Payload = 2.5;
             Assert.Throws<ArgumentOutOfRangeException>(() => spec.BuildMass(l));

@@ -10,7 +10,8 @@ namespace Fpv450.Sim.Tests
     // RestScenarios'; tools/flightbench --damage prints them.
     public sealed class RestTests
     {
-        static DroneSpec Spec => RepositoryDrone.Spec();
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
+        static DroneSpec Spec => SkidsDrone.Spec();
 
         // prop-motor-damage's "A resting prop bears load": set down on one prop's blade (a steel block under it), the drone
         // rests on that blade and three legs, the blade's load and deflection logged; the known-wrong (the prop passed through

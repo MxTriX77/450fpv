@@ -360,7 +360,8 @@ namespace Fpv450.Sim.Tests
         // (WindSetup.OneScale) model 98's pin, 0xB55BD5DCB5C7C252 (Model98PoweredHash), every record and event
         // (GoldenFlightTests.WithTheOneScaleFieldEachGoldenIsModel98s). The Windy air moves from step 0: 0.1° and 0.03 m by 2 s,
         // at most 0.23 m and 0.72° apart, the largest body rate 313 °/s against 315, ends 143.9049 m up against 143.7578, 0.21 m apart.
-        public const ulong PoweredHash = 0xD2EC471719F8265BUL, Model98PoweredHash = 0xB55BD5DCB5C7C252UL, Model90PoweredHash = 0x8106C2D393DFAA8DUL, Model92PoweredHash = 0xC26EFDA0A6C746DFUL, Model94PoweredHash = 0x71571798E9C97719UL;
+        // w17-four-legs 1.3 (the four legs on their tips, photo W's aluminium legs in printed sockets): re-recorded once; was model 105's 0xD2EC471719F8265B (Model105PoweredHash, kept with the skids' fixture and the switch, OnTheSkidsEachGoldenIsModel105s). It moves by the drone's mass and inertia alone (it touches nothing): the skids and T-joints gone, photo W's aluminium legs in their sockets.
+        public const ulong PoweredHash = 0x2567FC3BDF3393D7UL, Model98PoweredHash = 0xB55BD5DCB5C7C252UL, Model90PoweredHash = 0x8106C2D393DFAA8DUL, Model92PoweredHash = 0xC26EFDA0A6C746DFUL, Model94PoweredHash = 0x71571798E9C97719UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -479,7 +480,8 @@ namespace Fpv450.Sim.Tests
         // p7b-airframe design 3h: re-recorded, audited as the powered flight (model 94's clipped branch: model 94's pin); from step 21, at most 60 mm and 0.13°, ends 142.2677 m up against 142.2130.
         // p7c-wind design 16: re-recorded, audited as the powered flight (the one-scale field: model 98's pin, 0xB99BBA8B544EE74B); the
         // Calm air moves from step 0, at most 86 mm and 0.21° apart, ends 142.3443 m up against 142.2677.
-        public const ulong RainPoweredHash = 0xA90B2AC7DB9DE1DFUL, Model98RainPoweredHash = 0xB99BBA8B544EE74BUL, Model90RainPoweredHash = 0x94CF8CDFA5E5E538UL, Model92RainPoweredHash = 0x1E65DE44C92861ECUL, Model94RainPoweredHash = 0x78EC41F77E2DC817UL;
+        // w17-four-legs 1.3 (the four legs on their tips, photo W's aluminium legs in printed sockets): re-recorded once; was model 105's 0xA90B2AC7DB9DE1DF (Model105RainPoweredHash, kept with the skids' fixture and the switch, OnTheSkidsEachGoldenIsModel105s). It moves by as the powered golden: the mass and inertia alone.
+        public const ulong RainPoweredHash = 0xCE112CE607AD956AUL, Model98RainPoweredHash = 0xB99BBA8B544EE74BUL, Model90RainPoweredHash = 0x94CF8CDFA5E5E538UL, Model92RainPoweredHash = 0x1E65DE44C92861ECUL, Model94RainPoweredHash = 0x78EC41F77E2DC817UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -644,6 +646,13 @@ namespace Fpv450.Sim.Tests
             Model70TumbleHash = 0x5431D1EB9A8701D7UL;
 
         /// <summary>The tether golden at model 74 (p7d-tether 1.8, the bent nozzle, on 70); model 74's other goldens are model 70's.</summary>
+        /// <summary>The goldens at model 105 (the stems' push on the parts, the last on skids), which model 105's drone on its skids
+        /// (SkidsDrone, drone_skids.json; its contacts the half-skids' law, ContactSpec.LegTips off) keeps bit for bit, every record and event:
+        /// GoldenFlightTests.OnTheSkidsEachGoldenIsModel105s (w17-four-legs 1.3).</summary>
+        public const ulong Model105PoweredHash = 0xD2EC471719F8265BUL, Model105RainPoweredHash = 0xA90B2AC7DB9DE1DFUL,
+            Model105ContactHash = 0x6E2473430C3C1DA3UL, Model105RangeHash = 0xDD454936B339DBE3UL, Model105TetherHash = 0x86F63CCC975F747EUL,
+            Model105TumbleHash = 0x2BDEED11E769F217UL;
+
         public const ulong Model74TetherHash = 0x3911B157986C67C6UL;
 
         /// <summary>The tether golden of model 77's merge (74 onto 73, before 77's chain), which the flight with the known-wrong linear
@@ -1095,7 +1104,8 @@ namespace Fpv450.Sim.Tests
         // steps (every point under the cover's 0.3 m still layer until the climb), then at most 21.4 mm and 0.79° apart, the largest
         // body rate 107 °/s against 87 (the Calm gusts near the ground at the touchdown's bounce), the same 3 impacts, at rest 0.2491 m
         // up on 4 pairs, 18.2 mm from 98's end.
-        public const ulong ContactHash = 0x6E2473430C3C1DA3UL, Model98ContactHash = 0x0272A8D23EE8C1B8UL, Model90ContactHash = 0x461C89E4B98BAA7AUL, Model92ContactHash = 0x4B87B519E3D8548BUL, Model94ContactHash = 0x043EEB284B4A8E0AUL;
+        // w17-four-legs 1.3 (the four legs on their tips, photo W's aluminium legs in printed sockets): re-recorded once; was model 105's 0x6E2473430C3C1DA3 (Model105ContactHash, kept with the skids' fixture and the switch, OnTheSkidsEachGoldenIsModel105s). It moves by the four legs' tips: set down in belt_bare at the start, then the landing on them (the tips' law, the sockets' play), and the mass.
+        public const ulong ContactHash = 0xBD2FEF11CC86E12DUL, Model98ContactHash = 0x0272A8D23EE8C1B8UL, Model90ContactHash = 0x461C89E4B98BAA7AUL, Model92ContactHash = 0x4B87B519E3D8548BUL, Model94ContactHash = 0x043EEB284B4A8E0AUL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -1462,7 +1472,8 @@ namespace Fpv450.Sim.Tests
         // (FlightSetup.TetherBeforeDesign23) and without it the flight is design 22's pin, every record and event
         // (GoldenFlightTests.WithTheUnconvergedStepKeptTheTetherGoldenIsDesign22s); every kept audit of an older line flies the
         // known-wrong (FlyContact's beforeDesign23, on for every flight other than the tether golden's own) and keeps its pin.
-        public const ulong TetherHash = 0x86F63CCC975F747EUL, Model103TetherHash = 0xF2B1187D0BC04B77UL, Model100TetherHash = 0xF2B1187D0BC04B77UL, Model98TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
+        // w17-four-legs 1.3 (the four legs on their tips, photo W's aluminium legs in printed sockets): re-recorded once; was model 105's 0x86F63CCC975F747E (Model105TetherHash, kept with the skids' fixture and the switch, OnTheSkidsEachGoldenIsModel105s). It moves by the contact flight's tips and mass under the line.
+        public const ulong TetherHash = 0xDA89DEEA13650512UL, Model103TetherHash = 0xF2B1187D0BC04B77UL, Model100TetherHash = 0xF2B1187D0BC04B77UL, Model98TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
             Model94TetherHash = 0x99C789A0CB2EC6B2UL, Model96TetherHash = 0x436638D62911D1A6UL, Model97TetherHash = 0xF6ADE19C0945D137UL;
 
         /// <summary>The tether golden with p7d-tether design 19's wash on model 94's clipped descent branch (the wash branch's pin
@@ -1634,7 +1645,8 @@ namespace Fpv450.Sim.Tests
         // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel77s); with airmode on and the heat off,
         // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72TumbleHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
         // It flies no rotor and no controller: model 73's records with the arms' 176 zero bytes appended, and over 72's bytes 72's pin.
-        public const ulong TumbleHash = 0x2BDEED11E769F217UL;
+        // w17-four-legs 1.3 (the four legs on their tips, photo W's aluminium legs in printed sockets): re-recorded once; was model 105's 0x2BDEED11E769F217 (Model105TumbleHash, kept with the skids' fixture and the switch, OnTheSkidsEachGoldenIsModel105s). It moves by the L4 body's inertia without the skids and with the aluminium legs.
+        public const ulong TumbleHash = 0x9237C13383FB46FEUL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -1867,7 +1879,8 @@ namespace Fpv450.Sim.Tests
         // p7c-wind design 16: re-recorded (the one-scale field: model 98's pin, 0x1DE9E944CF5F3D89); the same records for the first 174
         // steps, then at most 23.7 mm and 0.55° apart in the map's Calm, the largest body rate 53 °/s against 30, 4 impacts against 3
         // (one more light touch on the straw), at rest 0.2452 m up on 8 pairs, 8.6 mm from 98's end.
-        public const ulong RangeHash = 0xDD454936B339DBE3UL, Model98RangeHash = 0x1DE9E944CF5F3D89UL, Model90RangeHash = 0x9731F9263E4E25B1UL, Model92RangeHash = 0x10E64598977FA0CDUL, Model94RangeHash = 0x9A6EE9908AA9E2F0UL;
+        // w17-four-legs 1.3 (the four legs on their tips, photo W's aluminium legs in printed sockets): re-recorded once; was model 105's 0xDD454936B339DBE3 (Model105RangeHash, kept with the skids' fixture and the switch, OnTheSkidsEachGoldenIsModel105s). It moves by the four legs' tips on S04's straw and soil, and the mass.
+        public const ulong RangeHash = 0xBAE1C52EA6391496UL, Model98RangeHash = 0x1DE9E944CF5F3D89UL, Model90RangeHash = 0x9731F9263E4E25B1UL, Model92RangeHash = 0x10E64598977FA0CDUL, Model94RangeHash = 0x9A6EE9908AA9E2F0UL;
 
         /// <summary>Model 76's range golden, which models 76–86 kept (the pin before w7-farmland-wind 1.2's wake grid).</summary>
         public const ulong Model76RangeHash = 0xAF745CC52447E017UL;

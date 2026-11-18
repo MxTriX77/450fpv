@@ -84,11 +84,10 @@ namespace Fpv450.Sim.Tests
             }
             Double3[] corner = new Double3[4];
             foreach (ContactShape s in core.Contacts.Spec.Shapes)
-                if (s.Role == ContactRole.Skid) corner[s.Corner] = s.A;
+                if (s.Role == ContactRole.Skid || core.Contacts.OnTips && s.Role == ContactRole.Support) corner[s.Corner] = s.A;
             for (int c = 0; c < 4; c++)
             {
-                ContactModel.SkidSoil sk = core.Contacts.SoilOf(c);
-                r.Sink[c] = Math.Max(sk.Max0, Math.Max(sk.Max1, sk.Max2));
+                r.Sink[c] = Deepest(core, c);
                 r.Left[c] = double.NaN;
             }
             double rest = core.State.Position.Y;
@@ -177,19 +176,28 @@ namespace Fpv450.Sim.Tests
             {
                 core.Advance(new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = true });
                 Count(core, ref r);
-                for (int c = 0; c < 4; c++)
-                {
-                    ContactModel.SkidSoil sk = core.Contacts.SoilOf(c);
-                    peak = Math.Max(peak, Math.Max(sk.Max0, Math.Max(sk.Max1, sk.Max2)));
-                }
+                for (int c = 0; c < 4; c++) peak = Math.Max(peak, Deepest(core, c));
             }
             double rest = 0;
             for (int c = 0; c < 4; c++)
             {
+                if (core.Contacts.OnTips)
+                {
+                    rest = Math.Max(rest, core.Contacts.TipOf(c).Sink);
+                    continue;
+                }
                 ContactModel.SkidSoil sk = core.Contacts.SoilOf(c);
                 rest = Math.Max(rest, Math.Max(sk.Sink0, Math.Max(sk.Sink1, sk.Sink2)));
             }
             return (peak, rest, r.Tunnels);
+        }
+
+        // A corner's deepest sink: its half-skid's deepest node's, or its leg's tip's on four legs (w17-four-legs).
+        static double Deepest(FlightCore core, int c)
+        {
+            if (core.Contacts.OnTips) return core.Contacts.TipOf(c).Max;
+            ContactModel.SkidSoil sk = core.Contacts.SoilOf(c);
+            return Math.Max(sk.Max0, Math.Max(sk.Max1, sk.Max2));
         }
 
         static void Count(FlightCore core, ref Liftoff r)

@@ -93,8 +93,10 @@ namespace Fpv450.Sim.Contact
             // each core end, and each leg tube with a sphere at each end: a capsule lying on a face touches at one core end,
             // which flips with the least tilt (the skids' P3 rule: a capsule with load-bearing spheres at its ends). On the drone
             // the skid's supports stand for the T-joints; a loose piece rests on them.
+            // Four separate legs (w17-four-legs) have no T-joints and no skids: their slots stay empty (−1 in _drone).
+            bool joints = _legs.TJointParts[0] >= 0;
             _tjointShapes = n;
-            n += 12;
+            n += joints ? 12 : 0;
             _tubeEnds = n;
             n += 8;
             string polymer = null;
@@ -102,6 +104,7 @@ namespace Fpv450.Sim.Contact
                 if (s.Role == ContactRole.Body && s.Part == _legs.Parts[0]) polymer = s.Material;
             var spec = drone.Clone();
             spec.Legs = null;
+            spec.LegTips = false; // a loose piece lies on its shapes as body parts
             spec.LegSideStiffness = spec.LegSideDampingRatio = 0;
             spec.LegTubeSideStiffness = spec.LegJawSideStiffness = spec.LegSwayLoad = spec.LegTubeAxialStiffness = 0;
             spec.CrashAccel = double.PositiveInfinity;
@@ -118,16 +121,19 @@ namespace Fpv450.Sim.Contact
             }
             for (int c = 0; c < 4; c++)
             {
-                DronePart joint = mass.Part(_legs.TJointParts[c]);
-                double r = (joint.Size.X < joint.Size.Y ? joint.Size.X : joint.Size.Y) / 2, half = joint.Size.Z / 2 - r;
-                if (half < 0) half = 0;
-                Double3 a = joint.Position - new Double3(0, 0, half), b = joint.Position + new Double3(0, 0, half);
-                for (int e = 0; e < 3; e++)
-                    spec.Shapes[_tjointShapes + 3 * c + e] = new ContactShape
-                    {
-                        Name = joint.Name, Part = _legs.TJointParts[c], Role = ContactRole.Body, Corner = -1, Material = polymer,
-                        A = e == 2 ? b : a, B = e == 1 ? a : b, Radius = r, Stiffness = k, StiffnessUp = k, DampingRatio = zeta,
-                    };
+                if (joints)
+                {
+                    DronePart joint = mass.Part(_legs.TJointParts[c]);
+                    double r = (joint.Size.X < joint.Size.Y ? joint.Size.X : joint.Size.Y) / 2, half = joint.Size.Z / 2 - r;
+                    if (half < 0) half = 0;
+                    Double3 a = joint.Position - new Double3(0, 0, half), b = joint.Position + new Double3(0, 0, half);
+                    for (int e = 0; e < 3; e++)
+                        spec.Shapes[_tjointShapes + 3 * c + e] = new ContactShape
+                        {
+                            Name = joint.Name, Part = _legs.TJointParts[c], Role = ContactRole.Body, Corner = -1, Material = polymer,
+                            A = e == 2 ? b : a, B = e == 1 ? a : b, Radius = r, Stiffness = k, StiffnessUp = k, DampingRatio = zeta,
+                        };
+                }
                 ContactShape tube = default;
                 foreach (ContactShape t in drone.Shapes)
                     if (t.Role == ContactRole.Body && t.Part == _legs.Parts[c]) tube = t;
@@ -142,7 +148,7 @@ namespace Fpv450.Sim.Contact
                 }
             }
             var parts = new DronePart[Parts];
-            for (int p = 0; p < Parts; p++) parts[p] = mass.Part(_drone[p]);
+            for (int p = 0; p < Parts; p++) parts[p] = _drone[p] >= 0 ? mass.Part(_drone[p]) : default;
             for (int slot = 0; slot < Slots; slot++)
             {
                 _contacts[slot] = new ContactModel(spec, world, mass.Properties.Mass, moisture, dt: FlightCore.Dt / SubSteps);

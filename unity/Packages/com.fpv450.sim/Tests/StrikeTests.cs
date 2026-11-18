@@ -12,11 +12,12 @@ namespace Fpv450.Sim.Tests
     // known-wrong model it fails.
     public sealed class StrikeTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         const double R = 0.127, H = 0.004;
         static readonly Double3 Up = new Double3(0, 1, 0);
         static readonly Double3 South = new Double3(0, 0, -1);
 
-        static DroneSpec Spec => RepositoryDrone.Spec();
+        static DroneSpec Spec => SkidsDrone.Spec();
 
         static StrikeScenarios.Rig Rig(Double3 at, Quat attitude, params ShapeGeometry[] shapes) =>
             new StrikeScenarios.Rig(StrikeScenarios.Setup(Spec, at, attitude, shapes.Length > 0 ? StrikeScenarios.One(shapes[0]) : null),
@@ -625,9 +626,9 @@ namespace Fpv450.Sim.Tests
             Assert.That(StrikeScenarios.TipStops(r), Is.True, "the landing stops on the ground");
             if (disarm)
             {
-                StrikeScenarios.TipResult free = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(DroneSpec.Parse(RepositoryDrone.Text())), World(site, out at),
+                StrikeScenarios.TipResult free = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(DroneSpec.Parse(SkidsDrone.Text())), World(site, out at),
                     at, rain, SoilScenarios.Table(), true);
-                StrikeScenarios.TipResult freeWrong = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(DroneSpec.Parse(RepositoryDrone.Text())), World(site, out at),
+                StrikeScenarios.TipResult freeWrong = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(DroneSpec.Parse(SkidsDrone.Text())), World(site, out at),
                     at, rain, null, true);
                 TestContext.Out.WriteLine("  the known-wrong (the ESCs freewheeling): " + free.Describe());
                 TestContext.Out.WriteLine("  freewheeling without surfaces.json: " + freeWrong.Describe());

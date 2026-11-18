@@ -157,6 +157,17 @@ namespace Fpv450.FlightBench
                     return LegsCase.Run(seeds) ? 0 : 1;
                 }
             }
+            if (args.Length >= 3 && args.Length <= 4 && args[0] == "--ground" && args[args.Length - 2] == "--shaft"
+                && double.TryParse(args[args.Length - 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double shaft))
+            {
+                // w17-four-legs 1.3: --ground [seeds] --shaft <r_s>, the tips' shaft friction ratio at a value of its band.
+                int seeds = 10;
+                if (args.Length == 3 || int.TryParse(args[1], out seeds) && seeds >= 2)
+                {
+                    Console.WriteLine("flightbench: the liftoff harness and Village's ground rows (w9-village-physics 2.9, p7a-ground design 13), " + seeds + " seeds a cell");
+                    return GroundCase.Run(seeds, false, shaft) ? 0 : 1;
+                }
+            }
             if (args.Length >= 1 && args.Length <= 3 && args[0] == "--ground")
             {
                 int seeds = 10;
