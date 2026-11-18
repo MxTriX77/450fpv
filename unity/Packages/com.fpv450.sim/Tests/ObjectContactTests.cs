@@ -436,7 +436,8 @@ namespace Fpv450.Sim.Tests
         public void WithoutSurfacesABladeAtRestPassesTheFloorAsItsPassesDo()
         {
             int touches = 0;
-            StrikeScenarios.TipResult r = StrikeScenarios.TippedLanding(RepositoryDrone.Spec(), FlightWorld.Floor(), default, RainLevel.Sunny, null, false,
+            // w17-four-legs 1.3: model 105's drone on its skids (the fixture): its tipped landing goes over; on four legs' tips it does not (TipTests).
+            StrikeScenarios.TipResult r = StrikeScenarios.TippedLanding(SkidsDrone.Spec(), FlightWorld.Floor(), default, RainLevel.Sunny, null, false,
                 stepped: (core, stick) =>
                 {
                     for (int i = 0; i < core.Events.Count; i++)

@@ -177,8 +177,9 @@ namespace Fpv450.Sim.Tests
         public void HoldTheSticksAndItLeavesTheGround()
         {
             MaterialRow[] m = Materials(out ulong h);
-            ContactScenarios.Landing held = ContactScenarios.Land(RepositoryDrone.Spec(), m, h, false);
-            ContactScenarios.Landing cut = ContactScenarios.Land(RepositoryDrone.Spec(), m, h, true);
+            // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' landings are re-derived (the sockets' play rocks the body; the legs-off build takes the sockets).
+            ContactScenarios.Landing held = ContactScenarios.Land(SkidsDrone.Spec(), m, h, false);
+            ContactScenarios.Landing cut = ContactScenarios.Land(SkidsDrone.Spec(), m, h, true);
             TestContext.Out.WriteLine($"held: touch {held.TouchSpeed:F3} m/s, left at {held.LeaveSpeed:F3} m/s, rose {held.SeparationHeight * 1e3:F1} mm; "
                 + $"cut: rose {cut.SeparationHeight * 1e3:F1} mm, at rest {cut.Settled:F3} s after the touch "
                 + "(model 26's assumed 10 kN/m legs: left at 0.281 m/s, rose 209.5 mm; cut: rose 2.8 mm, at rest 0.239 s)");
@@ -196,7 +197,8 @@ namespace Fpv450.Sim.Tests
         public void LiftoffFromTheStand()
         {
             MaterialRow[] m = Materials(out ulong h);
-            ContactScenarios.Liftoff r = ContactScenarios.FromStand(RepositoryDrone.Spec(), m, h);
+            // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' landings are re-derived (the sockets' play rocks the body; the legs-off build takes the sockets).
+            ContactScenarios.Liftoff r = ContactScenarios.FromStand(SkidsDrone.Spec(), m, h);
             TestContext.Out.WriteLine($"{r.Made} made, {r.Broken} broken, off at throttle {r.Throttle:F3} (duty {r.Duty:F3}) {r.Time:F3} s into the ramp");
             Assert.That(r.MadeSteel, Is.EqualTo(8), "each arm's two edges on its post, in steel");
             Assert.That(r.RestDepth, Is.EqualTo(4.626 * 9.80665 / (8 * 18000)).Within(2e-6), "resting m·g/(8·k_up) deep: the arms' out-of-plane give");
