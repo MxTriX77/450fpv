@@ -11,6 +11,17 @@ The legs-on drone SHALL stand on four separate legs as photo W shows them: each 
 - **WHEN** the legs-on model is set beside photo W
 - **THEN** each leg is a straight tube standing perpendicular to the ground where the photo has it along its arm, with the photo's length and thickness within the photo's measuring error
 
+### Requirement: The legs are stiff and their clamps have play
+Each leg SHALL be an aluminium tube with its published properties, held in a 3D-printed clamp that has free play before it bears, its own compliance and its own failure. The play SHALL be a bounded draw of a named physical parameter per flight, seeded and logged (D-120, PHY-24).
+
+#### Scenario: A landing on a leg
+- **WHEN** a leg takes a touchdown's load
+- **THEN** the clamp first gives through its play, then bears, and the tube itself barely bends
+
+#### Scenario: Two flights, two builds
+- **WHEN** two flights start with different seeds
+- **THEN** their clamps' play differs within its bounds, and a replay of either is bit for bit
+
 ### Requirement: A leg's tip digs into soil by the soil's own law
 A leg's tip SHALL penetrate a surface by that surface's own bearing resistance, under the drone's weight and at a touchdown, and SHALL resist sliding by the soil in front of it while it is in (PHY-01, PHY-03).
 
