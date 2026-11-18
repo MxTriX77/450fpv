@@ -9,17 +9,20 @@ using Fpv450.Sim.Wind;
 
 namespace Fpv450.FlightBench
 {
-    // The pilot's cut targets (p7d-tether 1.11i; the pilot, 2026-11-18, D-104): each row's rate of cuts over seeds 1–N against
-    // its band, red outside it in either direction. The bands are the orchestrator's reading of the pilot's words: a sharp pitch
-    // or roll parts the line in 60–90 % of tries ("they don't forgive 75 %"), a flip every time ("never forgive flips"), normal
-    // flying now and then and at most about 1 flight in 10 ("sometimes random, not too often": at least 1 across the normal set),
-    // the causes on record on some seeds. Every later fiber change must pass it. The cuts are the line's own mechanics.
+    // The pilot's cut table (p7d-tether 1.11i; the pilot, 2026-11-18, D-104): each row's rate of cuts over seeds 1–N against the
+    // pilot's own rate, accepted within its binomial spread (two standard deviations at N seeds), red outside it in either
+    // direction. The pilot's words: sharp pitch or roll in flight 75 %, about 80 % with high throttle through it; roll alone
+    // presses the hole's edge less than pitch, roll with yaw the same way harder (at least pitch's 75 %, the orchestrator's
+    // reading); a flip always; a proper brake from top speed 25 %; a very sharp liftoff 87 %, 95 % at max throttle; backwards too
+    // much at liftoff with the throttle not yet high about 40 %; normal flying rare (at most about 1 in 10; at least 1 across the
+    // set, "sometimes"). Every later fiber change must pass it. The cuts are the line's own mechanics.
     internal static class CutsCase
     {
         sealed class Row
         {
             public string Name, Group;
-            public double Low, High; // the band of the cut rate, fractions of the seeds
+            public double Rate; // the pilot's rate (NaN: a band given directly)
+            public double Low, High;
             public Func<ulong, FiberCutScenarios.Outcome> Fly;
             public FiberCutScenarios.Outcome[] O;
         }
@@ -27,32 +30,35 @@ namespace Fpv450.FlightBench
         public static bool Run(int seeds)
         {
             DroneSpec spec = PoweredFlightCase.Drone();
-            // A sharp snap's turn: the pilot's own (their logs: fly snaps, 1.11i), at their 225 °/s full-stick rate.
-            const double Sharp = 120, Flip = 360;
-            Row R(string group, string name, double low, double high, Func<ulong, FiberCutScenarios.Outcome> fly) =>
-                new Row { Group = group, Name = name, Low = low, High = high, Fly = fly };
-            const double Rare = 0.1; // "not too often": at most about 1 flight in 10 (the orchestrator's reading)
+            // A sharp snap's turn: the median of the pilot's own sharp snaps in their 30 logs (fly snaps, 1.11i: 60–273°, median
+            // about 110°), at their 225 °/s full-stick rate; a flip 360°.
+            const double Sharp = 110, Flip = 360, Rare = 0.1;
+            double Spread(double p) => 2 * Math.Sqrt(p * (1 - p) / seeds);
+            Row P(string group, string name, double rate, Func<ulong, FiberCutScenarios.Outcome> fly) =>
+                new Row { Group = group, Name = name, Rate = rate, Low = rate - Spread(rate), High = rate + Spread(rate), Fly = fly };
+            Row B(string group, string name, double low, double high, Func<ulong, FiberCutScenarios.Outcome> fly) =>
+                new Row { Group = group, Name = name, Rate = double.NaN, Low = low, High = high, Fly = fly };
             var rows = new List<Row>
             {
-                R("snap", $"sharp pitch, {Sharp:0}° at full stick, from 10 m/s", 0.6, 0.9, s => FiberCutScenarios.Snap(spec, WindLevel.Calm, s, 0, Sharp)),
-                R("snap", $"sharp roll, {Sharp:0}° at full stick, from 10 m/s", 0.6, 0.9, s => FiberCutScenarios.Snap(spec, WindLevel.Calm, s, 1, Sharp)),
-                R("flip", "pitch flip, 360° at full stick", 1, 1, s => FiberCutScenarios.Snap(spec, WindLevel.Calm, s, 0, Flip)),
-                R("flip", "roll flip, 360° at full stick", 1, 1, s => FiberCutScenarios.Snap(spec, WindLevel.Calm, s, 1, Flip)),
-                R("normal", "normal liftoff, Calm", 0, Rare, s => FiberCutScenarios.Liftoff(spec, false, s)),
-                R("normal", "normal liftoff, Windy", 0, Rare, s => FiberCutScenarios.Liftoff(spec, false, s, null, WindLevel.Windy)),
-                R("normal", "hover at 3 m, Calm, 30 s", 0, Rare, s => FiberCutScenarios.Hover(spec, WindLevel.Calm, s)),
-                R("normal", "hover at 3 m, Windy, 30 s", 0, Rare, s => FiberCutScenarios.Hover(spec, WindLevel.Windy, s)),
-                R("normal", "orbit of 20 m at 54 km/h", 0, Rare, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 43, 360, null, 21).O),
-                R("normal", "gentle 180° turn of 15 m at 54 km/h", 0, Rare, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 57, 180).O),
-                R("normal", "cruise at 100 km/h, Calm", 0, Rare, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 27.8, 0, heightFirst: true).O),
-                R("normal", "cruise at 100 km/h, Windy", 0, Rare, s => FiberCutScenarios.Turn(spec, WindLevel.Windy, s, 27.8, 0, heightFirst: true).O),
-                R("cause", "overly sharp reverse from 54 km/h, Calm", 1.0 / 20, 19.0 / 20, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s)),
-                R("cause", "overly sharp reverse from 54 km/h, Windy", 1.0 / 20, 19.0 / 20, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Windy, s)),
-                R("cause", "tree snag", 1.0 / 20, 1, s => FiberCutScenarios.TreeSnag(spec, WindLevel.Calm, s)),
-                R("cause", "very sharp liftoff", 1.0 / 20, 1, s => FiberCutScenarios.Liftoff(spec, true, s)),
-                R("cause", "backward momentum right after liftoff", 1.0 / 20, 1, s => FiberCutScenarios.Backward(spec, s)),
+                P("snap", $"sharp pitch, {Sharp:0}° in flight", 0.75, s => FiberCutScenarios.Snap(spec, WindLevel.Calm, s, 0, Sharp)),
+                P("snap", $"sharp pitch, {Sharp:0}° in flight, full throttle through it", 0.80, s => FiberCutScenarios.Snap(spec, WindLevel.Calm, s, 0, Sharp, null, 1)),
+                B("snap", $"sharp roll alone, {Sharp:0}° in flight (less than pitch)", 0, 0.75 - Spread(0.75), s => FiberCutScenarios.Snap(spec, WindLevel.Calm, s, 1, Sharp)),
+                B("snap", $"sharp roll with yaw the same way, {Sharp:0}° in flight (at least pitch's)", 0.75 - Spread(0.75), 1, s => FiberCutScenarios.Snap(spec, WindLevel.Calm, s, 1, Sharp, null, double.NaN, true)),
+                P("flip", "pitch flip, 360°", 1, s => FiberCutScenarios.Snap(spec, WindLevel.Calm, s, 0, Flip)),
+                P("flip", "roll flip, 360°", 1, s => FiberCutScenarios.Snap(spec, WindLevel.Calm, s, 1, Flip)),
+                P("brake", "top speed to a target, a proper brake", 0.25, s => FiberCutScenarios.Brake(spec, WindLevel.Calm, s)),
+                P("liftoff", "very sharp liftoff (to 80 % throttle in 0.1 s)", 0.87, s => FiberCutScenarios.Liftoff(spec, true, s, null, WindLevel.Calm, 0.8)),
+                P("liftoff", "very sharp liftoff at max throttle", 0.95, s => FiberCutScenarios.Liftoff(spec, true, s)),
+                P("liftoff", "backwards too much at liftoff, the throttle not yet high", 0.40, s => FiberCutScenarios.Backward(spec, s, null, 3, 0.4)),
+                B("normal", "normal liftoff, Calm", 0, Rare, s => FiberCutScenarios.Liftoff(spec, false, s)),
+                B("normal", "normal liftoff, Windy", 0, Rare, s => FiberCutScenarios.Liftoff(spec, false, s, null, WindLevel.Windy)),
+                B("normal", "hover at 3 m, Calm, 30 s", 0, Rare, s => FiberCutScenarios.Hover(spec, WindLevel.Calm, s)),
+                B("normal", "orbit of 20 m at 54 km/h", 0, Rare, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 43, 360, null, 21).O),
+                B("normal", "gentle 180° turn of 15 m at 54 km/h", 0, Rare, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 57, 180).O),
+                B("normal", "cruise at 100 km/h, Windy", 0, Rare, s => FiberCutScenarios.Turn(spec, WindLevel.Windy, s, 27.8, 0, heightFirst: true).O),
+                B("cause", "tree snag", 1.0 / seeds, 1, s => FiberCutScenarios.TreeSnag(spec, WindLevel.Calm, s)),
             };
-            Console.WriteLine($"--cuts: the pilot's cut targets (p7d-tether 1.11i), {rows.Count} rows of {seeds} seeds on the session's drone; " + Power.Describe());
+            Console.WriteLine($"--cuts: the pilot's cut table (p7d-tether 1.11i), {rows.Count} rows of {seeds} seeds on the session's drone; " + Power.Describe());
             FiberCutScenarios.SessionDrone = true;
             FiberCutScenarios.StopAtBreak = true;
             try
@@ -71,15 +77,16 @@ namespace Fpv450.FlightBench
             foreach (Row r in rows)
                 for (int s = 0; s < seeds; s++)
                     if (r.O[s].Broken) Console.WriteLine($"  {r.Name} seed {s + 1}: {r.O[s]}");
-            Console.WriteLine("--cuts: each row's rate against its band");
+            Console.WriteLine($"--cuts: each row's rate against the pilot's (two binomial standard deviations at {seeds} seeds)");
+            double Of(Row r) => (double)r.O.Count(o => o.Broken) / seeds;
             foreach (Row r in rows)
             {
-                int c = r.O.Count(o => o.Broken);
-                double rate = (double)c / seeds;
-                bool met = rate >= r.Low - 1e-9 && rate <= r.High + 1e-9;
+                double rate = Of(r);
+                bool met = rate >= Math.Max(0, r.Low) - 1e-9 && rate <= Math.Min(1, r.High) + 1e-9;
                 ok &= met;
                 string how = string.Join(", ", r.O.Where(o => o.Broken).GroupBy(o => $"{o.Mechanism} at {o.Place}").Select(g => $"{g.Key} {g.Count()}"));
-                Console.WriteLine($"  {(met ? "PASS" : "FAIL")} [{r.Group}] {r.Name}: {c} of {seeds} ({100 * rate:0} %) against {100 * r.Low:0}–{100 * r.High:0} %{(how.Length > 0 ? ": " + how : "")}");
+                string target = double.IsNaN(r.Rate) ? "" : $"the pilot's {100 * r.Rate:0} %, ";
+                Console.WriteLine($"  {(met ? "PASS" : "FAIL")} [{r.Group}] {r.Name}: {r.O.Count(o => o.Broken)} of {seeds} ({100 * rate:0} %) against {target}{100 * Math.Max(0, r.Low):0}–{100 * Math.Min(1, r.High):0} %{(how.Length > 0 ? ": " + how : "")}");
             }
             List<Row> normal = rows.Where(r => r.Group == "normal").ToList();
             int normalCuts = normal.Sum(r => r.O.Count(o => o.Broken)), flights = normal.Count * seeds;

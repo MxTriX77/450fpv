@@ -315,7 +315,8 @@ namespace Fpv450.Sim.Tests
         /// the body has turned degrees about that axis, then centred, the pilot recovering to the cruise's course; on to 16 s. A
         /// flip is 360°. The line parts or not by its own mechanics.
         /// </summary>
-        public static Outcome Snap(DroneSpec spec, WindLevel wind, ulong seed, int axis, double degrees, Action<FlightSetup> edit = null)
+        public static Outcome Snap(DroneSpec spec, WindLevel wind, ulong seed, int axis, double degrees, Action<FlightSetup> edit = null,
+            double snapThrottle = double.NaN, bool yawWith = false)
         {
             FlightSetup setup = Setup(spec, wind, seed, edit);
             double stand = TetherScenarios.Stand(setup);
@@ -348,7 +349,7 @@ namespace Fpv450.Sim.Tests
                     if (!snapping && !done && t >= 10)
                     {
                         snapping = true;
-                        throttle = stick.Throttle;
+                        throttle = double.IsNaN(snapThrottle) ? stick.Throttle : snapThrottle;
                     }
                     if (snapping)
                     {
@@ -363,7 +364,7 @@ namespace Fpv450.Sim.Tests
                         {
                             stick.Pitch = axis == 0 ? -1 : 0;
                             stick.Roll = axis == 1 ? -1 : 0;
-                            stick.Yaw = 0;
+                            stick.Yaw = axis == 1 && yawWith ? -1 : 0; // the pilot's roll with yaw the same way (left with left)
                             stick.Throttle = throttle;
                         }
                     }
@@ -373,6 +374,31 @@ namespace Fpv450.Sim.Tests
                 if (w.O.Broken && StopAtBreak) break;
             }
             return w.O;
+        }
+
+        /// <summary>
+        /// The pilot's proper brake: up to 10 m, along +z to top speed (25 m/s, the pilot's 60° tilt), then at 11 s a target to stop
+        /// at: the pilot pitches back balanced against the throttle as it comes down (SimPilot holding the height, the tilt up to
+        /// 60°, the heavy quad's inertia carried), on to 18 s.
+        /// </summary>
+        public static Outcome Brake(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit = null, double speed = 25)
+        {
+            FlightSetup setup = Setup(spec, wind, seed, edit);
+            double stand = TetherScenarios.Stand(setup);
+            return Run(setup, 18, (t, core, pilot) =>
+            {
+                double y = stand + DetMath.Min(10, 2 * t);
+                if (t < 5)
+                {
+                    pilot.HoldVelocity = false;
+                    pilot.Target = new Double3(0, y, 0);
+                    return;
+                }
+                pilot.HoldVelocity = true;
+                pilot.MaxTiltSin = 0.866;
+                pilot.TargetVelocity = new Double3(0, 0, t < 11 ? speed : 0);
+                pilot.Target = new Double3(0, y, core.State.Position.Z);
+            }, edgeFrom: 11);
         }
 
         /// <summary>A careful hover: up to 3 m over the floor at 0.5 m/s and held there to 30 s (the normal set's hover).</summary>
@@ -580,7 +606,7 @@ namespace Fpv450.Sim.Tests
         /// rest in 0.1 s (sharp), held 1 s, then the pilot catches it 5 m above where it is; or the pilot's own gentle liftoff to 1.5 m
         /// (normal). The known-wrong: design 4's air (no fountain or ground vortex).
         /// </summary>
-        public static Outcome Liftoff(DroneSpec spec, bool sharp, ulong seed, Action<FlightSetup> edit = null, WindLevel wind = WindLevel.Calm)
+        public static Outcome Liftoff(DroneSpec spec, bool sharp, ulong seed, Action<FlightSetup> edit = null, WindLevel wind = WindLevel.Calm, double top = 1)
         {
             FlightSetup setup = Setup(spec, wind, seed, edit);
             double stand = TetherScenarios.Stand(setup);
@@ -593,7 +619,7 @@ namespace Fpv450.Sim.Tests
                 StickSample stick;
                 if (k < 100) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
                 else if (sharp && k < 1200)
-                    stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = true, Throttle = DetMath.Min(1, (k - 100) / 100.0) };
+                    stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = true, Throttle = top * DetMath.Min(1, (k - 100) / 100.0) };
                 else
                 {
                     // The pilot then catches the climb above where it is (never back down onto its own line).
