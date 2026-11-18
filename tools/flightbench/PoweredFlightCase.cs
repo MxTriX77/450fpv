@@ -35,8 +35,8 @@ namespace Fpv450.FlightBench
 
         public static DroneSpec Drone() => DroneSpec.Parse(DroneText());
 
-        // w17-four-legs 1.3: the goldens fly model 105's drone on its skids (drone_skids.json, its contacts the half-skids' law) until
-        // the four legs' tubes are refined and the goldens are re-recorded once on the final drone.
+        // w17-four-legs 1.3: the kept audits fly model 105's drone on its skids (drone_skids.json, its contacts the half-skids' law); the
+        // pinned goldens the repository's drone on four legs.
         static DroneSpec Skids() => DroneSpec.Parse(Repository("assets-src/drone/drone_skids.json"));
 
         // Model 74 (the nozzle bent to the pilot's 27.5°): every kept audit of models 64–70 flies model 70's drone.json (a fixture), whose
@@ -66,18 +66,18 @@ namespace Fpv450.FlightBench
 
         public static bool Golden()
         {
-            ulong hash = GoldenFlights.FlyPowered(Skids(), out FlightCore core);
+            ulong hash = GoldenFlights.FlyPowered(Drone(), out FlightCore core);
             // The record less the contacts' 120 bytes and, since model 39, the legs' state (zero without contacts; since model 46
             // after the line's 2392 bytes).
             const int legs = GoldenFlights.Model44Layout;
-            ulong with = GoldenFlights.FlyPowered(Skids(), out _, 992, 120, layout: legs);
-            ulong without = GoldenFlights.FlyPowered(Skids(), out _, 992, 120, false, layout: legs);
+            ulong with = GoldenFlights.FlyPowered(Drone(), out _, 992, 120, layout: legs);
+            ulong without = GoldenFlights.FlyPowered(Drone(), out _, 992, 120, false, layout: legs);
             bool ok = hash == GoldenFlights.PoweredHash && with == without && core.State.Armed;
             Console.WriteLine($"{Name}: {GoldenFlights.PoweredSteps} steps, hash 0x{hash:X16} "
                 + $"({(hash == GoldenFlights.PoweredHash ? "matches" : $"golden 0x{GoldenFlights.PoweredHash:X16}")}), armed {core.State.Armed}, "
                 + $"packs at {core.State.PackCharge0:F4} of 0.9; over the record less the contacts' 120 bytes 0x{with:X16} with the contacts, "
                 + $"0x{without:X16} without ({(with == without ? "the same" : "DIFFERENT")}): {(ok ? "PASS" : "FAIL")}");
-            ulong contact = GoldenFlights.FlyContact(Skids(), out FlightCore c);
+            ulong contact = GoldenFlights.FlyContact(Drone(), out FlightCore c);
             bool cok = contact == GoldenFlights.ContactHash && c.Contacts.ImpactCount >= 2 && !c.State.Crashed;
             Console.WriteLine($"contact-flight: {GoldenFlights.ContactSteps} steps, hash 0x{contact:X16} "
                 + $"({(contact == GoldenFlights.ContactHash ? "matches" : $"golden 0x{GoldenFlights.ContactHash:X16}")}), {c.Contacts.ImpactCount} impacts, "
@@ -97,7 +97,7 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"contact-flight without surfaces.json: hash 0x{rigid:X16}, over 1904 bytes 0x{rigid28:X16} "
                 + $"({(sok ? "model 31's and model 26's, bit for bit" : "NOT model 31's and 26's")}): {(sok ? "PASS" : "FAIL")}");
             ulong content = Fpv450.Sim.Tests.RangeScenarios.World.ContentHash;
-            ulong range = GoldenFlights.FlyRange(Skids(), out FlightCore g);
+            ulong range = GoldenFlights.FlyRange(Drone(), out FlightCore g);
             bool rangeOk = content == GoldenFlights.RangeContent && range == GoldenFlights.RangeHash && g.Contacts.ImpactCount >= 1 && !g.State.Crashed;
             Console.WriteLine($"range-flight: the test range 0x{content:X16} ({(content == GoldenFlights.RangeContent ? "as recorded" : $"recorded on 0x{GoldenFlights.RangeContent:X16}: the map moved")}), "
                 + $"{GoldenFlights.RangeSteps} steps on S04's straw, hash 0x{range:X16} ({(range == GoldenFlights.RangeHash ? "matches" : $"golden 0x{GoldenFlights.RangeHash:X16}")}), "
@@ -184,16 +184,29 @@ namespace Fpv450.FlightBench
             WindSetup uncut = WindSetup.ForMap(Fpv450.Sim.Tests.RangeScenarios.World, WindLevel.Calm);
             int cuts = uncut.Cuts?.Length ?? 0;
             uncut.Cuts = null;
-            ulong rc = GoldenFlights.FlyRange(Skids(), out _, wind: uncut);
+            ulong rc = GoldenFlights.FlyRange(Drone(), out _, wind: uncut);
             bool cutOk = cuts > 0 && rc == GoldenFlights.RangeHash;
             rangeOk &= cutOk;
             Console.WriteLine($"range-flight without its map's {cuts} cuts: 0x{rc:X16} ({(rc == GoldenFlights.RangeHash ? "the same bits" : "DIFFERENT")}): {(cutOk ? "PASS" : "FAIL")}");
-            ulong rain = GoldenFlights.FlyPowered(Skids(), out FlightCore r, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain);
+            ulong rain = GoldenFlights.FlyPowered(Drone(), out FlightCore r, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain);
             bool rok = rain == GoldenFlights.RainPoweredHash && r.Rain.FilmMass > 0;
             Console.WriteLine($"rain-flight: {GoldenFlights.PoweredSteps} steps in Calm and Severe rain, hash 0x{rain:X16} "
                 + $"({(rain == GoldenFlights.RainPoweredHash ? "matches" : $"golden 0x{GoldenFlights.RainPoweredHash:X16}")}), "
                 + $"{r.Rain.RateMmPerHour:F2} mm/h, film {r.Rain.FilmMass * 1000:F2} of {r.Rain.FilmCapacity * 1000:F2} g: {(rok ? "PASS" : "FAIL")}");
-            ulong tumble = GoldenFlights.FlyTumble(Skids(), out FlightCore t, out GoldenFlights.TumbleChecks tc);
+            // w17-four-legs 1.3's audit: on model 105's drone on its skids (drone_skids.json, its contacts the half-skids' law, the switch
+            // off) each golden is model 105's pin, every record and event (GoldenFlightTests.OnTheSkidsEachGoldenIsModel105s).
+            {
+                WindSetup calm = WindSetup.Of(WindLevel.Calm);
+                ulong p105 = GoldenFlights.FlyPowered(Skids(), out _), r105 = GoldenFlights.FlyPowered(Skids(), out _, wind: calm, rain: RainLevel.SevereRain),
+                    c105 = GoldenFlights.FlyContact(Skids(), out _), g105 = GoldenFlights.FlyRange(Skids(), out _),
+                    l105 = GoldenFlights.FlyContact(Skids(), out _, tether: true), t105 = GoldenFlights.FlyTumble(Skids(), out _, out _);
+                bool ok105 = p105 == GoldenFlights.Model105PoweredHash && r105 == GoldenFlights.Model105RainPoweredHash && c105 == GoldenFlights.Model105ContactHash
+                    && g105 == GoldenFlights.Model105RangeHash && l105 == GoldenFlights.Model105TetherHash && t105 == GoldenFlights.Model105TumbleHash;
+                rangeOk &= ok105;
+                Console.WriteLine($"on model 105's skids (the switch off): powered 0x{p105:X16}, rain 0x{r105:X16}, contact 0x{c105:X16}, range 0x{g105:X16}, "
+                    + $"tether 0x{l105:X16}, tumble 0x{t105:X16} ({(ok105 ? "model 105's, bit for bit" : "NOT model 105's")}): {(ok105 ? "PASS" : "FAIL")}");
+            }
+            ulong tumble = GoldenFlights.FlyTumble(Drone(), out FlightCore t, out GoldenFlights.TumbleChecks tc);
             bool tok = tumble == GoldenFlights.TumbleHash && tc.Momentum < 1e-10 && tc.Energy < 1e-10 && tc.Parabola < 1e-9 && tc.Wander > 0.5;
             Console.WriteLine($"tumble: {GoldenFlights.TumbleSteps} steps of the L4 body off its principal axes, hash 0x{tumble:X16} "
                 + $"({(tumble == GoldenFlights.TumbleHash ? "matches" : $"golden 0x{GoldenFlights.TumbleHash:X16}")}), momentum within {tc.Momentum:E2} (< 1e-10), "
@@ -284,7 +297,7 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"without the line, over model 28's 1904 bytes, with the soil and the area laws: contact 0x{c33:X16}, range 0x{g33:X16} "
                 + $"({(k33 ? "p7a-ground's model 33, bit for bit; the range with model 38's buried face" : "NOT model 33's")}): {(k33 ? "PASS" : "FAIL")}");
             // p7d-tether 1.6: the contact flight with the line.
-            ulong line = GoldenFlights.FlyContact(Skids(), out FlightCore l, tether: true);
+            ulong line = GoldenFlights.FlyContact(Drone(), out FlightCore l, tether: true);
             bool lok = line == GoldenFlights.TetherHash && l.Tether.PaidOut > 0 && l.Tether.Chain.Wedges == 0 && !l.State.Crashed;
             Console.WriteLine($"tether-flight: {GoldenFlights.ContactSteps} steps with the line, hash 0x{line:X16} "
                 + $"({(line == GoldenFlights.TetherHash ? "matches" : $"golden 0x{GoldenFlights.TetherHash:X16}")}), {l.Tether.PaidOut:F3} m paid out, "

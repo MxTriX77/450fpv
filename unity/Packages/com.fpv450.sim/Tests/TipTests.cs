@@ -417,6 +417,18 @@ namespace Fpv450.Sim.Tests
 
         // ---- The legs' law on four legs (design 5) ---------------------------------------------------------------------------------
 
+        [Test, Explicit("the six goldens' hashes on the repository's drone (a re-record's)")]
+        public void GoldenHashes()
+        {
+            DroneSpec spec = Drone();
+            Print($"powered 0x{GoldenFlights.FlyPowered(spec, out FlightCore p):X16} ({p.State.Position.Y:F4} m up)");
+            Print($"rain 0x{GoldenFlights.FlyPowered(spec, out _, wind: Fpv450.Sim.Wind.WindSetup.Of(Fpv450.Sim.Wind.WindLevel.Calm), rain: RainLevel.SevereRain):X16}");
+            Print($"contact 0x{GoldenFlights.FlyContact(spec, out FlightCore c):X16} ({c.State.Position.Y:F4} m up, {c.Trace.ContactsTouching} touching, {c.Contacts.ImpactCount} impacts, crashed {c.State.Crashed})");
+            Print($"range 0x{GoldenFlights.FlyRange(spec, out FlightCore g):X16} ({g.State.Position.Y:F4} m up, {g.Trace.ContactsTouching} touching, {g.Contacts.ImpactCount} impacts)");
+            Print($"tether 0x{GoldenFlights.FlyContact(spec, out FlightCore l, tether: true):X16} (paid {l.Tether.PaidOut:F3} m, broken {l.Tether.Broken}, crashed {l.State.Crashed})");
+            Print($"tumble 0x{GoldenFlights.FlyTumble(spec, out _, out _):X16}");
+        }
+
         [Test, Explicit("a probe: prints the tips' start, touchdowns, liftoffs and pushes")]
         public void Probe()
         {
