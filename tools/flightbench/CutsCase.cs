@@ -87,7 +87,7 @@ namespace Fpv450.FlightBench
                 string how = string.Join(", ", r.O.Where(o => o.Broken).GroupBy(o => $"{o.Mechanism} at {o.Place}").Select(g => $"{g.Key} {g.Count()}"));
                 string target = double.IsNaN(r.Rate) ? "" : $"the pilot's {100 * r.Rate:0} %, ";
                 Console.WriteLine($"  {(met ? "PASS" : "FAIL")} [{r.Group}] {r.Name}: {r.O.Count(o => o.Broken)} of {seeds} ({100 * rate:0} %) against {target}{100 * Math.Max(0, r.Low):0}–{100 * Math.Min(1, r.High):0} %{(how.Length > 0 ? ": " + how : "")}"
-                    + $"; the hole's edge's most σ: mean {r.O.Average(o => o.EdgeMost) / 1e9:0.000} GPa, most {r.O.Max(o => o.EdgeMost) / 1e9:0.000} (θ up to {r.O.Max(o => o.EdgeTurn) * 180 / Math.PI:0}°, T up to {r.O.Max(o => o.EdgeTension):0.000} N)");
+                    + $"; the hole's edge's most σ: mean {r.O.Average(o => o.EdgeMost) / 1e9:0.000} GPa, most {r.O.Max(o => o.EdgeMost) / 1e9:0.000} (θ up to {r.O.Max(o => o.EdgeTurn) * 180 / Math.PI:0}°, T up to {r.O.Max(o => o.EdgeTension):0.000} N); the exit's most tension {r.O.Average(o => o.ExitMost):0.000} N mean, {r.O.Max(o => o.ExitMost):0.000} most");
             }
             List<Row> normal = rows.Where(r => r.Group == "normal").ToList();
             int normalCuts = normal.Sum(r => r.O.Count(o => o.Broken)), flights = normal.Count * seeds;
