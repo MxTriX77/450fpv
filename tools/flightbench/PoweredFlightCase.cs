@@ -765,7 +765,7 @@ namespace Fpv450.FlightBench
             // on the wake grid's version 1, which 75 flew.
             // Since model 79 (76 merged onto 78) the tether flies 75's line: model 70's drone.json with its exit, lip and peel and the
             // linear step (with the edgewise flow, model 76's tether pin).
-            DroneSpec d76 = Drone();
+            DroneSpec d76 = Skids(); // w17-four-legs 1.3: model 105's drone on its skids
             ulong e75p = GoldenFlights.FlyPowered(d76, out _, edgewise: false),
                 e75r = GoldenFlights.FlyPowered(d76, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edgewise: false),
                 e75c = GoldenFlights.FlyContact(d76, out _, edgewise: false), e75g = GoldenFlights.FlyRange(d76, out _, edgewise: false, wakes2: false),
@@ -816,7 +816,7 @@ namespace Fpv450.FlightBench
             // on model 70's drone.json with model 70's exit, lip and peel the tether golden is model 76's; every golden without the line
             // is 76's own pin, this model's. So the edgewise flow is the whole of 79's move against 78 and 78's line the whole against 76
             // (GoldenFlightTests.WithoutTheEdgewiseThrustEachGoldenIsModel78s, WithTheLinearStepAndTheOldExitEachGoldenIsModel76s).
-            DroneSpec d79 = Drone();
+            DroneSpec d79 = Skids(); // w17-four-legs 1.3: model 105's drone on its skids
             ulong w78p = GoldenFlights.FlyPowered(d79, out _, edgewise: false),
                 w78r = GoldenFlights.FlyPowered(d79, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edgewise: false),
                 w78c = GoldenFlights.FlyContact(d79, out _, edgewise: false), w78g = GoldenFlights.FlyRange(d79, out _, edgewise: false, wakes2: false),
