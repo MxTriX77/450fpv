@@ -175,6 +175,28 @@ namespace Fpv450.Sim.Flight
         /// The audit against design 22's line and the known-wrong for the span's tension, never a pilot's flight.</summary>
         public bool TetherBeforeDesign23;
 
+        /// <summary>The known-wrong chain of p7d-tether design 24's R2 (model 105's): once the spacing law's room is spent a
+        /// member's contact node is refused, so the segment lies through the member until room comes (a 12 m segment through a
+        /// wall's beam in the pilot's flight 2); a trail point the pull would lift waits for room, so the frozen end holds what
+        /// reaches it; and the trail freezes its segment wherever it lies. TetherBeforeDesign23 and every switch it is implied by
+        /// imply it (every kept audit of an older line). The audit against model 105 and the known-wrong for the laid line over a
+        /// ruin, never a pilot's flight.</summary>
+        public bool TetherFullChainRefuses;
+
+        /// <summary>The known-wrong air of p7d-tether design 24's R1 (model 105's): a node lying on a rigid shape's face (a roof, a
+        /// wall's top, a slab) reads the wind and the rotors' wash at the terrain's height under it, the free air of its height over
+        /// the terrain and the wash as a free wake, and no wall's lift (7.9 m/s where the roof's own layer gives about 3.4, flight
+        /// 24's ridge). TetherBeforeDesign23 and every switch it is implied by imply it (every kept audit of an older line). The
+        /// audit against model 105 and the known-wrong for the line on a face, never a pilot's flight.</summary>
+        public bool TetherFreeAirOnFaces;
+
+        /// <summary>The known-wrong slots of p7d-tether design 24's C1 (model 105's): a capstan slot on a world member holds the line
+        /// along it at its hold's full stiffness whatever its press, so a node lying a millimetre off a ruin's member, not pressing
+        /// it, carries the pull past a corner (QA's C1: 94 of 148 corner runs past the capstan's bound). TetherBeforeDesign23 and
+        /// every switch it is implied by imply it (every kept audit of an older line). The audit against model 105 and the
+        /// known-wrong for the corner, never a pilot's flight.</summary>
+        public bool TetherHoldWithoutPress;
+
         /// <summary>tether.json's table for the stems' air with StemWash in a flight without the line (w9-village-physics
         /// 2.13): the props' stems (PropStems) read the rotors' wash by its rotor_air rows, design 19's law the line reads
         /// (RotorAir). With the line the line's table is read and this one is not. The header records its rows and hash when the

@@ -183,6 +183,8 @@ namespace Fpv450.Sim.Tether
             ("contact.hook_reach_m", TetherValueKind.Positive),
             ("contact.aluminium_static_friction", TetherValueKind.Positive),
             ("contact.aluminium_kinetic_friction", TetherValueKind.Positive),
+            ("contact.face_roughness_m", TetherValueKind.Band),
+            ("contact.face_layer_height_m", TetherValueKind.Positive),
         };
 
         const double DerivedTolerance = 1e-3;

@@ -2279,7 +2279,7 @@ namespace Fpv450.Sim.Tests
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
             bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? wakeLevel = null, bool? descentBranch = null,
             bool? wakeReach4R = null, bool? airlessTrail = null, bool? heightScaled = null, bool? beforeDesign21 = null, bool? peelBeforeDesign22 = null,
-            bool? beforeDesign23 = null)
+            bool? beforeDesign23 = null, bool? beforeDesign24 = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2346,6 +2346,14 @@ namespace Fpv450.Sim.Tests
                 // so every kept audit flies it (every older line's switch implies it, as FiberLine.BeforeDesign23 reads them, and so
                 // does models 89–103's band); beforeDesign23 says so outright.
                 setup.TetherBeforeDesign23 = beforeDesign23 ?? (peelBeforeDesign22 ?? olderPeel);
+                // p7d-tether design 24: every line before it refused a contact node in a full chain, read the free air on a face and
+                // let a slot hold the line along it without a press (FlightSetup.TetherFullChainRefuses, TetherFreeAirOnFaces,
+                // TetherHoldWithoutPress), so every kept audit flies them (the unconverged step kept implies them, as FiberLine reads
+                // them); beforeDesign24 says so outright.
+                bool before24 = beforeDesign24 ?? setup.TetherBeforeDesign23;
+                setup.TetherFullChainRefuses = before24;
+                setup.TetherFreeAirOnFaces = before24;
+                setup.TetherHoldWithoutPress = before24;
             }
             Heat(setup, heat, layout);
             if (layout < LogFormat.StepSize) CleanSensors(setup);

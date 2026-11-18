@@ -433,6 +433,11 @@ namespace Fpv450.Sim.Tether
         public double NearShare => _near;
         public bool FarLands => _farLands;
         public Double3 FarLanding => _farLanding;
+
+        /// <summary>The hubs' centre and the wakes' mean direction (unit, downstream) this step (design 19; p7d-tether design 24's
+        /// face reads where the wash lands along it).</summary>
+        public Double3 FarCentre => _farCentre;
+        public Double3 FarAxis => _farAxis;
         public double FarLandingShare => _farLandingShare;
         public double FarGroundSpeed => _farGroundSpeed;
         public double FarStart => _farStart;
