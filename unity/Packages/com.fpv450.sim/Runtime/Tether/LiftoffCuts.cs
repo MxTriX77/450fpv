@@ -8,10 +8,12 @@ namespace Fpv450.Sim.Tether
     /// edge 0.2–0.5 GPa: design 25), yet the pilot loses the line at most very sharp liftoffs. The law gives each liftoff one
     /// chance, from how hard it is and how it leans, and one seeded draw against it.
     ///
-    /// A liftoff begins at the first step the drone touches nothing after a step it touched something, armed, having rested
-    /// since its last liftoff (launch.liftoff_rest_s in contact; the flight starts rested). It lasts while the drone is still over
-    /// the line it lifted off with: until it has paid out launch.liftoff_window_payout_m since the leave (a climb pays out about
-    /// its height, flying away low the ground it covers, flying backwards over its own line nothing), or it rests again.
+    /// A liftoff begins at the first step the drone touches nothing after a step it touched something, armed, having stood on its
+    /// legs since its last liftoff (launch.liftoff_rest_s with the legs carrying launch.liftoff_standing_share of its weight or
+    /// more; the flight starts standing). A drone dragged through a crown or brushing a wall never stood, so it never lifts off. It lasts while the drone is still over
+    /// the line it lifted off with: until it has climbed launch.liftoff_window_height_m over where it left, or paid out
+    /// launch.liftoff_window_payout_m since the leave (flying away low pays out the ground it covers, flying backwards over its own
+    /// line nothing), or it stands again.
     /// Its chance, held at its running most:
     /// - the pressure: the rotors' thrust over the weight, averaged over the first launch.liftoff_window_s after the leave (so it
     ///   grows with the thrust given and with how fast it came), through launch.liftoff_cut_by_thrust (careful rare, a very sharp
@@ -34,7 +36,7 @@ namespace Fpv450.Sim.Tether
 
         const double Pi = 3.141592653589793;
 
-        readonly double _window, _payout, _rest, _leanSin, _extra, _safe, _cap;
+        readonly double _window, _height, _payout, _rest, _standing, _leanSin, _extra, _safe, _cap;
         readonly double[] _byThrust, _bySpeed;
         SeedStream _stream;
 
@@ -49,8 +51,10 @@ namespace Fpv450.Sim.Tether
         public LiftoffCuts(TetherTable table, FlightRandom random)
         {
             _window = table.Number("launch.liftoff_window_s");
+            _height = table.Number("launch.liftoff_window_height_m");
             _payout = table.Number("launch.liftoff_window_payout_m");
             _rest = table.Number("launch.liftoff_rest_s");
+            _standing = table.Number("launch.liftoff_standing_share");
             _leanSin = DetMath.Cos(Pi / 2 - table.Number("launch.liftoff_lean_deg") * (Pi / 180));
             _extra = table.Number("launch.liftoff_lean_extra");
             _safe = table.Number("launch.liftoff_safe_chance");
@@ -75,14 +79,15 @@ namespace Fpv450.Sim.Tether
         public ulong Count => _stream.Count;
 
         /// <summary>
-        /// One step after the line's solve: touching, whether the drone touched anything in the step; thrustOverWeight, the rotors'
-        /// thrust over the weight; paidOut, the line paid out, m. True when this liftoff's chance passed its draw in this step (the
+        /// One step after the line's solve: touching, whether the drone touched anything in the step; legsOverWeight, what its legs
+        /// carried over its weight; thrustOverWeight, the rotors' thrust over the weight; paidOut, the line paid out, m. True when this liftoff's chance passed its draw in this step (the
         /// caller parts the line at the hole's edge; the liftoff has ended). part: the coil's part for the events.
         /// </summary>
-        public bool Step(in FlightState s, bool touching, double thrustOverWeight, double paidOut, double dt, StepEvents events, int part)
+        public bool Step(in FlightState s, bool touching, double legsOverWeight, double thrustOverWeight, double paidOut, double dt,
+            StepEvents events, int part)
         {
             bool restedNow = false;
-            if (touching)
+            if (touching && legsOverWeight >= _standing)
             {
                 _restTime += dt;
                 if (_restTime >= _rest)
@@ -127,7 +132,7 @@ namespace Fpv450.Sim.Tether
                 return true;
             }
             if (restedNow) End(s, (byte)(_flags | Rested), events, part);
-            else if (paidOut - _paid0 >= _payout)
+            else if (paidOut - _paid0 >= _payout || s.Position.Y - _at.Y >= _height)
             {
                 if (double.IsNaN(_pressure)) Reckon();
                 End(s, _flags, events, part);

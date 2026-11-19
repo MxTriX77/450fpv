@@ -651,7 +651,9 @@ namespace Fpv450.Sim.Flight
             // mass and the airframe's modes follow, the body's motion kept (RigidBody: the state is the body origin's).
             if (_tether != null)
             {
-                _tether.Ground(_contacts != null && _trace.ContactsTouching > 0, _mass.Properties.Mass * -Gravity.Y);
+                _tether.Ground(_contacts != null && _trace.ContactsTouching > 0,
+                    _contacts != null ? _trace.LegLoad.RearRight + _trace.LegLoad.FrontRight + _trace.LegLoad.RearLeft + _trace.LegLoad.FrontLeft : 0,
+                    _mass.Properties.Mass * -Gravity.Y);
                 _tether.Step(s, _tetherHubs, _rotorThrust, _wind, _events, ref _trace.Tether, angles);
                 if (_tether.MassChanged)
                 {

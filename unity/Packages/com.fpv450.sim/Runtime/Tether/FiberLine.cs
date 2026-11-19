@@ -497,13 +497,14 @@ namespace Fpv450.Sim.Tether
 
         readonly LiftoffCuts _liftoff;
         bool _touching;
-        double _droneWeight, _thrustOverWeight;
+        double _droneWeight, _thrustOverWeight, _legLoad;
 
-        /// <summary>Before each Step: whether the drone touched anything in the step (ContactModel's ContactsTouching), and its
-        /// weight, N (design 26's liftoffs).</summary>
-        public void Ground(bool touching, double weight)
+        /// <summary>Before each Step: whether the drone touched anything in the step (ContactModel's ContactsTouching), what its
+        /// legs carried, N (the four legs' forces), and its weight, N (design 26's liftoffs).</summary>
+        public void Ground(bool touching, double legLoad, double weight)
         {
             _touching = touching;
+            _legLoad = legLoad;
             _droneWeight = weight;
         }
 
@@ -1561,7 +1562,7 @@ namespace Fpv450.Sim.Tether
             // Design 26: a liftoff's chance against its draw, empirical (the pilot's account); while one lasts the hole's edge is its.
             if (!found && _liftoff != null)
             {
-                if (_liftoff.Step(s, _touching, _thrustOverWeight, PaidOut, _dt, events, _coilPart))
+                if (_liftoff.Step(s, _touching, _droneWeight > 0 ? _legLoad / _droneWeight : 0, _thrustOverWeight, PaidOut, _dt, events, _coilPart))
                 {
                     found = true;
                     b = default;

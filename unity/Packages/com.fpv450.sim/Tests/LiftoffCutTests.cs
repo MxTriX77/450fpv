@@ -52,7 +52,7 @@ namespace Fpv450.Sim.Tests
                     S.Velocity = touching ? default : v;
                     if (!touching) paid += payout * Dt;
                     Events.Clear();
-                    Cut = Law.Step(S, touching, touching ? 0.5 : tw, paid, Dt, Events, -1);
+                    Cut = Law.Step(S, touching, touching ? 1 : 0, touching ? 0.5 : tw, paid, Dt, Events, -1);
                     if (Cut) CutStep = k;
                     for (int i = 0; i < Events.Count; i++)
                     {
@@ -171,14 +171,42 @@ namespace Fpv450.Sim.Tests
             {
                 l.S.Step = 500 + k;
                 l.Events.Clear();
-                l.Law.Step(l.S, true, 0.5, 0, Dt, l.Events, -1);
+                l.Law.Step(l.S, true, 1, 0.5, 0, Dt, l.Events, -1);
             }
             Assert.That(l.Law.Open, Is.False, "rested: the liftoff ended");
             l.S.Step = 1500;
             l.Events.Clear();
-            l.Law.Step(l.S, false, 1.2, 0, Dt, l.Events, -1);
+            l.Law.Step(l.S, false, 0, 1.2, 0, Dt, l.Events, -1);
             Assert.That(l.Law.Open, Is.True, "the next leave");
             Assert.That(l.Law.Count, Is.EqualTo(2UL), "its own draw");
+        }
+
+        [Test]
+        public void ADroneThatNeverStoodNeverLiftsOff()
+        {
+            // A careful liftoff that climbs away (its 10 m of line paid out in half a second here), then a second in a crown,
+            // touching with its legs carrying nothing, then free: no liftoff; then a second standing on its legs, then free: one.
+            var l = new Lift(11);
+            l.Fly(200, 1000, 1.2, Quat.Identity, new Double3(0, 4, 0), 20);
+            if (l.Cut) return; // its 1.3 %
+            Assert.That(l.Law.Open, Is.False, "the climb's liftoff ended at its line");
+            Brush(l, 1200, 0);
+            Assert.That(l.Law.Count, Is.EqualTo(1UL), "a second of brushing, never standing: no second liftoff");
+            Brush(l, 2400, 1);
+            Assert.That(l.Law.Count, Is.EqualTo(2UL), "a second standing on its legs: the next leave is a liftoff");
+        }
+
+        static void Brush(Lift l, long from, double legs)
+        {
+            for (int k = 0; k < 1000; k++)
+            {
+                l.S.Step = from + k;
+                l.Events.Clear();
+                l.Law.Step(l.S, true, legs, 1.2, 0, Dt, l.Events, -1);
+            }
+            l.S.Step = from + 1000;
+            l.Events.Clear();
+            l.Law.Step(l.S, false, 0, 1.2, 0, Dt, l.Events, -1);
         }
 
         [Test]
