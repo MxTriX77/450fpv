@@ -19,6 +19,9 @@ namespace Fpv450.Sim.Tether
         Peel = 5,
         /// <summary>The chain went non-finite (CableChain's wedge at a node): the line broken there so the flight goes on.</summary>
         Wedge = 6,
+        /// <summary>A liftoff's chance passed its draw (LiftoffCuts, design 26: empirical, the pilot's account): the line parted at
+        /// the hole's edge as the drone lifted off.</summary>
+        Liftoff = 7,
     }
 
     /// <summary>A strength's band (FiberSection's Index, low 2 bits; 0x40 a wear-through, 0x80 the strength a break met).</summary>
@@ -128,6 +131,10 @@ namespace Fpv450.Sim.Tether
         readonly bool _edgeLaw;
         readonly double _edgeModulus, _edgeScale;
         SeedStream _edge;
+
+        /// <summary>Design 26: while a liftoff lasts the hole's edge is LiftoffCuts' alone, so the edge's Weibull yields (the
+        /// section's own strength stays: the glass's, not the hole's).</summary>
+        public bool EdgeYields;
 
         // The section table: open addressing on k, never emptied (the flight's).
         readonly long[] _key = new long[Capacity];
@@ -762,7 +769,7 @@ namespace Fpv450.Sim.Tether
                         double strength = Strength(sec, out SectionBand band);
                         if ((band == SectionBand.Abraded) != (pass == 1)) continue;
                         // Design 25: over the hole's edge the section is no stronger than its strength there.
-                        if (lip && _edgeLaw)
+                        if (lip && _edgeLaw && !EdgeYields)
                         {
                             double edge = EdgeStrength(sec);
                             if (edge < strength)

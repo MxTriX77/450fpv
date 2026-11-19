@@ -203,6 +203,11 @@ namespace Fpv450.Sim.Flight
         /// switch it is implied by imply it. The audit against model 107 and the known-wrong for the pilot's cut table.</summary>
         public bool TetherEdgeIntact;
 
+        /// <summary>The known-wrong liftoff of p7d-tether design 26 (model 107's): a liftoff cuts the line by its own mechanics
+        /// alone, never by the empirical law of the pilot's account (LiftoffCuts), and the hole's edge keeps its Weibull through it.
+        /// TetherBeforeDesign23 and every switch it is implied by imply it. The known-wrong for the pilot's liftoff rows.</summary>
+        public bool TetherLiftoffPhysical;
+
         /// <summary>tether.json's table for the stems' air with StemWash in a flight without the line (w9-village-physics
         /// 2.13): the props' stems (PropStems) read the rotors' wash by its rotor_air rows, design 19's law the line reads
         /// (RotorAir). With the line the line's table is read and this one is not. The header records its rows and hash when the
@@ -646,6 +651,7 @@ namespace Fpv450.Sim.Flight
             // mass and the airframe's modes follow, the body's motion kept (RigidBody: the state is the body origin's).
             if (_tether != null)
             {
+                _tether.Ground(_contacts != null && _trace.ContactsTouching > 0, _mass.Properties.Mass * -Gravity.Y);
                 _tether.Step(s, _tetherHubs, _rotorThrust, _wind, _events, ref _trace.Tether, angles);
                 if (_tether.MassChanged)
                 {

@@ -23,6 +23,10 @@ namespace Fpv450.Sim.Tether
         /// <summary>[[p, value], …]: a piecewise-linear quantile table, p rising from 0 to 1, values above 0 and never
         /// falling, so a draw u in [0, 1] maps to a value by + − × ÷ only.</summary>
         Quantiles = 4,
+
+        /// <summary>[[x, chance], …]: a piecewise-linear chance table (p7d-tether design 26), x rising, each chance in [0, 1] and
+        /// never falling; held beyond its ends.</summary>
+        Chances = 5,
     }
 
     /// <summary>One value of tether.json: "block.field", its label (an index into DroneSpec.Labels), its kind and its
@@ -187,6 +191,15 @@ namespace Fpv450.Sim.Tether
             ("contact.face_layer_height_m", TetherValueKind.Positive),
             ("strength.edge_weibull_modulus", TetherValueKind.Positive),
             ("spool.hole_edge_strength_pa", TetherValueKind.Quantiles),
+            ("launch.liftoff_window_s", TetherValueKind.Positive),
+            ("launch.liftoff_window_payout_m", TetherValueKind.Positive),
+            ("launch.liftoff_rest_s", TetherValueKind.Positive),
+            ("launch.liftoff_lean_deg", TetherValueKind.Positive),
+            ("launch.liftoff_cut_by_thrust", TetherValueKind.Chances),
+            ("launch.liftoff_lean_extra", TetherValueKind.Positive),
+            ("launch.liftoff_safe_chance", TetherValueKind.Positive),
+            ("launch.liftoff_cut_by_back_speed", TetherValueKind.Chances),
+            ("launch.liftoff_cut_cap", TetherValueKind.Positive),
         };
 
         const double DerivedTolerance = 1e-3;
@@ -325,6 +338,17 @@ namespace Fpv450.Sim.Tether
                     for (int i = 1; shape && i < n; i++)
                         shape = xs[2 * i] > xs[2 * i - 2] && xs[2 * i + 1] >= xs[2 * i - 1];
                     if (!shape) { problems.Add(path + ": p must rise from 0 to 1 and the values, above 0, never fall"); xs.Clear(); }
+                    break;
+                case TetherValueKind.Chances:
+                    bool listed = v.Kind == JsonKind.Array && v.Items.Count >= 2;
+                    for (int i = 0; listed && i < v.Items.Count; i++)
+                        listed = NumberList(v.Items[i], 2, xs);
+                    if (!listed) { problems.Add(path + ": must be a chance table [[x, chance], …] of at least two pairs"); xs.Clear(); break; }
+                    int m = xs.Count / 2;
+                    bool chances = xs[1] >= 0 && xs[2 * m - 1] <= 1;
+                    for (int i = 1; chances && i < m; i++)
+                        chances = xs[2 * i] > xs[2 * i - 2] && xs[2 * i + 1] >= xs[2 * i - 1];
+                    if (!chances) { problems.Add(path + ": x must rise and each chance, in [0, 1], never fall"); xs.Clear(); }
                     break;
             }
             return xs.ToArray();

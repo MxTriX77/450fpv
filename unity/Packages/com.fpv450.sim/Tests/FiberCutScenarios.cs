@@ -604,22 +604,32 @@ namespace Fpv450.Sim.Tests
         /// <summary>
         /// "Very sharp lift off" (design 16): legs on from the floor's start with the line laid from 3 m behind, full throttle from
         /// rest in 0.1 s (sharp), held 1 s, then the pilot catches it 5 m above where it is; or the pilot's own gentle liftoff to 1.5 m
-        /// (normal). The known-wrong: design 4's air (no fountain or ground vortex).
+        /// (normal). The known-wrong: design 4's air (no fountain or ground vortex). lean (the sharp liftoff's, p7d-tether 1.11i): the
+        /// pitch stick held full with the throttle until the body has turned that many degrees, nose down (+, the pilot's safe
+        /// launch) or nose up (−, the pilot's unnecessary pitch backwards), then centred.
         /// </summary>
-        public static Outcome Liftoff(DroneSpec spec, bool sharp, ulong seed, Action<FlightSetup> edit = null, WindLevel wind = WindLevel.Calm, double top = 1)
+        public static Outcome Liftoff(DroneSpec spec, bool sharp, ulong seed, Action<FlightSetup> edit = null, WindLevel wind = WindLevel.Calm, double top = 1,
+            double lean = 0)
         {
             FlightSetup setup = Setup(spec, wind, seed, edit);
             double stand = TetherScenarios.Stand(setup);
             var w = new Watch(setup);
             var core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, setup.StartPosition + new Double3(0, 1.5, 0));
-            double hold = double.NaN;
+            double hold = double.NaN, turned = 0;
             for (int k = 0; k < 5000; k++)
             {
                 StickSample stick;
                 if (k < 100) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
                 else if (sharp && k < 1200)
+                {
                     stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = true, Throttle = top * DetMath.Min(1, (k - 100) / 100.0) };
+                    if (turned < Math.Abs(lean))
+                    {
+                        stick.Pitch = lean > 0 ? 1 : -1;
+                        turned += Math.Abs(core.State.BodyRate.X) * Dt * 180 / Pi;
+                    }
+                }
                 else
                 {
                     // The pilot then catches the climb above where it is (never back down onto its own line).
