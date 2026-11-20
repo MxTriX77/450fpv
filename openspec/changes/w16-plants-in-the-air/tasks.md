@@ -31,6 +31,7 @@ The change lives on the physics line, `unity/physics/physics-integration-2`, fro
   - The friend's vegetation shaders (grass, leaves, bark) take the sim's field and wash instead of their own wind, near and far: a field texture around the camera and each plant's modal response.
   - The wash's flattening ring under the drone.
   - The frame rate holds (PLT-02).
+  - **Built so far** (design.md "## 1.3"): the friend's plant shaders replaced at load by the project's own (his look, the sim's air); the field on five levels each frame, 1.2's closed form on the GPU against the CPU within 1.5·10⁻³ rad, the wash's grids and its steady air beyond them; the flight's log the same byte for byte with the plants drawn. **Open:** the frame rate's A/B and the captures against clip H (`-plantbench`, waiting for AC power), the columns' steady air from the wash grids' own samples.
 - [ ] 1.4 [tech-artist] **The cut pieces and the dust on camera** (the pieces were `w9-village-physics` 2.5). Needs the GPU.
   - From `FeedSignals`' cuts per rotor, pieces leave the front discs at the blade's speed, drawn in front of the camera; a replay draws the same pieces.
   - Dust whiffs lift from dry ground where the wash's speed along it passes the surface's threshold (1.2 gives the law and the thresholds), and grow as the drone comes lower.

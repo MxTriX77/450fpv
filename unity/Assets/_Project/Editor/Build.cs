@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
@@ -15,20 +16,24 @@ namespace Fpv450
     public static class Build
     {
         /// <summary>
-        /// The game (p6-input-app 1.4b): the build settings' scenes, Boot (the menu) and the farmland (the flight,
-        /// w3-farmland-ground 3.1, and Explore's noclip, w1-farmland-world 2.1; it needs the vendor store linked,
-        /// tools/vendor/link.ps1), full screen at the
+        /// The game (p6-input-app 1.4b): the build settings' scenes, Boot (the menu) and Play's two maps (D-100), the test
+        /// range (House) and the farmland (Village, and the noclip view tooling opens, w1-farmland-world 2.1; it needs the vendor store
+        /// linked, tools/vendor/link.ps1), full screen at the
         /// display's resolution, with copies of the files the flight reads (AppData.PlayerFiles) under its StreamingAssets
         /// at their repository paths. A scene with a missing reference fails the build (SceneReferences): the farmland in an
-        /// unlinked checkout. <c>-review</c> makes a review build (FPV450_REVIEW: Explore and the flight's review
-        /// keys) in <c>Builds/Windows-Review/</c>; a development build is a review build too.
+        /// unlinked checkout. Each map's top-down image (TopDownMaps, w11-world-map 1.1) and Play's stills (MapStills,
+        /// w10-play-maps 1.2) are rendered first, so the build needs graphics (never <c>-nographics</c>) and fails without
+        /// them, and everything under <see cref="GeneratedFolder"/> goes into the player's
+        /// <c>StreamingAssets/generated/</c>. <c>-review</c> makes a review build (FPV450_REVIEW: the flight's
+        /// review keys, <c>-farmbench</c> and the smoke test's noclip checks; the menu is the pilot's build's) in <c>Builds/Windows-Review/</c>; a development build is a review build too.
         /// </summary>
         public static void Windows()
         {
             string[] scenes = EditorBuildSettings.scenes.Where(scene => scene.enabled).Select(scene => scene.path).ToArray();
-            if (!scenes.Contains(EditorSetup.ProjectSetup.FarmlandScenePath))
+            foreach (string map in new[] { TestRangeScene.ScenePath, EditorSetup.ProjectSetup.FarmlandScenePath })
             {
-                Debug.LogError($"[Build] Windows: the build settings lack {EditorSetup.ProjectSetup.FarmlandScenePath}; run Fpv450.EditorSetup.ProjectSetup.Apply");
+                if (scenes.Contains(map)) continue;
+                Debug.LogError($"[Build] Windows: the build settings lack {map}; run Fpv450.EditorSetup.ProjectSetup.Apply");
                 EditorApplication.Exit(1);
                 return;
             }
@@ -42,6 +47,18 @@ namespace Fpv450
                 Debug.LogError($"[Build] Windows: {scene} has {missing.Count} missing references, so the player would show it broken. " +
                                "The farmland's come from the vendor store: run pwsh tools/vendor/link.ps1 in this checkout, then build again " +
                                "(w1-farmland-world design 3). The first:\n  " + string.Join("\n  ", missing.Take(20)));
+                EditorApplication.Exit(1);
+                return;
+            }
+            if (!TopDownMaps.RenderAll())
+            {
+                EditorApplication.Exit(1);
+                return;
+            }
+            // w10-play-maps 1.2: Play's stills, rendered through the feed into GeneratedFolder, which CopyData carries.
+            if (!MapStills.RenderAll())
+            {
+                Debug.LogError("[Build] Windows: the maps' stills failed to render (MapStills); the build needs graphics, never -nographics");
                 EditorApplication.Exit(1);
                 return;
             }
@@ -68,12 +85,25 @@ namespace Fpv450
             string product = PlayerSettings.productName;
             FullScreenMode mode = PlayerSettings.fullScreenMode;
             bool native = PlayerSettings.defaultIsNativeResolution;
+            ScriptingImplementation backend = PlayerSettings.GetScriptingBackend(NamedBuildTarget.Standalone);
+            ManagedStrippingLevel stripping = PlayerSettings.GetManagedStrippingLevel(NamedBuildTarget.Standalone);
             bool built;
             try
             {
                 PlayerSettings.productName = productName;
                 PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
                 PlayerSettings.defaultIsNativeResolution = true;
+                if (Il2cpp)
+                {
+                    PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, ScriptingImplementation.IL2CPP);
+                    PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, ManagedStrippingLevel.Minimal);
+                }
+                Debug.Log($"[Build] {name}: {PlayerSettings.GetScriptingBackend(NamedBuildTarget.Standalone)}, managed stripping " +
+                          $"{PlayerSettings.GetManagedStrippingLevel(NamedBuildTarget.Standalone)}" + (Il2cpp
+                              ? $", IL2CPP {PlayerSettings.GetIl2CppCompilerConfiguration(NamedBuildTarget.Standalone)} configuration, " +
+                                $"{PlayerSettings.GetIl2CppCodeGeneration(NamedBuildTarget.Standalone)} code generation, " +
+                                $"extra arguments '{PlayerSettings.GetAdditionalIl2CppArgs()}'"
+                              : ""));
                 built = Player(name, scenes, path) && (!data || CopyData(path));
             }
             finally
@@ -81,6 +111,8 @@ namespace Fpv450
                 PlayerSettings.productName = product;
                 PlayerSettings.fullScreenMode = mode;
                 PlayerSettings.defaultIsNativeResolution = native;
+                PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, backend);
+                PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, stripping);
             }
             if (!built)
                 EditorApplication.Exit(1);
@@ -90,8 +122,24 @@ namespace Fpv450
         /// feed's <c>-feedcost</c>), in its own folder: the release folder's name with "-Development".
         static readonly bool Development = Array.IndexOf(Environment.GetCommandLineArgs(), "-developmentBuild") >= 0;
 
+        /// <summary>
+        /// <c>-il2cpp</c> builds the player on IL2CPP instead of Mono, still the default (the IL2CPP trial: the player's Mono
+        /// ran the sim core 3 to 5 times slower than .NET, PLT-02, PLT-04), in its own folder: the release folder's name
+        /// with "-IL2CPP" (before any "-Development"), so neither backend's files are left in the other's. The backend is
+        /// set for this build only and put back after, as the product name is. Its managed stripping is Minimal, IL2CPP's
+        /// least (Mono's Disabled is not offered on IL2CPP): only the class libraries and UnityEngine are stripped, never
+        /// the project's assemblies, so their reflection (FcSettings' fields, the farmland's grass culler) finds what it
+        /// reads. The C++ compiles at IL2CPP's own MSVC flags, which the sim's determinism needs nothing added to: no
+        /// <c>/fp:</c> option, so MSVC's default /fp:precise (which contracts nothing since VS 2022), and no <c>/arch:</c>,
+        /// so SSE2 code. The trial's GameAssembly.dll has fused multiply-adds only in the static C runtime's sin, exp, pow
+        /// and kin (their FMA3 paths), which the sim core never calls (DetMath), and its flights replay on .NET bit for bit.
+        /// </summary>
+        static readonly bool Il2cpp = Array.IndexOf(Environment.GetCommandLineArgs(), "-il2cpp") >= 0;
+
         static string Located(string path) =>
-            Development ? Path.Combine(Path.GetDirectoryName(path) + "-Development", Path.GetFileName(path)) : path;
+            Il2cpp || Development
+                ? Path.Combine(Path.GetDirectoryName(path) + (Il2cpp ? "-IL2CPP" : "") + (Development ? "-Development" : ""), Path.GetFileName(path))
+                : path;
 
         static bool Player(string name, string[] scenes, string path)
         {
@@ -154,7 +202,22 @@ namespace Fpv450
                 File.Copy(from, to, true);
                 Debug.Log($"[Build] the player's data: {file} ({new FileInfo(to).Length} bytes)");
             }
+            if (Directory.Exists(GeneratedFolder))
+                foreach (string from in Directory.GetFiles(GeneratedFolder, "*", SearchOption.AllDirectories))
+                {
+                    string file = Path.GetRelativePath(GeneratedFolder, from), to = Path.Combine(streaming, "generated", file);
+                    Directory.CreateDirectory(Path.GetDirectoryName(to)!);
+                    File.Copy(from, to, true);
+                    Debug.Log($"[Build] the player's generated files: generated/{file.Replace('\\', '/')} ({new FileInfo(to).Length} bytes)");
+                }
             return true;
         }
+
+        /// <summary>
+        /// What the build renders for the player (<c>unity/Generated/&lt;kind&gt;/</c>: <c>topdown/</c>, the maps' top-down
+        /// images, w11-world-map; <c>stills/</c>, the maps' stills, w10-play-maps), git-ignored and never pushed (D-089). The
+        /// build carries it into the player's <c>StreamingAssets/generated/&lt;kind&gt;/</c>.
+        /// </summary>
+        public static string GeneratedFolder => Path.Combine(Path.GetDirectoryName(Application.dataPath)!, "Generated");
     }
 }

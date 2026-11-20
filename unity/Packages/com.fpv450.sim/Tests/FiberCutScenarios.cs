@@ -307,6 +307,112 @@ namespace Fpv450.Sim.Tests
             return w.O;
         }
 
+        // ---- the pilot's cut targets (p7d-tether 1.11i) ----
+
+        /// <summary>
+        /// A stick snap at the pilot's rates (FcSettings' builder defaults, 225 °/s at full stick): up to 12 m, forward at 10 m/s (a
+        /// cruise's 35° tilt at most), then at 10 s the pitch (axis 0, nose up) or roll (axis 1, to the left) stick held full until
+        /// the body has turned degrees about that axis, then centred, the pilot recovering to the cruise's course; on to 16 s. A
+        /// flip is 360°. The line parts or not by its own mechanics.
+        /// </summary>
+        public static Outcome Snap(DroneSpec spec, WindLevel wind, ulong seed, int axis, double degrees, Action<FlightSetup> edit = null,
+            double snapThrottle = double.NaN, bool yawWith = false)
+        {
+            FlightSetup setup = Setup(spec, wind, seed, edit);
+            double stand = TetherScenarios.Stand(setup);
+            var w = new Watch(setup) { From = 10 };
+            var core = new FlightCore(setup);
+            var pilot = new SimPilot(core.Controller, setup.StartPosition);
+            double turned = 0;
+            bool snapping = false, done = false;
+            double throttle = 0.5;
+            for (int k = 0; k < 16000; k++)
+            {
+                double t = k * Dt;
+                StickSample stick;
+                if (k < 20) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
+                else
+                {
+                    double y = stand + DetMath.Min(12, 2 * t);
+                    if (t < 5)
+                    {
+                        pilot.HoldVelocity = false;
+                        pilot.Target = new Double3(0, y, 0);
+                    }
+                    else
+                    {
+                        pilot.HoldVelocity = true;
+                        pilot.TargetVelocity = new Double3(0, 0, 10);
+                        pilot.Target = new Double3(0, y, core.State.Position.Z);
+                    }
+                    stick = pilot.Sticks(core, k * FlightCore.StepUs);
+                    if (!snapping && !done && t >= 10)
+                    {
+                        snapping = true;
+                        throttle = double.IsNaN(snapThrottle) ? stick.Throttle : snapThrottle;
+                    }
+                    if (snapping)
+                    {
+                        Double3 rate = core.State.BodyRate;
+                        turned += (axis == 0 ? Math.Abs(rate.X) : Math.Abs(rate.Z)) * Dt * 180 / Pi;
+                        if (turned >= degrees)
+                        {
+                            snapping = false;
+                            done = true;
+                        }
+                        else
+                        {
+                            stick.Pitch = axis == 0 ? -1 : 0;
+                            stick.Roll = axis == 1 ? -1 : 0;
+                            stick.Yaw = axis == 1 && yawWith ? -1 : 0; // the pilot's roll with yaw the same way (left with left)
+                            stick.Throttle = throttle;
+                        }
+                    }
+                }
+                core.Advance(stick);
+                w.Step(core);
+                if (w.O.Broken && StopAtBreak) break;
+            }
+            return w.O;
+        }
+
+        /// <summary>
+        /// The pilot's proper brake: up to 10 m, along +z to top speed (25 m/s, the pilot's 60° tilt), then at 11 s a target to stop
+        /// at: the pilot pitches back balanced against the throttle as it comes down (SimPilot holding the height, the tilt up to
+        /// 60°, the heavy quad's inertia carried), on to 18 s.
+        /// </summary>
+        public static Outcome Brake(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit = null, double speed = 25)
+        {
+            FlightSetup setup = Setup(spec, wind, seed, edit);
+            double stand = TetherScenarios.Stand(setup);
+            return Run(setup, 18, (t, core, pilot) =>
+            {
+                double y = stand + DetMath.Min(10, 2 * t);
+                if (t < 5)
+                {
+                    pilot.HoldVelocity = false;
+                    pilot.Target = new Double3(0, y, 0);
+                    return;
+                }
+                pilot.HoldVelocity = true;
+                pilot.MaxTiltSin = 0.866;
+                pilot.TargetVelocity = new Double3(0, 0, t < 11 ? speed : 0);
+                pilot.Target = new Double3(0, y, core.State.Position.Z);
+            }, edgeFrom: 11);
+        }
+
+        /// <summary>A careful hover: up to 3 m over the floor at 0.5 m/s and held there to 30 s (the normal set's hover).</summary>
+        public static Outcome Hover(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit = null)
+        {
+            FlightSetup setup = Setup(spec, wind, seed, edit);
+            double stand = TetherScenarios.Stand(setup);
+            return Run(setup, 30, (t, core, pilot) =>
+            {
+                pilot.HoldVelocity = false;
+                pilot.Target = new Double3(0, stand + DetMath.Min(3, 0.5 * t), 0);
+            });
+        }
+
         // ---- the pilot's four causes (PHY-19) ----
 
         /// <summary>
@@ -498,22 +604,32 @@ namespace Fpv450.Sim.Tests
         /// <summary>
         /// "Very sharp lift off" (design 16): legs on from the floor's start with the line laid from 3 m behind, full throttle from
         /// rest in 0.1 s (sharp), held 1 s, then the pilot catches it 5 m above where it is; or the pilot's own gentle liftoff to 1.5 m
-        /// (normal). The known-wrong: design 4's air (no fountain or ground vortex).
+        /// (normal). The known-wrong: design 4's air (no fountain or ground vortex). lean (the sharp liftoff's, p7d-tether 1.11i): the
+        /// pitch stick held full with the throttle until the body has turned that many degrees, nose down (+, the pilot's safe
+        /// launch) or nose up (−, the pilot's unnecessary pitch backwards), then centred.
         /// </summary>
-        public static Outcome Liftoff(DroneSpec spec, bool sharp, ulong seed, Action<FlightSetup> edit = null, WindLevel wind = WindLevel.Calm)
+        public static Outcome Liftoff(DroneSpec spec, bool sharp, ulong seed, Action<FlightSetup> edit = null, WindLevel wind = WindLevel.Calm, double top = 1,
+            double lean = 0)
         {
             FlightSetup setup = Setup(spec, wind, seed, edit);
             double stand = TetherScenarios.Stand(setup);
             var w = new Watch(setup);
             var core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, setup.StartPosition + new Double3(0, 1.5, 0));
-            double hold = double.NaN;
+            double hold = double.NaN, turned = 0;
             for (int k = 0; k < 5000; k++)
             {
                 StickSample stick;
                 if (k < 100) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
                 else if (sharp && k < 1200)
-                    stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = true, Throttle = DetMath.Min(1, (k - 100) / 100.0) };
+                {
+                    stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = true, Throttle = top * DetMath.Min(1, (k - 100) / 100.0) };
+                    if (turned < Math.Abs(lean))
+                    {
+                        stick.Pitch = lean > 0 ? 1 : -1;
+                        turned += Math.Abs(core.State.BodyRate.X) * Dt * 180 / Pi;
+                    }
+                }
                 else
                 {
                     // The pilot then catches the climb above where it is (never back down onto its own line).

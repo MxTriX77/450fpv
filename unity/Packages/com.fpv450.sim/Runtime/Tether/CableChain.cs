@@ -257,11 +257,15 @@ namespace Fpv450.Sim.Tether
         public const int MaxNewton = 8; // numerical: a reverse's line whipped round the body's parts at 10 m/s takes 5–8
         public const double NewtonTolerance = 1e-3;
 
-        /// <summary>The nodes the chain holds at most: the spacing law's room and the crests' (w3-farmland-ground 2.5).</summary>
+        /// <summary>The nodes the chain holds at most: the spacing law's room, the crests' (w3-farmland-ground 2.5) and the members'
+        /// contact nodes' (p7d-tether design 24).</summary>
         public readonly int Capacity;
         /// <summary>The spacing law's room: its splits, a member's contact node and a trail point lifted back stop at
         /// SpacingCapacity nodes besides the crests; and the crests' own.</summary>
         public readonly int SpacingCapacity, CrestCapacity;
+        /// <summary>Design 24: the members' contact nodes' own room past the spacing law's, taken only once no free node can give
+        /// way to them (SplitContact); 0 for a chain without it (model 105's: a contact node stops at SpacingCapacity).</summary>
+        public readonly int ContactCapacity;
         /// <summary>kg/m and N: the line's (the table's or the wire record's).</summary>
         public readonly double MassPerMetre, AxialStiffness;
         /// <summary>m/s², world axes.</summary>
@@ -327,6 +331,15 @@ namespace Fpv450.Sim.Tether
         /// 103.</summary>
         public bool KeepUnconverged;
 
+        /// <summary>p7d-tether design 24 (C1): a capstan slot on a world member holds the line along it only while its node presses
+        /// (Coulomb's and Euler-Eytelwein's bounds both vanish with the normal force): one taken speculative at the step's start
+        /// (its node off the member) is free along the line in the solve, its hold acting across it only, and one whose node ends
+        /// the step without a press lets its hold follow the node along the line. A gliding member (a drone part), a barb's notch
+        /// and a member that lets go (a hook, a stem) keep their own laws. Off (the chain's default, and the fiber's known-wrong
+        /// FlightSetup.TetherHoldWithoutPress: model 105's), such a slot held the line along it at its hold's full stiffness
+        /// whatever its press, so a node 0.2-1.5 mm off a ruin's member carried 21-26 mN of the pull past a corner (QA's C1).</summary>
+        public bool HoldNeedsPress;
+
         // The rounds of the pack's draw into a run at the exit and the run's slide after it in a step (numerical).
         const int SlideRounds = 8;
 
@@ -381,15 +394,18 @@ namespace Fpv450.Sim.Tether
         // The last Run spent its Newton solves with a segment still off (design 23: the step is solved again safe).
         bool _unconverged;
 
-        /// <summary>A chain of at most capacity nodes by the spacing law and crests more over the ground's crests (0: none).</summary>
-        public CableChain(int capacity, double massPerMetre, double axialStiffness, int crests = 0)
+        /// <summary>A chain of at most capacity nodes by the spacing law, crests more over the ground's crests and contacts more
+        /// for the members' contact nodes (0: none).</summary>
+        public CableChain(int capacity, double massPerMetre, double axialStiffness, int crests = 0, int contacts = 0)
         {
             if (capacity < 2) throw new ArgumentOutOfRangeException(nameof(capacity));
             if (crests < 0) throw new ArgumentOutOfRangeException(nameof(crests));
+            if (contacts < 0) throw new ArgumentOutOfRangeException(nameof(contacts));
             if (!(massPerMetre > 0) || !(axialStiffness > 0)) throw new ArgumentOutOfRangeException(nameof(massPerMetre));
             SpacingCapacity = capacity;
             CrestCapacity = crests;
-            capacity += crests;
+            ContactCapacity = contacts;
+            capacity += crests + contacts;
             Capacity = capacity;
             MassPerMetre = massPerMetre;
             AxialStiffness = axialStiffness;
@@ -783,8 +799,8 @@ namespace Fpv450.Sim.Tether
                 Double3 along = LineTangent(i);
                 double wrap = 0, low = 0;
                 if (a.Contact0.Glide || a.Contact1.Glide) Wrap(i, out wrap, out low);
-                SettleContact(a.Position, along, wrap, low, ref a.Contact0);
-                SettleContact(a.Position, along, wrap, low, ref a.Contact1);
+                SettleContact(a.Position, along, wrap, low, HoldNeedsPress, ref a.Contact0);
+                SettleContact(a.Position, along, wrap, low, HoldNeedsPress, ref a.Contact1);
             }
             CapstanRuns();
             // The pack's line drawn into a run that reaches the exit, and the run's profile again from it (a few rounds, numerical:
@@ -957,9 +973,10 @@ namespace Fpv450.Sim.Tether
                     diag = diag + Iso(dt * a.AnchorDamping + dt2 * a.AnchorStiffness);
                     f = f - (a.Position - a.AnchorTarget) * a.AnchorStiffness + a.AnchorVelocity * a.AnchorDamping;
                 }
-                Double3 along = a.Contact0.Free || a.Contact1.Free ? LineTangentAt(i) : default;
-                AddContact(a.Position, dt, along, ref a.Contact0, ref diag, ref f);
-                AddContact(a.Position, dt, along, ref a.Contact1, ref diag, ref f);
+                bool loose = HoldNeedsPress && (Loose(ref a.Contact0) || Loose(ref a.Contact1));
+                Double3 along = a.Contact0.Free || a.Contact1.Free || loose ? LineTangentAt(i) : default;
+                AddContact(a.Position, dt, along, HoldNeedsPress, ref a.Contact0, ref diag, ref f);
+                AddContact(a.Position, dt, along, HoldNeedsPress, ref a.Contact1, ref diag, ref f);
                 _diag[i] = diag;
                 _rhs[i] = a.Velocity * a.Mass + f * dt;
             }
@@ -1189,7 +1206,7 @@ namespace Fpv450.Sim.Tether
 
         // The contact's model on the diagonal and in the force: the normal spring from its rest gap (the surface when
         // pressing, the gap at the start when speculative) and its damper, the hold's tangential spring.
-        static void AddContact(Double3 x, double dt, Double3 along, ref CableContact c, ref Sym3 diag, ref Double3 f)
+        static void AddContact(Double3 x, double dt, Double3 along, bool needsPress, ref CableContact c, ref Sym3 diag, ref Double3 f)
         {
             if (c.Mode == 0) return;
             Double3 nrm = c.Normal;
@@ -1198,7 +1215,7 @@ namespace Fpv450.Sim.Tether
             f = f + nrm * (-c.Stiffness * (g - c.Rest) + c.Damping * Double3.Dot(nrm, c.Velocity));
             if (c.Slips || !(c.HoldStiffness > 0)) return;
             Double3 off = Tangential(x - c.Hold, nrm);
-            if (c.Free)
+            if (c.Free || needsPress && Loose(ref c))
             {
                 // Free along the line: the hold's spring acts across it only.
                 Double3 axis = FreeAxis(along, nrm);
@@ -1207,6 +1224,10 @@ namespace Fpv450.Sim.Tether
             }
             f = f - off * c.HoldStiffness;
         }
+
+        // Design 24 (C1): a capstan slot on a world member taken speculative at the step's start (its node off the member): it holds
+        // nothing along the line this step.
+        static bool Loose(ref CableContact c) => c.Active && c.Mode == 2 && c.Capstan && !c.Glide && !c.Notch && !(c.Cap > 0);
 
         static double DamperWork(Double3 v, double dt, ref CableContact c)
         {
@@ -1251,7 +1272,7 @@ namespace Fpv450.Sim.Tether
             low = t0 < t1 ? t0 : t1;
         }
 
-        static void SettleContact(Double3 x, Double3 along, double wrap, double low, ref CableContact c)
+        static void SettleContact(Double3 x, Double3 along, double wrap, double low, bool needsPress, ref CableContact c)
         {
             c.Slid = false;
             if (c.Mode == 0)
@@ -1279,9 +1300,11 @@ namespace Fpv450.Sim.Tether
                 Double3 on = axis * Double3.Dot(axis, t);
                 t = t - on;
                 double pull = c.HoldStiffness * on.Length();
-                if (c.Free)
+                if (c.Free || needsPress && !c.Glide && !(c.Cap > 0) && (c.Mode == 2 || !(c.NormalForce > 0)))
                 {
-                    c.Hold = c.Hold + on; // slipping by: the hold follows the node along the line
+                    // Slipping by (design 24: or holding nothing along the line, its node not pressing at the step's start or end):
+                    // the hold follows the node along the line.
+                    c.Hold = c.Hold + on;
                     c.Slid = true;
                 }
                 else if (c.Glide && pull > 0 && pull > low * (DetMath.Exp(c.StaticFriction * wrap) - 1))
@@ -2015,6 +2038,64 @@ namespace Fpv450.Sim.Tether
             if (!(f * rest > MinRest) || !((1 - f) * rest > MinRest)) return false;
             Split(j, f);
             return true;
+        }
+
+        /// <summary>Design 24: a member's contact node put into segment j at f (SplitAt's), in the spacing law's room or, once that
+        /// is spent, in the contacts' own (ContactCapacity). False where neither has room or a piece would be too short.</summary>
+        public bool SplitContact(int j, double f)
+        {
+            if (Count - Crests >= SpacingCapacity + ContactCapacity || j < 0 || j + 1 >= Count || !(f > 0 && f < 1)) return false;
+            double rest = _nodes[j + 1].Material - _nodes[j].Material;
+            if (!(f * rest > MinRest) || !((1 - f) * rest > MinRest)) return false;
+            Split(j, f);
+            return true;
+        }
+
+        /// <summary>
+        /// Design 24: a free node gives way to a member's contact node or a trail point lifted back, the spacing law's room spent.
+        /// The node whose removal moves the line least (the nearest its neighbours' chord; the first from the fixed end on a tie)
+        /// among those that are neither anchored, on a member other than the ground or a layer (Removable), a crest, within the
+        /// near spacing of the
+        /// exit (near_length_m of line: the props' scale) nor marked in keep (the caller's: an end of a segment a member meets this
+        /// step), merged away by the spacing law's own merge (momentum kept; one that would raise the energy is passed over).
+        /// keep is indexed by node and shifted with the merge. Returns the index removed, or −1 where no node can give way.
+        /// </summary>
+        public int GiveWay(bool[] keep)
+        {
+            double from = _focus - _near;
+            while (true)
+            {
+                int best = -1;
+                double least = double.PositiveInfinity;
+                for (int m = 1; m + 1 < Count; m++)
+                {
+                    if (keep[m] || !Removable(m) || !(_nodes[m].Material < from)) continue;
+                    double off = Offset(m);
+                    if (off < least)
+                    {
+                        least = off;
+                        best = m;
+                    }
+                }
+                if (best < 0) return -1;
+                if (TryMerge(best))
+                {
+                    Array.Copy(keep, best + 1, keep, best, Count - best);
+                    keep[Count] = false;
+                    return best;
+                }
+                keep[best] = true;
+            }
+        }
+
+        // Node m's distance from the chord between its neighbours, m: the line's shape the node alone holds.
+        double Offset(int m)
+        {
+            Double3 a = _nodes[m - 1].Position, d = _nodes[m + 1].Position - a, x = _nodes[m].Position - a;
+            double dd = Double3.Dot(d, d), t = dd > 0 ? Double3.Dot(x, d) / dd : 0;
+            if (t < 0) t = 0;
+            else if (t > 1) t = 1;
+            return (x - d * t).Length();
         }
 
         /// <summary>A crest's node put into segment j at at, on the ground where the chord passes under it (w3-farmland-ground

@@ -24,12 +24,13 @@ namespace Fpv450.Tests.App
     public sealed class AppTests
     {
         /// <summary>physics_materials.json's hash at the physics integration 2 with p7f-damage (model 40): both sides' fields on
-        /// every row (p7f-damage 1.3's integration note).</summary>
-        const ulong MergedMaterialsHash = 0x2932AC6166D91022UL;
+        /// every row (p7f-damage 1.3's integration note); since model 91 (w9-village-physics 2.3) with the crowns' leaf_cell_m at
+        /// 0.025 m (0x2932AC6166D91022 before).</summary>
+        const ulong MergedMaterialsHash = 0x795F8E046220352CUL;
 
         // The player's copies alone (AppData.PlayerFiles under a folder of their own, as Fpv450.Build copies them) give the
         // drone, the farmland's map package with its objects (w3-farmland-ground 3.1 and 1.2: placements.json, the vendor lists
-        // and each variant's metadata; the test range left the player), and surfaces.json and
+        // and each variant's metadata), the test range's, back for House (w10-play-maps 1.1), and surfaces.json and
         // tether.json byte for byte the repository's, so a pilot's log carries the hashes tools/replay checks against the
         // repository's files by default.
         [Test]
@@ -50,8 +51,10 @@ namespace Fpv450.Tests.App
                 FlightWorldChoice farmland = FlightWorlds.Farmland(copies);
                 Assert.That(farmland.Id, Is.EqualTo(FlightWorlds.FarmlandMap));
                 Assert.That(farmland.Open().ContentHash, Is.EqualTo(FlightWorlds.Farmland(AppData.Root).Open().ContentHash), "the same map as the repository's");
-                Assert.That(files.Exists(f => f.StartsWith("maps/" + FlightWorlds.TestRangeMap + "/", System.StringComparison.Ordinal)), Is.False,
-                    "the test range left the player");
+                FlightWorldChoice range = FlightWorlds.TestRange(copies);
+                Assert.That(range.Id, Is.EqualTo(FlightWorlds.TestRangeMap));
+                Assert.That(range.Open().ContentHash, Is.EqualTo(FlightWorlds.TestRange(AppData.Root).Open().ContentHash), "House: the same test range as the repository's");
+                Assert.That(System.Array.ConvertAll(range.StartPoints, s => s.Name), Is.EqualTo(new[] { FlightWorlds.HousesStart }), "House flies from the houses' start");
                 foreach (string table in new[] { SurfaceTable.RelativePath, TetherTable.RelativePath, PhysicsMaterials.RelativePath })
                 {
                     Assert.That(files, Does.Contain(table), "the player carries " + table);
@@ -148,6 +151,29 @@ namespace Fpv450.Tests.App
             feed.Update(cut, true, 0, 0, 0);
             Assert.That(feed.LinkState, Is.EqualTo(Fpv450.Feed.LinkState.Broken));
             Assert.That(FeedSignalLog.Value(feed, FeedSignal.LinkState), Is.EqualTo("Broken by Prop"));
+        }
+
+        /// <summary>The props' cut stems (w9-village-physics 2.2) pass on per rotor as the physics publishes them, with no Live bit
+        /// and no stub: 0 before a flight (w15-player-physics 1.1).</summary>
+        [Test]
+        public void TheFeedPassesOnTheStemsCuts()
+        {
+            var feed = new FlightFeedSignals();
+            feed.Update(default, false, 0, 0, 0);
+            for (int r = 0; r < 4; r++)
+                Assert.That(new[] { feed.StemCuts(r), feed.StemPieceLengthM(r), feed.StemCutRadiusM(r), feed.StemBladeAngle(r) }, Is.EqualTo(new float[4]), "rotor " + r + " before a flight");
+
+            var s = new SimSignals
+            {
+                StemCuts = new Corners { RearRight = 0.25, FrontLeft = 2.5 },
+                StemPieceLength = new Corners { FrontLeft = 0.31 },
+                StemCutRadius = new Corners { FrontLeft = 0.118 },
+                StemBladeAngle = new Corners { FrontLeft = 1.25 },
+            };
+            feed.Update(s, true, 1, 0, 2);
+            Assert.That((feed.StemCuts(3), feed.StemPieceLengthM(3), feed.StemCutRadiusM(3), feed.StemBladeAngle(3)), Is.EqualTo((2.5f, 0.31f, 0.118f, 1.25f)), "front left");
+            Assert.That((feed.StemCuts(0), feed.StemPieceLengthM(0)), Is.EqualTo((0.25f, 0f)), "rear right");
+            Assert.That((feed.StemCuts(1), feed.StemCuts(2)), Is.EqualTo((0f, 0f)), "the two that cut none");
         }
 
         // D-087: R, like every new flight, ends whatever loss the feed was playing, so the new flight's first field is the
@@ -252,6 +278,40 @@ namespace Fpv450.Tests.App
             StringAssert.Contains("23.5", grid, "the pack from the physics");
             StringAssert.Contains("41.20", grid, "the current from the physics");
             StringAssert.Contains(FlightOsd.SymThr + " 47", grid, "the throttle from the sticks the flight flew (D-080)");
+        }
+
+        // The pilot's "it has lost its throttle because in noclip": the throttle element (D-080) in every OSD the app shows,
+        // the flight's (FlightOsd, on any world) and noclip's (the farmland's noclip view and the test range: the stand-in, NoclipFeedSignals),
+        // at the same cells (row 7, columns 24–27) and in the same text.
+        [Test]
+        public void EveryOsdModeShowsTheThrottle()
+        {
+            var camera = new GameObject("noclip");
+            try
+            {
+                var noclip = new NoclipFeedSignals(camera.transform);
+                var flight = new FlightFeedSignals();
+                flight.Update(default, false, 0, 0, 0);
+                foreach ((string mode, IFieldOsd osd) in new (string, IFieldOsd)[] { ("flight", flight), ("noclip", noclip) })
+                {
+                    osd.BuildOsd(1);
+                    Assert.That(Cells((IFeedSignals)osd, 7, 24, 4), Is.EqualTo(FlightOsd.ThrottleText(0)), mode + ": the stick down");
+                }
+                noclip.Stub.Osd.ThrottlePercent = 47; // a stick's percent, as the element shows any
+                noclip.BuildOsd(2);
+                Assert.That(Cells(noclip, 7, 24, 4), Is.EqualTo(FlightOsd.ThrottleText(47)), "noclip: the stick's percent");
+            }
+            finally
+            {
+                Object.DestroyImmediate(camera);
+            }
+        }
+
+        static string Cells(IFeedSignals s, int row, int col, int count)
+        {
+            var cells = new char[count];
+            for (int i = 0; i < count; i++) cells[i] = s.OsdCell(row, col + i);
+            return new string(cells);
         }
 
         static string Grid(FlightFeedSignals feed)
@@ -390,7 +450,8 @@ namespace Fpv450.Tests.App
             Assert.That(FlightScene.RestartKey, Is.EqualTo(Key.R));
             Assert.That(FlightScene.NoiseKey, Is.EqualTo(Key.C));
             Assert.That(FlightScene.SticksKey, Is.EqualTo(Key.X));
-            Key[] keys = { FlightScene.RestartKey, FlightScene.NoiseKey, FlightScene.SticksKey };
+            Assert.That(MapPanel.ToggleKey, Is.EqualTo(Key.M), "the map's (w11-world-map 1.2)");
+            Key[] keys = { FlightScene.RestartKey, FlightScene.NoiseKey, FlightScene.SticksKey, MapPanel.ToggleKey };
             Assert.That(keys, Is.Unique);
             Keyboard keyboard = InputSystem.AddDevice<Keyboard>("D-078 test keyboard");
             keyboard.MakeCurrent();
@@ -464,6 +525,34 @@ namespace Fpv450.Tests.App
             }
         }
 
+        // w11-world-map 1.2 (D-101): M shows and hides the map and nothing pauses. Two exact keyboard flights (as V's test:
+        // the session's steps on the test's clock, a frame a ms, the same seed) fly the same keys, the second with M held
+        // 50 ms in every 200, each press toggling a map panel on the scene; the logs are the same byte for byte.
+        [Test]
+        public void MTogglesOnlyTheMap()
+        {
+            FlightScene scene = new GameObject("Flight").AddComponent<FlightScene>();
+            MapPanel map = MapPanel.Add(scene.gameObject, () => "floor", scene.transform);
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>("w11 map test keyboard");
+            keyboard.MakeCurrent();
+            string dir = Path.Combine(Path.GetTempPath(), "fpv450-map-" + System.Guid.NewGuid().ToString("N"));
+            try
+            {
+                DroneSpec spec = DroneSpec.Parse(File.ReadAllText(AppData.File(AppData.DroneFile)));
+                byte[] plain = Fly(spec, keyboard, scene, Path.Combine(dir, "plain"), 0, out _, out _);
+                byte[] withM = Fly(spec, keyboard, scene, Path.Combine(dir, "m"), 200, out int presses, out _, map);
+                TestContext.WriteLine("M pressed " + presses + " times; the logs: " + plain.Length + " and " + withM.Length + " bytes");
+                Assert.That(presses, Is.GreaterThan(5));
+                Assert.That(withM, Is.EqualTo(plain), "the flight's log, byte for byte, with M or without");
+            }
+            finally
+            {
+                InputSystem.RemoveDevice(keyboard);
+                Object.DestroyImmediate(scene.gameObject);
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+        }
+
         // An exact keyboard flight on the floor (Threaded false: Tick runs the steps due on the test's clock), its keys held
         // on the test keyboard and read a 1 ms frame at a time as the app reads them: the scene's keys, then the flight's
         // (FlightSessionHost ticks the session with KeyboardFallback.ReadKeys). Enter arms, W climbs, D yaws, the up arrow
@@ -472,7 +561,8 @@ namespace Fpv450.Tests.App
         // manual update in edit mode gives keys' states but not wasPressedThisFrame (the Input System restores the player's
         // update count after an editor update), so the press is the V key's state turning on; the players' smoke test
         // presses V through FlightScene's own read. Returns the log's bytes.
-        static byte[] Fly(DroneSpec spec, Keyboard keyboard, FlightScene scene, string folder, int vEveryMs, out int presses, out string log)
+        // With map, M is the key held and each press toggles the map in place of the view (w11-world-map 1.2).
+        static byte[] Fly(DroneSpec spec, Keyboard keyboard, FlightScene scene, string folder, int vEveryMs, out int presses, out string log, MapPanel map = null)
         {
             MaterialRow[] materials = PhysicsMaterials.Parse(File.ReadAllText(AppData.File(PhysicsMaterials.RelativePath)), out ulong hash);
             var clock = new TestClock { Now = 1000000 };
@@ -504,23 +594,25 @@ namespace Fpv450.Tests.App
                     if (ms >= 100 && ms < 1300) held.Add(Key.W);
                     if (ms >= 1300 && ms < 1400) held.Add(Key.D);
                     if (ms >= 1400 && ms < 1500) held.Add(Key.UpArrow);
-                    if (vEveryMs > 0 && ms % vEveryMs < 50) held.Add(Key.V);
+                    if (vEveryMs > 0 && ms % vEveryMs < 50) held.Add(map != null ? MapPanel.ToggleKey : Key.V);
                     if (vEveryMs > 0 && ms % vEveryMs == 0) edges++;
                     InputSystem.QueueStateEvent(keyboard, new KeyboardState(held.ToArray()));
                     InputSystem.Update();
                     clock.Now += FlightCore.StepUs;
                     reader.Pump(0);
-                    bool chase = scene.Chase, v = keyboard[FlightScene.ViewKey].isPressed;
-                    scene.Pressed(v && !lastV, false);
+                    bool chase = scene.Chase, shown = map != null && map.Shown, v = keyboard[map != null ? MapPanel.ToggleKey : FlightScene.ViewKey].isPressed;
+                    if (map != null && v && !lastV) map.Toggle();
+                    else scene.Pressed(v && !lastV, false);
                     lastV = v;
-                    if (scene.Chase != chase) presses++;
+                    if (scene.Chase != chase || map != null && map.Shown != shown) presses++;
                     session.Tick(KeyboardFallback.ReadKeys());
                 }
                 Assert.That(session.Input, Is.EqualTo(InputSource.Keyboard));
                 Assert.That((session.Core.State.Armed, session.State), Is.EqualTo((false, SessionState.Flying)), "disarmed by Enter, still flying");
                 session.EndFlight();
                 Assert.That(session.End.Kind, Is.EqualTo(FlightEndKind.Pilot), "End flight");
-                Assert.That(presses, Is.EqualTo(edges), "each V press flips the view, and only V's");
+                Assert.That(presses, Is.EqualTo(edges), map != null ? "each M press toggles the map" : "each V press flips the view, and only V's");
+                if (map != null) Assert.That(scene.Chase, Is.False, "M leaves the view");
                 log = session.LogPath;
             }
             finally

@@ -527,6 +527,14 @@ namespace Fpv450.Sim.Log
                     return "TIP FREED: leg " + CornerName((byte)(e.Index & 0x0F)) + "'s tip let go of " + Where(e) + " (its hold by "
                         + ((e.Index >> 4) == 2 ? "the wet face's suction" : (e.Index >> 4) == 3 ? "the wet shaft's adhesion" : "the shaft's grip") + "), "
                         + G(e.A) + " N at its peak " + G(e.B * 1000) + " mm in, leaving at " + G(e.C) + " m/s from " + V(e.Point, "0.000") + " m";
+                case EventKind.Liftoff:
+                    return (e.Index & 0x80) != 0
+                        ? "LIFTOFF " + e.Shape + ": the legs left at " + V(e.Point, "0.000") + " m, thrust " + G(e.B) + " of the weight, " + G(e.C)
+                          + " m of line out; its draw " + G(e.A) + " (fiber.liftoff)"
+                        : "LIFTOFF " + e.Shape + ((e.Index & 0x04) != 0 ? " CUT THE LINE" : (e.Index & 0x08) != 0 ? " ended at rest" : " ended") + ": chance "
+                          + G(e.A) + " (empirical, the pilot's account), thrust " + G(e.B) + " of the weight over its window, " + G(e.C) + " m/s tail first at most"
+                          + ((e.Index & 0x01) != 0 ? ", the safe launch (nose down)" : "") + ((e.Index & 0x02) != 0 ? ", the nose up or a roll past the bound" : "")
+                          + ", at " + V(e.Point, "0.000") + " m";
                 case EventKind.TipPloughed:
                     return "TIP PLOUGHED: leg " + CornerName(e.Index) + "'s tip " + G(e.B * 1000) + " mm in " + Where(e) + " pushed across with " + G(e.A)
                         + " N past the soil's " + G(e.C) + " N before its shaft, at " + V(e.Point, "0.000") + " m";

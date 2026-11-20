@@ -144,6 +144,66 @@ namespace Fpv450.Sim.Tests
             Assert.That(k.Crashed, Is.False);
         }
 
+        // "A line laid over battens lies over them" (p7d-tether design 24, R2: QA's 1.11h finding, segments of 1–20 m through a
+        // ruin's walls and beams while the chain's room was spent): flown out at 2 m over 26 battens of alternate heights, the line
+        // falls onto them; no segment of it, live or frozen, lies through one deeper than the chain's polygon reaches into an
+        // arris (FiberContacts.ThroughDepth, the least piece). Model 105's chain (TetherFullChainRefuses) refuses their contact
+        // nodes once its 32 are spent and lays its chords through them.
+        [Test]
+        public void ALineLaidOverBattensLiesOverThem()
+        {
+            FiberContactScenarios.Battens wrong = FiberContactScenarios.OverBattens(Spec, true);
+            FiberContactScenarios.Battens b = FiberContactScenarios.OverBattens(Spec, false);
+            foreach (var (name, x) in new[] { ("model 105's chain", wrong), ("design 24", b) })
+                Print($"{name}: deepest chord inside a batten {x.Deepest * 1000:F2} mm (step {x.DeepestStep}), frozen {x.DeepestFrozen * 1000:F2} mm; "
+                    + $"contact nodes put {x.Put}, refused {x.Refused}; free nodes gave way {x.GaveWay}, to a lift {x.LiftsGaveWay}; "
+                    + $"steps on the contacts' room {x.ContactRoomSteps}, most nodes {x.MostNodes}; trail {x.Trail}; wedges {x.Wedges}");
+            Assert.That(wrong.Refused, Is.GreaterThan(0), "model 105's chain runs out of room over the battens");
+            Assert.That(wrong.Deepest, Is.GreaterThan(2 * FiberContacts.ThroughDepth), "and lays a chord through one");
+            Assert.That(b.Deepest, Is.LessThanOrEqualTo(FiberContacts.ThroughDepth), "no chord through a batten");
+            Assert.That(b.DeepestFrozen, Is.LessThanOrEqualTo(FiberContacts.ThroughDepth), "nor frozen into the trail");
+            Assert.That(b.Wedges, Is.EqualTo(0));
+        }
+
+        // "A line on a face reads that face's air" (p7d-tether design 24, R1; QA's 1.11h check 2): a line laid on a timber block's top
+        // 6 m up, a steady 8 m/s across it. The face's own layer (Nikuradse's fully rough law matched to the free flow at
+        // contact.face_layer_height_m, 0.5 m; k_s 5 mm) gives the line on its crests 8·ln 30/ln 3000 = 3.40 m/s (the labelled band
+        // 3.0–3.7 for a layer of 0.25–1 m or k_s of 2–10 mm), White's drag 2.95 mN/m on it; model 105 (TetherFreeAirOnFaces)
+        // reads the free 8 m/s, 13.5 mN/m.
+        [Test]
+        public void ALineOnAFaceReadsThatFacesWind()
+        {
+            FiberContactScenarios.OnFace wrong = FiberContactScenarios.FaceAirOnABox(Spec, true, false);
+            FiberContactScenarios.OnFace f = FiberContactScenarios.FaceAirOnABox(Spec, false, false);
+            double hand = 8 * Math.Log(30) / Math.Log(30 * 0.5 / 0.005);
+            var drag = new FiberDrag(TetherScenarios.Table(), 2.5e-4);
+            Print($"model 105's air: {wrong.Points} points on the top read {wrong.Along:F4} m/s along it, drag {drag.PerMetre(wrong.Along) * 1e3:F3} mN/m; "
+                + $"design 24: {f.Points} points read {f.Along:F4} m/s, drag {drag.PerMetre(f.Along) * 1e3:F3} mN/m; the hand's {hand:F4} m/s");
+            Assert.That(wrong.Points, Is.GreaterThan(0));
+            Assert.That(f.Points, Is.GreaterThan(0));
+            Assert.That(wrong.Along, Is.EqualTo(8).Within(0.01).Percent, "model 105 reads the free air over the terrain");
+            Assert.That(f.Along, Is.EqualTo(hand).Within(0.01).Percent, "the face's own layer at the crests");
+            Assert.That(f.Along, Is.InRange(3.0, 3.7), "the labelled band");
+            Assert.That(drag.PerMetre(f.Along), Is.EqualTo(2.947e-3).Within(1).Percent, "White's drag at the hand's air");
+            Assert.That(drag.PerMetre(wrong.Along), Is.EqualTo(1.349e-2).Within(1).Percent);
+        }
+
+        // The wash over a face (design 24, R1): the drone hovering 1.5 m over the block's top with its line lying on it. The wash
+        // lands on the top (FaceFields), and the line at 1–2 m from the drone's axis lies in its wall jet, blowing outward; model
+        // 105 reads the free wake there, which has no wall jet on a roof.
+        [Test]
+        public void TheWashLandsOnTheFaceUnderIt()
+        {
+            FiberContactScenarios.OnFace wrong = FiberContactScenarios.FaceAirOnABox(Spec, true, true);
+            FiberContactScenarios.OnFace f = FiberContactScenarios.FaceAirOnABox(Spec, false, true);
+            Print($"model 105's air: {wrong.Points} point-steps on the top at 1–2 m, outward {wrong.Outward:F3} m/s, wash landed on it {wrong.FaceFields} steps; "
+                + $"design 24: {f.Points}, outward {f.Outward:F3} m/s, landed {f.FaceFields} steps");
+            Assert.That(wrong.FaceFields, Is.EqualTo(0));
+            Assert.That(f.FaceFields, Is.GreaterThan(1000), "the wash lands on the block's top");
+            Assert.That(f.Points, Is.GreaterThan(0));
+            Assert.That(f.Outward, Is.GreaterThan(0.5), "the wall jet over the top at the line's own height");
+        }
+
         // "The line lies on what is under it": hovering 30 m from its anchor over the range's plane, S04's straw and E01's run,
         // after 60 s, the line from the touchdown back to the anchor lies on the ground, the straw's top or the trench's floor and
         // walls within 2 mm, its trail points never inside a rigid shape, and none of it floats.

@@ -14,7 +14,8 @@ namespace Fpv450.App
 {
     /// <summary>
     /// The flight session in a scene (design 6): it builds a FlightSession from the user's profile folder (the last
-    /// setup, the settings, the active calibration) on the app's radio over the farmland (FlightWorlds.Farmland), with
+    /// setup, the settings, the active calibration) on the app's radio over its scene's map (PlayMaps.ForScene, D-100:
+    /// House's test range or Village's farmland), with
     /// surfaces.json's ground and tether.json's line, each read once,
     /// prepares its flights off the frame (SessionSetup.Prepare, Preparing), then
     /// starts a flight once the radio is connected (or after StartWaitSeconds on the development keyboard), ticks it
@@ -65,7 +66,8 @@ namespace Fpv450.App
                 SessionInputs inputs = SessionInputs.FromProfile(Application.persistentDataPath, drone, materials, hash, Problems);
                 inputs.Surfaces = SurfaceTable.Parse(File.ReadAllText(AppData.File(SurfaceTable.RelativePath)));
                 inputs.Tether = TetherTable.Parse(File.ReadAllText(AppData.File(TetherTable.RelativePath)));
-                FlightWorlds.Farmland(AppData.Root).ApplyTo(inputs);
+                PlayMap map = PlayMaps.ForScene(gameObject.scene.name) ?? throw new InvalidOperationException("no map flies in the scene '" + gameObject.scene.name + "'");
+                map.World(AppData.Root).ApplyTo(inputs);
                 inputs.Reader = AppRadio.Reader;
                 inputs.KeyboardAllowed = KeyboardFallback.Allowed;
                 inputs.Build = Application.version;

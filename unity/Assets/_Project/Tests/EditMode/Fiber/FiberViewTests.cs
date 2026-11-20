@@ -22,6 +22,8 @@ namespace Fpv450.Tests.Fiber
     {
         const int Sides = FiberTube.Sides;
 
+        internal static object sink; // the recorder's known-wrong's one object
+
         [Test]
         public void TheLineGoesThroughTheNodesAndTheTrailInACruiseAndAReverse()
         {
@@ -52,7 +54,12 @@ namespace Fpv450.Tests.Fiber
             try
             {
                 FlightCore core = null;
-                long allocated = 0;
+                // 0 B a Draw, read by the test framework's GC.Alloc recorder: on Unity's Mono the per-thread counter misses small
+                // allocations (the sim's probe reads 0 B for a 24 B object there, AllocProbeTests' known-wrong). The recorder
+                // itself is seen to see one object first.
+                var allocates = new UnityEngine.TestTools.Constraints.AllocatingGCMemoryConstraint();
+                Assert.That(() => { sink = new object(); }, allocates, "the recorder sees one object");
+                int allocated = 0;
                 int frames = 0, checks = 0, mostNodes = 0, mostTrail = 0, leastTrail = int.MaxValue, coilSteps = 0;
                 double worstSpan = 0, worstTrail = 0, worstCoil = 0, shown = double.NaN;
                 TetherScenarios.Fly(setup, 15, plan, c =>
@@ -65,9 +72,8 @@ namespace Fpv450.Tests.Fiber
                     }
                     if (c.State.Step % 20 != 0) return;
                     c.GetPose(out PoseFrame pose);
-                    long before = GC.GetAllocatedBytesForCurrentThread();
-                    view.Draw(pose);
-                    allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                    PoseFrame drawn = pose;
+                    if (allocates.ApplyTo(new TestDelegate(() => view.Draw(drawn))).IsSuccess) allocated++;
                     frames++;
                     mostNodes = Math.Max(mostNodes, pose.FiberNodeCount);
                     mostTrail = Math.Max(mostTrail, pose.FiberTrailCount);
@@ -84,7 +90,7 @@ namespace Fpv450.Tests.Fiber
                 TestContext.WriteLine($"{frames} frames, {checks} checked: up to {mostNodes} nodes; the trail {mostTrail} points frozen, lifted to {leastTrail}; paid out {core.Tether.PaidOut:F1} m, " +
                                       $"{view.ChunkBuilds} chunk builds; the drawn line off the nodes by {worstSpan * 1000:F4} mm at most, off the trail by " +
                                       $"{worstTrail * 1000:F4} mm; the pack {shape.PackRadius(core.Tether.CoilLineAtStart) * 1000:F4} to {view.Coil.ShownRadius * 1000:F4} mm " +
-                                      $"in {coilSteps} steps, off the law by {worstCoil:E1} m; {allocated} B in the Draws");
+                                      $"in {coilSteps} steps, off the law by {worstCoil:E1} m; {allocated} Draws allocating");
                 Assert.That(mostNodes, Is.GreaterThan(8), "the span was drawn");
                 Assert.That(mostTrail, Is.GreaterThan(4), "the trail froze and was drawn");
                 Assert.That(leastTrail, Is.LessThan(mostTrail), "and lifted as the line was pulled");
@@ -92,7 +98,7 @@ namespace Fpv450.Tests.Fiber
                 Assert.That(worstTrail, Is.LessThan(1e-3), "within 1 mm of the trail's points");
                 Assert.That(worstCoil, Is.LessThan(1e-9), "the pack at the line the coil's mass carries (each 10 m)");
                 Assert.That(coilSteps, Is.GreaterThan(1), "the pack shrank as the line paid out");
-                Assert.That(allocated, Is.EqualTo(0), "0 B a Draw");
+                Assert.That(allocated, Is.EqualTo(0), "0 B a Draw: no Draw allocates");
                 Assert.That(view.SpanRenderer.shadowCastingMode, Is.EqualTo(ShadowCastingMode.Off));
                 Assert.That(view.SpanRenderer.sharedMaterial, Is.Not.Null.And.EqualTo(Resources.Load<Material>(FiberView.MaterialResource)));
             }

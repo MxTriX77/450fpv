@@ -9,7 +9,7 @@ namespace Fpv450.App
 {
     /// <summary>
     /// Where the app's data files are, and what kind of build this is. The flight reads drone.json, the physics materials,
-    /// surfaces.json, tether.json and the farmland's map package (MapWorld's files) by their repository paths, under a root: the
+    /// surfaces.json, tether.json and its map's files (MapWorld's: the farmland's or the test range's) by their repository paths, under a root: the
     /// repository in the editor, and in a player its StreamingAssets folder, which <c>Fpv450.Build</c> fills with copies at
     /// the same paths (1.4a's note).
     /// </summary>
@@ -19,12 +19,14 @@ namespace Fpv450.App
 
         /// <summary>The files a player carries, by their paths under the root: drone.json, the physics materials, surfaces.json
         /// and tether.json (byte for byte the repository's, so tools/replay replays a pilot's flight with its own files), and
-        /// every file MapWorld reads for the farmland, recorded as it loads (FlightWorlds.FarmlandFiles). The test range is not
-        /// among them: it left the player (w3-farmland-ground 3.1).</summary>
+        /// every file MapWorld reads for Play's two maps (D-100): the farmland's, recorded as it loads
+        /// (FlightWorlds.FarmlandFiles), and the test range's, back in the player for House (FlightWorlds.TestRangeFiles).</summary>
         public static List<string> PlayerFiles(string root)
         {
             var files = new List<string> { DroneFile, PhysicsMaterials.RelativePath, SurfaceTable.RelativePath, TetherTable.RelativePath };
             foreach (string file in FlightWorlds.FarmlandFiles(root))
+                if (!files.Contains(file)) files.Add(file);
+            foreach (string file in FlightWorlds.TestRangeFiles(root))
                 if (!files.Contains(file)) files.Add(file);
             return files;
         }
@@ -36,8 +38,9 @@ namespace Fpv450.App
         public static string File(string relative) => Path.Combine(Root, relative);
 
         /// <summary>
-        /// A review build (PRD-05): the menu offers Explore, and the flight has its review key (F the feed off and on;
-        /// V's view is every build's, D-055). <c>Fpv450.Build</c> makes one with <c>-review</c>; every development build and
+        /// A review build (PRD-05): the flight has its review key (F the feed off and on; V's view is every build's, D-055),
+        /// and tooling may open the farmland in noclip (<c>-farmbench</c>, the smoke test's world checks); its menu is the
+        /// pilot's build's (w18-menu-cleanup). <c>Fpv450.Build</c> makes one with <c>-review</c>; every development build and
         /// the editor are one too.
         /// </summary>
         public static bool Review =>

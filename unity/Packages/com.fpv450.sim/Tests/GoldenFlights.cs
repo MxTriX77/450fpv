@@ -1473,7 +1473,13 @@ namespace Fpv450.Sim.Tests
         // (GoldenFlightTests.WithTheUnconvergedStepKeptTheTetherGoldenIsDesign22s); every kept audit of an older line flies the
         // known-wrong (FlyContact's beforeDesign23, on for every flight other than the tether golden's own) and keeps its pin.
         // w17-four-legs 1.3 (the four legs on their tips, photo W's aluminium legs in printed sockets): re-recorded once; was model 105's 0x86F63CCC975F747E (Model105TetherHash, kept with the skids' fixture and the switch, OnTheSkidsEachGoldenIsModel105s). It moves by the contact flight's tips and mass under the line.
-        public const ulong TetherHash = 0xDA89DEEA13650512UL, Model103TetherHash = 0xF2B1187D0BC04B77UL, Model100TetherHash = 0xF2B1187D0BC04B77UL, Model98TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
+        // p7d-tether designs 25 and 26 (model 108: the hole's edge's Weibull, a liftoff's empirical cut): re-recorded once; was model
+        // 107's 0xDA89DEEA13650512 (Model107TetherHash), which the flight with their known-wrongs keeps, every record and event
+        // (GoldenFlightTests.WithoutTheEdgesWeibullAndTheLiftoffLawTheTetherGoldenIsModel107s). Every one of its 12 000 records is
+        // the same; its events gain the liftoff's two (begun at step 189, its draw 0.3357; ended at rest at step 10 007, its chance
+        // 0.93 % on 1.139 of the weight), and the line is whole.
+        public const ulong Model107TetherHash = 0xDA89DEEA13650512UL;
+        public const ulong TetherHash = 0x7C3CDEA8FADEE683UL, Model103TetherHash = 0xF2B1187D0BC04B77UL, Model100TetherHash = 0xF2B1187D0BC04B77UL, Model98TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
             Model94TetherHash = 0x99C789A0CB2EC6B2UL, Model96TetherHash = 0x436638D62911D1A6UL, Model97TetherHash = 0xF6ADE19C0945D137UL;
 
         /// <summary>The tether golden with p7d-tether design 19's wash on model 94's clipped descent branch (the wash branch's pin
@@ -2279,7 +2285,7 @@ namespace Fpv450.Sim.Tests
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
             bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? wakeLevel = null, bool? descentBranch = null,
             bool? wakeReach4R = null, bool? airlessTrail = null, bool? heightScaled = null, bool? beforeDesign21 = null, bool? peelBeforeDesign22 = null,
-            bool? beforeDesign23 = null)
+            bool? beforeDesign23 = null, bool? beforeDesign24 = null, bool? beforeDesign25 = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2346,6 +2352,21 @@ namespace Fpv450.Sim.Tests
                 // so every kept audit flies it (every older line's switch implies it, as FiberLine.BeforeDesign23 reads them, and so
                 // does models 89–103's band); beforeDesign23 says so outright.
                 setup.TetherBeforeDesign23 = beforeDesign23 ?? (peelBeforeDesign22 ?? olderPeel);
+                // p7d-tether design 24: every line before it refused a contact node in a full chain, read the free air on a face and
+                // let a slot hold the line along it without a press (FlightSetup.TetherFullChainRefuses, TetherFreeAirOnFaces,
+                // TetherHoldWithoutPress), so every kept audit flies them (the unconverged step kept implies them, as FiberLine reads
+                // them); beforeDesign24 says so outright.
+                bool before24 = beforeDesign24 ?? setup.TetherBeforeDesign23;
+                setup.TetherFullChainRefuses = before24;
+                setup.TetherFreeAirOnFaces = before24;
+                setup.TetherHoldWithoutPress = before24;
+                // p7d-tether designs 25 and 26: every line before them met the hole's edge with its section's strength alone and cut at
+                // a liftoff by its own mechanics alone (FlightSetup.TetherEdgeIntact, TetherLiftoffPhysical). Every flight with the line
+                // gains the liftoff's two events under them, so every kept audit flies their known-wrongs and keeps its pin; only the
+                // tether golden's own flight (TetherHash) says beforeDesign25: false.
+                bool before25 = beforeDesign25 ?? true;
+                setup.TetherEdgeIntact = before25;
+                setup.TetherLiftoffPhysical = before25;
             }
             Heat(setup, heat, layout);
             if (layout < LogFormat.StepSize) CleanSensors(setup);

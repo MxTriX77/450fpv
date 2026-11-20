@@ -26,9 +26,9 @@ namespace Fpv450.App.Session
     }
 
     /// <summary>
-    /// The worlds a flight flies: the farmland, the player's (D-088, w3-farmland-ground 3.1: from its village's start only,
-    /// D-092), and the test range (D-047, D-077: from its houses' start), which left the player and stays for the headless
-    /// tests and the benches.
+    /// The worlds a flight flies, Play's two maps (D-100): the farmland, Village (D-088, w3-farmland-ground 3.1: from its
+    /// village's start only, D-092), and the test range, House (D-047, D-077: from its houses' start), which the headless
+    /// tests and the benches fly too.
     /// </summary>
     public static class FlightWorlds
     {

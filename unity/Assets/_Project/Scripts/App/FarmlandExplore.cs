@@ -11,7 +11,8 @@ namespace Fpv450.App
     /// The farmland in noclip (w1-farmland-world 2.1, design 6): the friend's scene as it is, its camera driven by our
     /// noclip (PRD-07) in place of the friend's FreeFlyCamera, with the feed and its OSD as on the test range (NoclipFeed:
     /// V, O), and the launch stand (D02) at the village's start point on the terrain. The camera starts behind the stand,
-    /// looking along its heading. No flight yet: the sim gets the farmland's hills with W3.
+    /// looking along its heading. No menu item opens it (w18-menu-cleanup): tooling does, in a review build through
+    /// AppFlow (<c>-farmbench</c>, the smoke test's world checks), and in the editor through MapStills (Village's still).
     /// </summary>
     public static class FarmlandExplore
     {

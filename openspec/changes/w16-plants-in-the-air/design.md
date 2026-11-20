@@ -386,6 +386,116 @@ Each frame:
 - **PropStems' dynamics** against this law's (§6). For a later model number.
 - **The dense drawn field needs a GPU port** of the closed form (§7.1). For 1.3.
 
+## 1.3 The drawn plants in the air (tech artist)
+
+The friend's grass, foliage and wood move by 1.2's law in the flight's own air, and by nothing else. The sim core's results do not move: 1.3 reads the law, the wind field, the published poses and the world. `PlantAir.Field.cs` exposes the law's halves and the modes' tables (`PlantAir.Mean`, `PlantAir.Bend`, `PlantAir.Settle`, `OpenModes`, `StripModes`, `WakeModes`, `FrameMean`, `FrameDrift`); `PlantAir.Sample` hashes to the same bits before and after the split.
+
+### 1. How the drawn plants are driven
+
+- **The drawing (`FarmlandPlantDrawing`).** Whenever the FarmLand scene loads, every material of the friend's three plant shaders gets a runtime copy on the project's own shader for it: `Fpv450/Plant Grass`, `Plant Leaves`, `Plant Bark` (`unity/Assets/_Project/Shaders/`).
+  - They are the friend's lighting as he wrote it, with his wind taken out. His files and the store stay as they are (D-089); the replacement is the project's own code.
+  - The copies reach the terrain's grass and trees through prototype copies on a runtime copy of each tile's terrain data (D-095). This supersedes `FarmlandTreeWood`.
+  - Each copy is told what it draws: a clump's culms (green, dry, burnt) and its mesh's top; a tree's or a bush's sway band, its drawn height, its twigs and branches.
+  - Wood and impostor cards move by the whole plant's sway alone (the pilot: the leaves breathe, "but not the pillars").
+  - `-plants 0` leaves the friend's shaders and wind (the frame rate's before).
+- **The field (`PlantField`, `FarmlandPlants`).** In a flight on the farmland, each drawn frame computes every band's bend at the frame's flight time (the PAL field's reference instant in the FPV view, `FlightScene.DrawnStep`) on five levels. The shaders read them (`PlantBend.hlsl`). Without a flight (noclip, the stills) no level is bound and the plants stand as drawn.
+- **The drawn bend (derived).**
+  - A culm, a trunk or a bush turns about its base as a uniformly loaded cantilever. Each point keeps its distance from the base and turns by the chord's angle at its height: φ·(s³ − 4s² + 6s)/3 of the link's lean φ, s the share of the plant's height.
+  - A crown's foliage and twigs also ride their branch, read where the leaf hangs: its deflection (s⁴ − 4s³ + 6s²)/3 along 1.2's 3.5 m from the trunk.
+  - They also ride their twig: its 0.5 m tip's deflection.
+  - A clump takes its class's bands interpolated in the log of its drawn length (the mesh's top at the instance's scale).
+  - Nothing bends through the ground (π/2).
+- **The leaves' flutter** is the twig band's own mode (6.2 Hz with its weight, inside the cherry leaf's published 6 ± 1 Hz), driven by the field's eddies at each leaf's place. No separate flutter amplitude is assumed (§10's gap stays open).
+
+### 2. The bands (`PlantBands`)
+
+| Id | Element | Mechanics | Base over the ground | Labels |
+|---|---|---|---|---|
+| 0–2 | green culms 0.5, 0.8, 1.3 m | `PlantMechanics.Stem`, grass_blade | 0 | the lengths measured from the drawn clumps (0.46–1.34 m) |
+| 3–5 | dry culms 0.6, 1.0, 1.7 m | `Stem`, dry_culm | 0 | measured (0.59–1.77 m) |
+| 6–8 | burnt culms 0.6, 1.0, 1.7 m | `Stem`, burnt_culm | 0 | measured (0.53–1.77 m) |
+| 9 | a crown's leafy twig | 1.2's 5 mm × 0.5 m, 20 g/m | 6 m | the elevation assumed (the drawn crowns span 2–13 m; the profile changes under 10 % from 4 to 8 m) |
+| 10 | a bush's leafy twig | the same | 1 m | assumed (the drawn bushes are 1.6–5 m) |
+| 11 | a crown's branch | 1.2's 40 mm × 3.5 m, 1.2 kg/m | 4 m | assumed (the island tree's crown from about 4 m) |
+| 12 | the island tree | `Tree`, broadleaf 12.9 m, dbh 1.1 m, crown 12.8 × 8.9 m | 0 | measured from the drawn tree; f₀ 1.2's assumed 0.45 Hz |
+| 13–15 | small, mid and large pines | `Tree`, pine 6.5 / 11.7 / 17.5 m, dbh 0.11 / 0.27 / 0.55 m | 0 | heights and widths measured from the drawn bounds; dbh derived from the note's f₀; the crown 0.6 of the height, assumed |
+| 16 | a leafy bush's stems | `Woody`, 2.5 m × 15 mm, 1.2 kg/m × (d/40 mm)² of leaves | 0 | measured (GreenBush 2.0 m, LeafyBush_P2 3.2 m, twigs 9–18 mm); the leaves derived (1.2's two loads both lie on d², the pipe model's) |
+| 17 | a bare bush's stems | `Woody`, 3.0 m × 20 mm, no leaves | 0 | measured (DeadBush 3.0–5.0 m, twigs 10–44 mm) |
+
+### 3. The GPU port (`PlantField.compute`)
+
+Respond's two halves, split where §7.1 says:
+- **On the CPU, at a low rate:** `PlantAir.Mean` (the mean air at the load point, the fluctuation's covariance, the mean lean by Settle) on four grids round the camera, on a helper thread. The grids (numerical):
+  - the grass near the camera, 26 × 2 m, a snapshot every 4 s of flight time;
+  - the grass out to the mid level, 24 × 8 m, every 8 s;
+  - the crowns' twigs and branch, 24 × 8 m, every 4 s;
+  - the far level's whole plants and branch, 12 × 48 m, every 8 s.
+
+  Each snapshot is computed ahead of the frame and centred where the camera will be. The near grass grid is 2 m because the tallest culms barely stand (W/k 0.93 for the 1.3 m green culm), so their mean lean follows a wake's mean within metres.
+- **The wake eddies, from the wake grid itself.** Their phase is anchored at the world's origin and their wave number is their scale over the obstacle's height, so an interpolated height would scramble them (a 1 % error turns the phase by about 10 rad 500 m out).
+  - The grids near the camera carry the wake grid's own cells (`WakeGrid.SampleCell`: the obstacle height and the turbulence at each band's load height).
+  - The kernel takes the eddies' share √(T² − 1)·σ_u·taper and their scale at the point itself, as `WakeGrid.Sample` and `WindField.PlantOpen` do.
+  - The far grid takes the nearest node's.
+- **On the GPU, every drawn frame:**
+  - The mean is interpolated between a grid's four nodes and its two snapshots about the frame's time.
+  - Where no wash grid integrates the plant, the wash's steady air at its load point joins the mean and the lean is settled again in float (`PlantAir.Sample`'s quasi-static path, `PlantAir.Settle`, §4.5).
+  - Then `PlantAir.Bend`'s arithmetic in float: the gusts are linearised about the whole lean (the wind's mean lean plus the wash grid's bend) in the mean air plus the wash's air, with Borgman's closed form for a bare stem and 12-point Gauss–Hermite with foliage.
+  - Each mode's steady response F(P cos θ − cΩ sin θ)/(P² + c²Ω²) is summed: the 138 open modes at the band's height, a strip's eddies, and the 24 wake eddies at the place's obstacle scale.
+  - The phases are reduced on the CPU in double about an origin by the camera. The tangent's difference is 10⁻³ rad (PlantAir's 10⁻⁴ in double loses digits in float; the truncation at 10⁻³ is about 10⁻⁶ of it).
+- **The wash (`PlantWash`).** A fine (24 × 5 cm) and a coarse (32 × 15 cm) grid integrate each class's middle culm (bands 1, 4, 7), ticked at 25 Hz from the published poses on a second helper thread.
+  - Each tick's stands go to the GPU, whose wash levels' texels are the nodes: the bend now and at the tick before, and the wash's air at the load point.
+  - The other culms take the line's law as `PlantAir.Sample` does for a band no grid holds: `RotorAir.At` from the fine grid's own instance, at each wash node and each culm's load height (exported with the stands).
+  - Every plant beyond the grids takes it from a polar grid sampled each tick round the drone at the first twelve bands' load heights: 33 rings from 0.1 m, each 1.2 times the last, to 33 m, and 16 angles.
+  - A plant takes it where it passes 0.005 m/s for a culm (under which its lean moves under 0.01 rad) or 0.3 m/s for a twig or a branch (under which a twig's moves under 10⁻⁴ rad, derived from 1.2's twig).
+  - Nine integrated culms took the helpers past a whole core in the Mono player; three keep each class's dynamics (the spring back) and leave the shortest and the tallest quasi-static under the drone.
+- **The levels** (texel centres on whole cells, so a grid's nodes are texels):
+
+  | Level | Texels × cell | Round | Bands |
+  |---|---|---|---|
+  | fine wash | 24 × 5 cm | the drone | grass |
+  | coarse wash | 32 × 15 cm | the drone | grass |
+  | near | 96 × 0.5 m | the camera | grass, twigs |
+  | mid | 96 × 2 m | the camera | grass, twigs, branch |
+  | far | 64 × 8 m | the camera | branch, the whole plants |
+
+  A point takes the finest level holding its band, faded into the next over the level's last four texels.
+
+### 4. The check against the CPU (`PlantFieldGpuTests`, EditMode with a GPU)
+
+Over the farmland in Windy, a hover 1 m over the fields south of the village for 8 s (published poses, the wash grids ticked from them). The field is drawn frame by frame; at 8.0 and 8.52 s every level and band is read back:
+
+| Check | Texels | Result |
+|---|---|---|
+| The port: each texel against `PlantAir.Bend` on the mean the kernel interpolates there, with the wash grid's node and the steady air as the kernel takes them, settled again by `PlantAir.Settle` | 6176 | within 1.6·10⁻⁴ rad (float against double). A texel past 2·10⁻³ would pass only at a fold of the CPU's own answer (its steady air nudged by 10⁻⁵ moves it by a tenth of the gap): none |
+| A plant on a grid's node at a snapshot's time, out of the wash, against `PlantAir.Wind` | 1225 | within 6.5·10⁻⁵ rad |
+| A plant within the steady air's 33 m against `PlantAir.Sample` | 1900 | median 1.8·10⁻⁴, 95th percentile 2.7·10⁻³, worst 0.051 rad |
+| A plant on the wash's levels against `PlantAir.Sample` | 776 | median 4.5·10⁻⁵, 95th percentile 1.4·10⁻³, worst 3.6·10⁻³ rad |
+| Every plant round the camera against `PlantAir.Sample` | 5366 | median 4.7·10⁻⁴, 95th percentile 0.018, worst 0.51 rad: the 1.3 m green culm 100 m out, whose mean lean, interpolated over 8 m, differs from its own (§7) |
+
+- `PlantsLeaveTheFlightTests`: the same headless flight over the farmland in Windy (seed, keys, clock), alone and with the plants' CPU side reading it on two threads all the while (the wash grids from its poses, the wind's mean round the drone). The two logs are the same byte for byte.
+- `FarmlandPlantDrawingTests`: every plant material the terrain draws is on the project's shaders with the friend's textures and settings, and nothing draws his wind. His assets and the store's terrain data are untouched, and the grass keeps every instance he painted.
+
+### 5. Cost
+
+- **The helpers' CPU,** measured in the EditMode suite (Mono, the editor):
+  - the wind's mean costs 94 ms a second of flight;
+  - the first player run (Mono, on battery) logged 1.4 s a second of flight and 190 ms a wash tick before the cuts above (nine integrated culms and denser means).
+
+  That run's flight stepped badly: p99 4 ms, 1758 of 20422 steps over 1 ms. Whether the plants' helpers caused it needs the A/B on AC.
+- **The frame rate through the feed** (PLT-02, PLT-07): `-plantbench` flies Village from the village's start (PlantPilot on the development keyboard). It holds 2 m at the start, hovers 4, 2, 1 and 0.5 m over the fields' grass, makes a low pass 1 m up and holds 4 m before a tree belt, timing each held leg. The A/B is that bench with and without `-plants 0`. It waits for AC power: the dev machine has been on battery since the first run (27 % down to 15 %), where no figure counts (PLT-07).
+
+### 6. Clip H
+
+The captures (the hovers through the feed and from behind, the pass, the belt in Windy) are the bench's shots, compared by letter with clip H's 17.2–19.6 s (§1.5's target: standing stalks within about 1 m fluttering about a held lean, the mats down). They wait with the bench.
+
+### 7. Left out, and for whom
+
+- **The wash's steady air beyond 33 m** (the polar grid's reach): 1.2's law still leans the barely standing 1.3 m green culm there (0.22 rad at 45 m from a 1 m hover in the suite, under 0.1 m/s). The other culms move under 0.01 rad.
+
+- **The softest culm's mean lean** between the 8 m nodes (worst 0.51 rad 100 m out). Settling every grass texel's lean on the GPU from the interpolated air removes it, at about 0.2 ms of GPU a frame; not taken until the frame rate's A/B says there is room.
+- **The crowns in the wash:** a twig or a branch takes the wash quasi-statically (1.2's §4.5) on its band's fixed elevation (6 m, 4 m, 1 m), so a crown's leaves above or below that height take the wash there.
+- **Leaf flutter's own amplitude:** not assumed (the twig's mode carries the flutter); a law is still not read (§10).
+
 ## 1.5 The drone feels what it flies through (physics engineer)
 
 The pilot, after model 100: "the drone is not affected by grass, and it should be affected even more heavily when thicker stuff (like twigs and tree leaves)". Before this task the stems acted on the props only (`PropStems`) and a crown's twigs on the parts (2.3); the legs and the body skimmed the stems, and the body a crown's leaves, with no force. This takes in w9-village-physics 2.10's first part (the legs in standing stems).

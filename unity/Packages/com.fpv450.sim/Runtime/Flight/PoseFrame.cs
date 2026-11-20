@@ -178,12 +178,13 @@ namespace Fpv450.Sim.Flight
 
 
     /// <summary>The fiber's active nodes in a pose, inline (a value type, so a published pose never shares them with the
-    /// flight thread): up to Capacity, the table's span.max_nodes and a terrain's crests (FiberLine.CrestNodes).</summary>
+    /// flight thread): up to Capacity, the table's span.max_nodes, a terrain's crests (FiberLine.CrestNodes) and the members'
+    /// contact nodes' own room (FiberLine.ContactNodes, p7d-tether design 24).</summary>
     public struct FiberNodes
     {
-        public const int Capacity = 48;
+        public const int Capacity = 64;
 
-        public Double3 N0, N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12, N13, N14, N15, N16, N17, N18, N19, N20, N21, N22, N23, N24, N25, N26, N27, N28, N29, N30, N31, N32, N33, N34, N35, N36, N37, N38, N39, N40, N41, N42, N43, N44, N45, N46, N47;
+        public Double3 N0, N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12, N13, N14, N15, N16, N17, N18, N19, N20, N21, N22, N23, N24, N25, N26, N27, N28, N29, N30, N31, N32, N33, N34, N35, N36, N37, N38, N39, N40, N41, N42, N43, N44, N45, N46, N47, N48, N49, N50, N51, N52, N53, N54, N55, N56, N57, N58, N59, N60, N61, N62, N63;
 
         public Double3 this[int i]
         {
@@ -239,6 +240,22 @@ namespace Fpv450.Sim.Flight
                     case 45: return N45;
                     case 46: return N46;
                     case 47: return N47;
+                    case 48: return N48;
+                    case 49: return N49;
+                    case 50: return N50;
+                    case 51: return N51;
+                    case 52: return N52;
+                    case 53: return N53;
+                    case 54: return N54;
+                    case 55: return N55;
+                    case 56: return N56;
+                    case 57: return N57;
+                    case 58: return N58;
+                    case 59: return N59;
+                    case 60: return N60;
+                    case 61: return N61;
+                    case 62: return N62;
+                    case 63: return N63;
                     default: throw new System.ArgumentOutOfRangeException(nameof(i));
                 }
             }
@@ -294,6 +311,22 @@ namespace Fpv450.Sim.Flight
                     case 45: N45 = value; break;
                     case 46: N46 = value; break;
                     case 47: N47 = value; break;
+                    case 48: N48 = value; break;
+                    case 49: N49 = value; break;
+                    case 50: N50 = value; break;
+                    case 51: N51 = value; break;
+                    case 52: N52 = value; break;
+                    case 53: N53 = value; break;
+                    case 54: N54 = value; break;
+                    case 55: N55 = value; break;
+                    case 56: N56 = value; break;
+                    case 57: N57 = value; break;
+                    case 58: N58 = value; break;
+                    case 59: N59 = value; break;
+                    case 60: N60 = value; break;
+                    case 61: N61 = value; break;
+                    case 62: N62 = value; break;
+                    case 63: N63 = value; break;
                     default: throw new System.ArgumentOutOfRangeException(nameof(i));
                 }
             }

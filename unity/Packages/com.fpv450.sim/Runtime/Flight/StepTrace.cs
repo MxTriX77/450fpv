@@ -419,6 +419,16 @@ namespace Fpv450.Sim.Flight
         /// C: the soil's resistance before the shaft at that depth, N. Once a slide, at its start.
         /// </summary>
         TipPloughed = 42,
+
+        /// <summary>
+        /// A liftoff of the line's empirical cut law (p7d-tether design 26, LiftoffCuts: the pilot's account), as it begins and as
+        /// it ends. Object the drone; Part the coil; Shape the liftoff's number (its draw's index in stream fiber.liftoff). Begun
+        /// (Index 0x80): Point where the legs left; A: the draw u in [0, 1); B: the thrust over the weight as they left; C: the line
+        /// paid out then, m. Ended (Index its flags: 0x01 the pilot's safe launch, nose down; 0x02 the nose up or a roll past the
+        /// bound; 0x04 the line cut, TetherBreak with mechanism Liftoff follows in the step; 0x08 the drone resting again): Point
+        /// the drone; A: the chance reached; B: the window's mean thrust over weight; C: the most speed tail first, m/s.
+        /// </summary>
+        Liftoff = 43,
     }
 
     /// <summary>A blade pass's mode (BladeStrike's and BladeDamaged's Index, high 4 bits; p7f-damage design 5).</summary>

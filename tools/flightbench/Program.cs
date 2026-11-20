@@ -197,6 +197,15 @@ namespace Fpv450.FlightBench
                     return TetherCase.Run(seeds) ? 0 : 1;
                 }
             }
+            if (args.Length >= 1 && args.Length <= 2 && args[0] == "--cuts")
+            {
+                int seeds = 20;
+                if (args.Length == 1 || int.TryParse(args[1], out seeds) && seeds >= 1)
+                {
+                    Console.WriteLine("flightbench: the pilot's cut targets (p7d-tether 1.11i)");
+                    return CutsCase.Run(seeds) ? 0 : 1;
+                }
+            }
             if (args.Length == 1 && args[0] == "--pitch-back")
             {
                 Console.WriteLine("flightbench: the climb after a pitch-back at a fixed throttle (D-087)");
@@ -221,7 +230,7 @@ namespace Fpv450.FlightBench
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step [calm | windy | severe]] | --turns [calm | windy | severe] | --scenarios | --shake [first seed] | --contacts | --slopes | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --tether [seeds] | --rate-log <log>... | --replay-step <log> [--from S] [--to S] | --sweep <map> <points> <seed> [...]");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step [calm | windy | severe]] | --turns [calm | windy | severe] | --scenarios | --shake [first seed] | --contacts | --slopes | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --tether [seeds] | --cuts [seeds] | --rate-log <log>... | --replay-step <log> [--from S] [--to S] | --sweep <map> <points> <seed> [...]");
             return 2;
         }
     }

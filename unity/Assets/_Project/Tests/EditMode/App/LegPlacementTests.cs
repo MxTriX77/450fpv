@@ -117,17 +117,18 @@ namespace Fpv450.Tests.App
                 "the rest turned about it by the fold");
         }
 
-        // The summary's flight (SessionTests.TheSummaryNamesTheDamage): dropped level at 1.5 m/s onto a steel kerb 8 mm tall
-        // under the rear left foot, seed 14 (seed 3 until model 50, where its rear left holds): rear left parts at its clamp's
-        // edge and drops its piece, front right bends.
+        // The summary's flight (SessionTests.TheSummaryNamesTheDamage): dropped level at 1.4 m/s onto a steel kerb 8 mm tall
+        // under the rear left foot, seed 38 (seed 3 until model 50, where its rear left holds; seed 14 at 1.5 m/s until model 99
+        // with the legs drawn, w15-player-physics 1.1, where its rear left only cracks): rear left parts at its clamp's edge and
+        // drops its piece, front right cracks and keeps a set of hundredths of a degree.
         static FlightCore Kerb(int steps)
         {
             const double kerb = 0.008;
-            FlightCore core = Core(14, s =>
+            FlightCore core = Core(38, s =>
             {
                 Double3 foot = s.Contacts.Legs.Foot[rl];
                 s.StartPosition = s.StartPosition + new Double3(0, kerb + 0.002, 0);
-                s.StartVelocity = new Double3(0, -1.5, 0);
+                s.StartVelocity = new Double3(0, -1.4, 0);
                 s.RuntimeObjects = new[]
                 {
                     new RuntimeObject("kerb", new[]

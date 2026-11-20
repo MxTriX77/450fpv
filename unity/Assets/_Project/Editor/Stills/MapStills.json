@@ -1,0 +1,24 @@
+{
+  "format": "fpv450-stills",
+  "width_px": 1920,
+  "height_px": 1080,
+  "feed_seed": 1,
+  "feed_field": 0,
+  "maps": [
+    {
+      "id": "test-range",
+      "scene": "Assets/_Project/Scenes/TestRange.unity",
+      "pose": "params",
+      "position_m": [-178.0, 3.0, -34.0],
+      "yaw_deg": 145.0,
+      "pitch_deg": 9.0,
+      "why": "6 m north of the track start, 3 m up, looking south-east over the yard: the car at the left, the plank fence and its gate across, the adobe house whole with its shed at the right (chosen over 5 candidates)"
+    },
+    {
+      "id": "farmland",
+      "scene": "Assets/Farm_land/Scenes/FarmLand.unity",
+      "pose": "explore",
+      "why": "the pilot asked for exactly Explore's spawn frame, so the pose is FarmlandExplore.Open's own and nothing here can drift from it"
+    }
+  ]
+}

@@ -1062,8 +1062,20 @@ namespace Fpv450.Sim.Log
         ///    without it flew 105's skids) with assets-src/drone/drone_skids.json flies 105's pins for the kept audits.
         ///    The goldens are re-recorded once. Open: four tip tests (the play's frictionless rattle, the rest time on sod,
         ///    a push across in an 8 m/s side wind, one wet start settling 2 mm).
+        /// 107: the laid line stays where it lies (p7d-tether 1.11h, design 24, on 106; raw into the pilot's build).
+        ///    A contact node outranks a free one on the chain (64 nodes), so the line no longer lies through walls and
+        ///    beams (TetherFullChainRefuses); a line lying on a face reads that face's own air layer and wash, not free
+        ///    air over the terrain (TetherFreeAirOnFaces); a capstan slot holds the line only while its node presses
+        ///    (TetherHoldWithoutPress). flightbench --cuts prints the pilot's cut table (D-121). Open: corners on rubble
+        ///    over the capstan bound, nodes held inside members, the line's step on a ruin about 40 % dearer at p99.
+        /// 108: the fiber's cuts held to the pilot's table (p7d-tether 1.11i, designs 25 and 26, D-121, on 107; raw).
+        ///    The line breaks over the spool hole's edge by a Weibull law of the glass per 0.1 m (m 7, published; the
+        ///    scale the pilot's hole, 1.0-1.4 GPa a flight, assumed, streams spool.hole_edge and fiber.edge_strength);
+        ///    a liftoff's cut follows the pilot's empirical law (one draw a liftoff, stream fiber.liftoff, by its
+        ///    thrust and attitude: the safe launch 5 %, a very sharp one 87-95 %, nose up or rolled more). flightbench
+        ///    --cuts passes every row. Known-wrongs TetherEdgeIntact and TetherLiftoffPhysical fly 107's line.
         /// </summary>
-        public const int ModelVersion = 106;
+        public const int ModelVersion = 108;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
