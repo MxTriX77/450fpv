@@ -1197,6 +1197,17 @@ namespace Fpv450.Sim.Tests
         // moved. The tether golden's line spends its Newton solves on no step, so with the known-wrong chain
         // (FlightSetup.TetherBeforeDesign23: an unconverged step keeps its last solve) and without it the flight is design 22's
         // pin, every record and event; every kept audit of an older line flies the known-wrong and keeps its pin.
+        // p7d-tether designs 25 and 26's audit (model 108): with their known-wrongs (FlightSetup.TetherEdgeIntact, TetherLiftoffPhysical)
+        // the tether golden is model 107's pin, every record and event; without them every record is the same and the events gain the
+        // liftoff's two, so the pin moves on the events alone.
+        [Test]
+        public void WithoutTheEdgesWeibullAndTheLiftoffLawTheTetherGoldenIsModel107s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Audit("tether", "model 107", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, beforeDesign25: old), c),
+                GoldenFlights.Model107TetherHash, GoldenFlights.TetherHash, "designs 25 and 26 off");
+        }
+
         [Test]
         public void WithTheUnconvergedStepKeptTheTetherGoldenIsDesign22s()
         {
@@ -1671,13 +1682,14 @@ namespace Fpv450.Sim.Tests
         public void TheTetherGoldenFlightIsPinned()
         {
             DroneSpec spec = RepositoryDrone.Spec();
-            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore core, tether: true);
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore core, tether: true, beforeDesign25: false);
             Assert.That(hash, Is.EqualTo(GoldenFlights.TetherHash), "the pinned golden (a re-record is audited and raises the model version)");
+            Assert.That(core.Tether.Liftoff.Count, Is.EqualTo(1UL), "one liftoff, one draw (design 26)");
             Assert.That(core.Tether.PaidOut, Is.GreaterThan(0), "the line paid out");
             Assert.That(core.Tether.Chain.Wedges, Is.EqualTo(0));
             Assert.That(core.State.Crashed, Is.False);
             Assert.That(core.Tether.Broken, Is.False, "the pilot's account: a normal liftoff and landing do not cut it (since model 64, D01's canister)");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true), Is.EqualTo(hash), "a second flight gives the same bits");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, beforeDesign25: false), Is.EqualTo(hash), "a second flight gives the same bits");
         }
 
         // p7f-damage 1.2's audit, kept (prop-motor-damage's "The intact blade is the published table"): with the blades' factory
