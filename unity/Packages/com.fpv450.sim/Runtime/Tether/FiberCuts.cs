@@ -19,10 +19,13 @@ namespace Fpv450.Sim.Tether
         Peel = 5,
         /// <summary>The chain went non-finite (CableChain's wedge at a node): the line broken there so the flight goes on.</summary>
         Wedge = 6,
+        /// <summary>A liftoff's chance passed its draw (LiftoffCuts, design 26: empirical, the pilot's account): the line parted at
+        /// the hole's edge as the drone lifted off.</summary>
+        Liftoff = 7,
     }
 
     /// <summary>A strength's band (FiberSection's Index, low 2 bits; 0x40 a wear-through, 0x80 the strength a break met).</summary>
-    public enum SectionBand : byte { Intact = 0, Flaw = 1, Abraded = 2, Span = 3 }
+    public enum SectionBand : byte { Intact = 0, Flaw = 1, Abraded = 2, Span = 3, Edge = 4 }
 
     /// <summary>One bend of the line after a step (p7d-tether design 6, 8): a run of neighbouring nodes pressing one capstan
     /// member (one wrap), a single node on any other member, or the exit lip.</summary>
@@ -123,6 +126,15 @@ namespace Fpv450.Sim.Tether
         readonly double _macroA, _macroRadiusA, _macroDecay, _microSmooth, _microRough;
         readonly bool _oneStrength, _capstanLip, _beforeDesign21;
         SeedStream _sections;
+        // p7d-tether design 25 (unless FlightSetup.TetherEdgeIntact): the line's strength over the hole's edge, a Weibull of modulus
+        // _edgeModulus and scale _edgeScale (the flight's hole, spool.hole_edge_strength_pa) a section, each section's own draw.
+        readonly bool _edgeLaw;
+        readonly double _edgeModulus, _edgeScale;
+        SeedStream _edge;
+
+        /// <summary>Design 26: while a liftoff lasts the hole's edge is LiftoffCuts' alone, so the edge's Weibull yields (the
+        /// section's own strength stays: the glass's, not the hole's).</summary>
+        public bool EdgeYields;
 
         // The section table: open addressing on k, never emptied (the flight's).
         readonly long[] _key = new long[Capacity];
@@ -148,7 +160,8 @@ namespace Fpv450.Sim.Tether
         readonly int[] _open = new int[2], _next = new int[2];
         int _bendCount;
 
-        public FiberCuts(TetherTable table, FlightRandom random, bool oneStrength = false, bool capstanLip = false, bool beforeDesign21 = false)
+        public FiberCuts(TetherTable table, FlightRandom random, bool oneStrength = false, bool capstanLip = false, bool beforeDesign21 = false,
+            bool edgeLaw = false)
         {
             _beforeDesign21 = beforeDesign21;
             _youngs = table.Number("fiber.youngs_modulus_pa");
@@ -185,6 +198,14 @@ namespace Fpv450.Sim.Tether
             SeedStream span = random.Open("fiber.span_strength");
             SpanStrength = random.DrawQuantile(ref span, "span_strength_pa", _span);
             _sections = random.Open("fiber.section_strength");
+            _edgeLaw = edgeLaw && !oneStrength;
+            if (_edgeLaw)
+            {
+                _edgeModulus = table.Number("strength.edge_weibull_modulus");
+                SeedStream hole = random.Open("spool.hole_edge");
+                _edgeScale = random.DrawQuantile(ref hole, "hole_edge_strength_pa", table.Row("spool.hole_edge_strength_pa").Values);
+                _edge = random.Open("fiber.edge_strength");
+            }
             for (int i = 0; i < Capacity; i++)
             {
                 _lo[i] = double.PositiveInfinity;
@@ -217,6 +238,20 @@ namespace Fpv450.Sim.Tether
             band = flawed ? SectionBand.Flaw : SectionBand.Intact;
             return Quantile(flawed ? _flaw : _intact, Unit(_sections.BitsAt(i + 1)));
         }
+
+        /// <summary>Design 25: section k's strength over the hole's edge, Pa: the Weibull of the line marked by the flight's hole,
+        /// σ_e = σ_0·(−ln(1 − u))^(1/m) on the section's own draw u (fiber.edge_strength, counter-based on k), so the chance that a
+        /// section of the line breaks at a stress σ over the edge is 1 − exp(−(σ/σ_0)^m) (the weakest link over a section; σ_0 the
+        /// hole's, a flight's draw). +∞ without design 25.</summary>
+        public double EdgeStrength(long k)
+        {
+            if (!_edgeLaw) return double.PositiveInfinity;
+            double u = Unit(_edge.BitsAt((ulong)k));
+            return _edgeScale * DetMath.Exp(DetMath.Log(-DetMath.Log(1 - u)) / _edgeModulus);
+        }
+
+        /// <summary>Design 25: the flight's hole: the scale σ_0 of the line's strength over its edge, Pa (0 without design 25).</summary>
+        public double EdgeScale => _edgeScale;
 
         /// <summary>Section k's abraded strength, Pa: its third draw.</summary>
         public double AbradedDraw(long k) => _oneStrength ? SpanStrength : Quantile(_abraded, Unit(_sections.BitsAt((ulong)k * 3 + 2)));
@@ -733,6 +768,16 @@ namespace Fpv450.Sim.Tether
                         long sec = Section(s);
                         double strength = Strength(sec, out SectionBand band);
                         if ((band == SectionBand.Abraded) != (pass == 1)) continue;
+                        // Design 25: over the hole's edge the section is no stronger than its strength there.
+                        if (lip && _edgeLaw && !EdgeYields)
+                        {
+                            double edge = EdgeStrength(sec);
+                            if (edge < strength)
+                            {
+                                strength = edge;
+                                band = SectionBand.Edge;
+                            }
+                        }
                         if (pass == 0) Read(sec, strength, band, p, lip, names, events);
                         if (!(p.Stress >= strength)) continue;
                         b.Mechanism = band == SectionBand.Abraded ? TetherMechanism.Abrasion : TetherMechanism.Bend;

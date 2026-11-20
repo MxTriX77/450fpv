@@ -302,6 +302,14 @@ namespace Fpv450.Sim.Tether
         /// known-wrong for C1, FlightSetup.TetherHoldWithoutPress, implied by every older line's switch).</summary>
         internal static bool HoldWithoutPress(FlightSetup setup) => setup.TetherHoldWithoutPress || BeforeDesign23(setup);
 
+        /// <summary>Whether a flight's line meets the hole's edge with its section's drawn strength alone (p7d-tether design 25's
+        /// known-wrong, FlightSetup.TetherEdgeIntact: model 107's edge), implied by every older line's switch.</summary>
+        internal static bool EdgeIntact(FlightSetup setup) => setup.TetherEdgeIntact || BeforeDesign23(setup);
+
+        /// <summary>Whether a flight's liftoffs cut the line by its own mechanics alone (p7d-tether design 26's known-wrong,
+        /// FlightSetup.TetherLiftoffPhysical: model 107's), implied by every older line's switch.</summary>
+        internal static bool LiftoffPhysical(FlightSetup setup) => setup.TetherLiftoffPhysical || BeforeDesign23(setup);
+
         /// <summary>Design 24: the members' contact nodes' own room past the spacing law's (assumed: where a contact node was
         /// refused in the pilot's model 103 flights the chain held a mean 6–19 nodes on members, and in five flights none it could
         /// give way, design 24's census; the room bounds the line's cost, PLT-04). Taken only once no free node can give way.</summary>
@@ -450,8 +458,9 @@ namespace Fpv450.Sim.Tether
             // The cuts (1.8): the strengths' draws after the spool's; the rotors' discs for the prop check.
             if (!setup.TetherWithoutCuts)
             {
-                _cuts = new FiberCuts(table, random, setup.TetherOneStrength, setup.TetherBeforeDesign18, BeforeDesign21(setup));
+                _cuts = new FiberCuts(table, random, setup.TetherOneStrength, setup.TetherBeforeDesign18, BeforeDesign21(setup), !EdgeIntact(setup));
                 _link = new FiberLink(table);
+                if (!LiftoffPhysical(setup)) _liftoff = new LiftoffCuts(table, random);
             }
             _propulsion = propulsion;
             _parts = parts;
@@ -482,6 +491,22 @@ namespace Fpv450.Sim.Tether
 
         /// <summary>The line's cut risk (1.8), or null without it (FlightSetup.TetherWithoutCuts).</summary>
         public FiberCuts Cuts => _cuts;
+
+        /// <summary>The liftoff law (design 26), or null without it.</summary>
+        public LiftoffCuts Liftoff => _liftoff;
+
+        readonly LiftoffCuts _liftoff;
+        bool _touching;
+        double _droneWeight, _thrustOverWeight, _legLoad;
+
+        /// <summary>Before each Step: whether the drone touched anything in the step (ContactModel's ContactsTouching), what its
+        /// legs carried, N (the four legs' forces), and its weight, N (design 26's liftoffs).</summary>
+        public void Ground(bool touching, double legLoad, double weight)
+        {
+            _touching = touching;
+            _legLoad = legLoad;
+            _droneWeight = weight;
+        }
 
         /// <summary>The optical link (1.8), or null without the cuts.</summary>
         public FiberLink Link => _link;
@@ -885,6 +910,7 @@ namespace Fpv450.Sim.Tether
             // The cuts and the link (1.8): a break leaves the near piece hanging from the exit, the far piece where it lies.
             if (_cuts != null && !Broken)
             {
+                _thrustOverWeight = _droneWeight > 0 ? (thrust.RearRight + thrust.FrontRight + thrust.RearLeft + thrust.FrontLeft) / _droneWeight : 0;
                 Cut(s, from, wedgeNode, events);
                 if (!_attached)
                 {
@@ -1533,6 +1559,28 @@ namespace Fpv450.Sim.Tether
             _lipAzimuth = azimuth;
             LipWear = _cuts.WearLip(_chain.SpoolPaying ? _chain.SpoolSpeed * _dt : 0, turn, exit.Material, _contacts, events);
             _cuts.Wear(_chain, _dt, _contacts, events);
+            // Design 26: a liftoff's chance against its draw, empirical (the pilot's account); while one lasts the hole's edge is its.
+            if (!found && _liftoff != null)
+            {
+                if (_liftoff.Step(s, _touching, _droneWeight > 0 ? _legLoad / _droneWeight : 0, _thrustOverWeight, PaidOut, _dt, events, _coilPart))
+                {
+                    found = true;
+                    b = default;
+                    b.Mechanism = TetherMechanism.Liftoff;
+                    b.Kind = (byte)FiberMember.Lip;
+                    b.Node = -1;
+                    b.Segment = -1;
+                    b.Material = exit.Material;
+                    b.Turn = lip;
+                    b.Tension = lipTension;
+                    b.Radius = double.PositiveInfinity;
+                    b.Stress = double.NaN;
+                    b.Strength = double.NaN;
+                    b.Section = _cuts.Section(exit.Material);
+                    b.Point = exit.Position;
+                }
+                _cuts.EdgeYields = _liftoff.Open;
+            }
             if (!found)
             {
                 double sdot = _chain.SpoolSpeed, peelAt = exit.Material + _balloonLength;
@@ -1634,7 +1682,7 @@ namespace Fpv450.Sim.Tether
         // chain from it to the exit, its end free; at the drone (the lip, the peel, the exit's segment) nothing hangs.
         void Break(in FiberBreak b, in FlightState s, StepEvents events)
         {
-            if (b.Mechanism != TetherMechanism.Prop && b.Mechanism != TetherMechanism.Wedge)
+            if (b.Mechanism != TetherMechanism.Prop && b.Mechanism != TetherMechanism.Wedge && b.Mechanism != TetherMechanism.Liftoff)
                 events.Add(_cuts.SectionEvent(_contacts, b.Kind, b.Member, b.Point, b.Section, b.Strength, b.Band, b.Stress, true));
             FlightEvent e = Place(EventKind.TetherBreak, b.Kind, b.Member, _contacts, b.Point, b.Turn, b.Tension, b.Radius);
             e.Index = (byte)((byte)b.Mechanism | b.Kind << 4);

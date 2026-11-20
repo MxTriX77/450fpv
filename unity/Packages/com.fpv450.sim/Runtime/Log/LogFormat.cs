@@ -1068,8 +1068,14 @@ namespace Fpv450.Sim.Log
         ///    air over the terrain (TetherFreeAirOnFaces); a capstan slot holds the line only while its node presses
         ///    (TetherHoldWithoutPress). flightbench --cuts prints the pilot's cut table (D-121). Open: corners on rubble
         ///    over the capstan bound, nodes held inside members, the line's step on a ruin about 40 % dearer at p99.
+        /// 108: the fiber's cuts held to the pilot's table (p7d-tether 1.11i, designs 25 and 26, D-121, on 107; raw).
+        ///    The line breaks over the spool hole's edge by a Weibull law of the glass per 0.1 m (m 7, published; the
+        ///    scale the pilot's hole, 1.0-1.4 GPa a flight, assumed, streams spool.hole_edge and fiber.edge_strength);
+        ///    a liftoff's cut follows the pilot's empirical law (one draw a liftoff, stream fiber.liftoff, by its
+        ///    thrust and attitude: the safe launch 5 %, a very sharp one 87-95 %, nose up or rolled more). flightbench
+        ///    --cuts passes every row. Known-wrongs TetherEdgeIntact and TetherLiftoffPhysical fly 107's line.
         /// </summary>
-        public const int ModelVersion = 107;
+        public const int ModelVersion = 108;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
