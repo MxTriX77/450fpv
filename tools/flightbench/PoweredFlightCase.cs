@@ -297,13 +297,19 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"without the line, over model 28's 1904 bytes, with the soil and the area laws: contact 0x{c33:X16}, range 0x{g33:X16} "
                 + $"({(k33 ? "p7a-ground's model 33, bit for bit; the range with model 38's buried face" : "NOT model 33's")}): {(k33 ? "PASS" : "FAIL")}");
             // p7d-tether 1.6: the contact flight with the line.
-            ulong line = GoldenFlights.FlyContact(Drone(), out FlightCore l, tether: true);
+            ulong line = GoldenFlights.FlyContact(Drone(), out FlightCore l, tether: true, beforeDesign25: false);
             bool lok = line == GoldenFlights.TetherHash && l.Tether.PaidOut > 0 && l.Tether.Chain.Wedges == 0 && !l.State.Crashed;
             Console.WriteLine($"tether-flight: {GoldenFlights.ContactSteps} steps with the line, hash 0x{line:X16} "
                 + $"({(line == GoldenFlights.TetherHash ? "matches" : $"golden 0x{GoldenFlights.TetherHash:X16}")}), {l.Tether.PaidOut:F3} m paid out, "
                 + $"{l.Tether.Chain.Count} nodes, trail {l.Tether.TrailCount}, {l.Tether.Chain.Clips} clips, {l.Tether.Chain.SafeSteps} safe steps, "
                 + $"{l.Tether.Chain.Wedges} wedges, {l.Tether.Chain.NewtonSolves} Newton solves ({l.Tether.Chain.NewtonUnconverged} steps past their budget), "
                 + $"ends {l.State.Position.Y:F4} m up: {(lok ? "PASS" : "FAIL")}");
+            // p7d-tether designs 25 and 26's audit: with their known-wrongs the tether golden is model 107's, every record and event.
+            ulong line107 = GoldenFlights.FlyContact(Drone(), out _, tether: true, beforeDesign25: true);
+            bool ok107 = line107 == GoldenFlights.Model107TetherHash;
+            lok &= ok107;
+            Console.WriteLine($"tether-flight without the edge's Weibull and the liftoff law: 0x{line107:X16} ({(ok107 ? "model 107's, bit for bit" : "NOT model 107's")}): "
+                + $"{(ok107 ? "PASS" : "FAIL")}");
             // w3-farmland-ground 2.4 (the laid line rests and freezes), its audit against model 79's pin, which 80–84 kept: with the
             // known-wrong sliding trail (FlightSetup.TetherSlidingTrail) the tether golden is 79's, every record and event.
             ulong line79 = GoldenFlights.FlyContact(Skids(), out FlightCore l79, tether: true, slidingTrail: true);
