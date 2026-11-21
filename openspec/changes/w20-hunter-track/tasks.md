@@ -14,7 +14,7 @@ Work branch: `unity/world/w20-hunter-track`, from the build branch. One fresh ag
 
 ## 2. Portion 2: our own objects
 
-- [ ] 2.1 [asset-artist] Model the concrete block (204 placed) with chips and real thickness. Verify: its review sheet at 1.5, 10, 50 and 200 m.
+- [ ] 2.1 [asset-artist] Model the concrete block (199 placed) with chips and real thickness. Verify: its review sheet at 1.5, 10, 50 and 200 m.
 - [ ] 2.2 [asset-artist] Model the gates: the three frame kinds, the light gate and the pylons. Verify: review sheets, and the gate scenario passes on the new collision.
 - [ ] 2.3 [asset-artist] Model the ground clutter: tyres, cones, ribbons and steel profiles. Verify: review sheets, with the ribbons' snag flags set.
 - [ ] 2.4 [asset-artist] Model the remaining kinds, with no brand marks: boards, tent, notice board, flags, arrows and lights. Verify: review sheets.
