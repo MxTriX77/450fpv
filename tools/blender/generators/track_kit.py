@@ -8,9 +8,14 @@ track file, C measured on the clips, D derived, A assumed; a correction is a one
 colour is a row of "paints", {"part", "slot", "colour"}, the slot a physics material id.
 
 Local axes, read from the layout's poses (measured): a gate's opening faces local z (every checkpoint route through
-a gate runs along it), so its width is x and its height y; a block's length is z; a steel bar's length is y. Assumed
-for the kinds the file does not settle, each one row away: the other bars lie along y, the arrow's plate has y for
-its normal, the boards stand along y from a short edge.
+a gate runs along it), so its width is x and its height y; a block's length is z; a steel bar runs along +y from its
+origin, at one end; an LED flag's plate has y for its normal, the normal of the wall it is fixed to; a large board has
+x for its normal and its long side along z. Assumed for the kinds the file does not settle, each one row away: the
+other bars lie along y, the arrow's plate has y for its normal, a small board stands along y from a short edge.
+
+The two large boards are a variant per layout row: no single origin puts both where the clips show them (the sheet's
+corrections), and one shared origin would push board 418 through the house's roof. Each holds its board's centre in
+its own local frame, derived from the spans the clips give.
 
 Physics: collision is the drawn parts' own boxes, cylinders, capsules and sphere; a gate's opening and a tyre's hole
 are gaps of their real clear space; the tape's band has no hard collision (a micro mesh) but a snag record, and the
@@ -50,7 +55,7 @@ IDENTITY = [0.0, 0.0, 0.0, 1.0]
 PARAMS = {
     "kind": {"type": "str", "range": "a neutral kind of KINDS", "default": "concrete_block",
              "effect": "which shape is drawn, and which rows and parts it takes"},
-    "rows": {"type": "list", "range": "the kind's rows, each {name, value > 0, label F|C|D|A}", "default": [],
+    "rows": {"type": "list", "range": "the kind's rows, each {name, value > 0 (an offset may be negative), label F|C|D|A}", "default": [],
              "effect": "every size, each one row to correct"},
     "paints": {"type": "list", "range": "the kind's parts, each {part, slot, colour}", "default": [],
                "effect": "each part's physics surface and palette colour"},
@@ -110,15 +115,24 @@ def _kit(parts, gaps=(), snag=(), micro=None):
 
 def _bar(anchor, landable=False, wind=False, snag=False):
     """A kind that is one box of size_x_m, size_y_m, size_z_m, its origin at its centre or, for "foot", at the centre
-    of its lower y face. `snag`: an edge along its y axis, of its section's larger half-width."""
+    of its lower y face. `snag`: an edge round its rim in the xz plane, a plate's, of its half-thickness."""
 
     def build(r, c):
         x, y, z = r["size_x_m"] / 2, r["size_y_m"], r["size_z_m"] / 2
         y0, y1 = (0.0, y) if anchor == "foot" else (-y / 2, y / 2)
-        records = [_edge([(0.0, y0, 0.0), (0.0, y1, 0.0)], max(x, z), c["main"][0])] if snag else []
+        rim = [(-x, 0.0, -z), (x, 0.0, -z), (x, 0.0, z), (-x, 0.0, z), (-x, 0.0, -z)]
+        records = [_edge(rim, y / 2, c["main"][0])] if snag else []
         return _kit([_box((-x, y0, -z), (x, y1, z), c["main"], landable, wind)], snag=records)
 
     return build
+
+
+def _board(r, c):
+    """A large board: a panel of size_x_m (its normal) by size_y_m by size_z_m, centred at (0, centre_y_m, centre_z_m)
+    of its row's own origin."""
+    x, y, z = r["size_x_m"] / 2, r["size_y_m"] / 2, r["size_z_m"] / 2
+    cy, cz = r["centre_y_m"], r["centre_z_m"]
+    return _kit([_box((-x, cy - y, cz - z), (x, cy + y, cz + z), c["main"], wind=True)])
 
 
 def _pylon(r, c):
@@ -339,6 +353,7 @@ def _ribbon(r, c):
 
 TYRE_ROWS = ("outer_d_m", "hole_d_m", "height_m")
 BOX_ROWS = ("size_x_m", "size_y_m", "size_z_m")
+SIGNED_ROWS = ("centre_y_m", "centre_z_m")  # offsets, the only rows that may be negative
 FRAME_SQUARE_ROWS = ("head_w_m", "head_h_m", "depth_m", "opening_w_m", "opening_h_m", "post_w_m", "banner_h_m",
                      "leg_len_m", "leg_d_m", "leg_x_m")
 
@@ -358,12 +373,12 @@ KINDS = {
     "frame_square_a": (_frame_square, FRAME_SQUARE_ROWS, ("post", "banner", "leg")),
     "frame_square_b": (_frame_square, FRAME_SQUARE_ROWS, ("post", "banner", "leg")),
     "light_gate": (_light_gate, ("width_m", "height_m", "depth_m", "rim_m", "opening_w_m", "opening_h_m"), ("main",)),
-    "steel_profile": (_bar("centre"), BOX_ROWS, ("main",)),
+    "steel_profile": (_bar("foot"), BOX_ROWS, ("main",)),
     "led_flag_green": (_bar("centre", snag=True), BOX_ROWS, ("main",)),
     "led_flag": (_bar("centre", snag=True), BOX_ROWS, ("main",)),
     "light_rig": (_bar("centre"), BOX_ROWS, ("main",)),
     "arrow_red": (_bar("centre"), BOX_ROWS, ("main",)),
-    "board_large": (_bar("foot", wind=True), BOX_ROWS, ("main",)),
+    "board_large": (_board, BOX_ROWS + SIGNED_ROWS, ("main",)),
     "board_small": (_bar("foot", wind=True), BOX_ROWS, ("main",)),
     "track_light": (_bar("centre"), BOX_ROWS, ("main",)),
     "led_ball": (_ball, ("diameter_m",), ("main",)),
@@ -395,7 +410,8 @@ def check(params):
         problems.append(f"{kind}: 'rows' must name exactly {', '.join(row_names)}")
     for row in params["rows"]:
         value = row.get("value")
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+        if isinstance(value, bool) or not isinstance(value, (int, float)) \
+                or (value <= 0 and row.get("name") not in SIGNED_ROWS):
             problems.append(f"{kind}: row {row.get('name')!r} needs a positive value, got {value!r}")
         if row.get("label") not in LABELS:
             problems.append(f"{kind}: row {row.get('name')!r} needs a label of {', '.join(LABELS)}")

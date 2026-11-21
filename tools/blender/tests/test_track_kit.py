@@ -31,7 +31,11 @@ def built():
 
 def expected_box(kind, r):
     """(min, max) of the kind's drawn body from its rows alone, where the origin sits as the object sheet says."""
-    if kind == "concrete_block" or kind in ("board_large", "board_small", "notice_board"):
+    if kind == "board_large":
+        y, z = r["size_y_m"] / 2, r["size_z_m"] / 2
+        return (-r["size_x_m"] / 2, r["centre_y_m"] - y, r["centre_z_m"] - z), \
+            (r["size_x_m"] / 2, r["centre_y_m"] + y, r["centre_z_m"] + z)
+    if kind in ("concrete_block", "steel_profile", "board_small", "notice_board"):
         return (-r["size_x_m"] / 2, 0.0, -r["size_z_m"] / 2), (r["size_x_m"] / 2, r["size_y_m"], r["size_z_m"] / 2)
     if "size_x_m" in r:
         return tuple(-r[f"size_{a}_m"] / 2 for a in "xyz"), tuple(r[f"size_{a}_m"] / 2 for a in "xyz")
@@ -60,8 +64,10 @@ def test_every_drawn_kind_of_the_layout_has_its_variant():
     kinds = {o["kind"] for o in LAYOUT if o["drawn"]}
     assert len(kinds) == 24 and kinds == set(track_kit.KINDS)
     ribbons = {o["instance_id"] for o in LAYOUT if o["kind"] == "ribbon_tape"}
-    wanted = {f"T01_{k}" for k in kinds if k != "ribbon_tape"} | {f"T01_ribbon_tape_{i}" for i in ribbons}
-    assert set(VARIANTS) == wanted and len(VARIANTS) == 28
+    boards = {o["instance_id"] for o in LAYOUT if o["kind"] == "board_large"}
+    wanted = {f"T01_{k}" for k in kinds if k not in ("ribbon_tape", "board_large")} \
+        | {f"T01_ribbon_tape_{i}" for i in ribbons} | {f"T01_board_large_{i}" for i in boards}
+    assert set(VARIANTS) == wanted and len(VARIANTS) == 29
 
 
 @pytest.mark.parametrize("variant", VARIANTS)
@@ -86,6 +92,55 @@ def test_the_drawn_size_is_the_rows(variant, built):
     for mesh in built[variant]["lods"]:
         lo, hi = mesh.bounds()
         assert lo == pytest.approx(want[0], abs=TOLERANCE) and hi == pytest.approx(want[1], abs=TOLERANCE)
+
+
+def _house_frame(row):
+    """The north house's (u, v, h) of a local point of a layout row (the object sheet's frame and poses)."""
+    b = math.radians(275.33)
+    q, origin = row["rotation_xyzw"], row["position_m"]
+
+    def place(p):
+        x, y, z, w = q
+        t = [2 * (y * p[2] - z * p[1]), 2 * (z * p[0] - x * p[2]), 2 * (x * p[1] - y * p[0])]
+        world = [origin[0] + p[0] + w * t[0] + y * t[2] - z * t[1], origin[1] + p[1] + w * t[1] + z * t[0] - x * t[2],
+                 origin[2] + p[2] + w * t[2] + x * t[1] - y * t[0]]
+        dx, dz = world[0] - 505.400, world[2] - 538.957
+        return (dx * math.sin(b) + dz * math.cos(b), dx * math.cos(b) - dz * math.sin(b), world[1] - 18.93)
+
+    return place
+
+
+@pytest.mark.parametrize("instance_id, v_span, h_span", [(417, (0.8, 3.0), (0.0, 1.3)), (418, (0.7, 2.2), (1.5, 3.7))])
+def test_each_large_board_stands_where_the_clips_show_it(instance_id, v_span, h_span, built):
+    """The sheet's corrections, spans at its +-0.15 m: 417 landscape on the floor, 418 portrait above it."""
+    row = next(o for o in LAYOUT if o["instance_id"] == instance_id)
+    place = _house_frame(row)
+    corners = [place(v) for v in built[f"T01_board_large_{instance_id}"]["lods"][0].vertices]
+    vs, hs = [c[1] for c in corners], [c[2] for c in corners]
+    assert abs((min(vs) + max(vs)) / 2 - sum(v_span) / 2) < 0.15
+    assert abs((min(hs) + max(hs)) / 2 - sum(h_span) / 2) < 0.15
+    assert max(max(vs) - min(vs), max(hs) - min(hs)) == pytest.approx(2.20, abs=0.05)
+    assert min(max(vs) - min(vs), max(hs) - min(hs)) == pytest.approx(1.33, abs=0.05)
+    assert (max(hs) - min(hs) > max(vs) - min(vs)) == (instance_id == 418)  # portrait
+
+
+@pytest.mark.parametrize("instance_id", [410, 411, 412, 413])
+def test_a_steel_bar_crosses_the_window_from_its_end(instance_id, built):
+    """The origin at one end, the bar reaching past the window's far jamb at v 2.94 (the sheet's corrections)."""
+    row = next(o for o in LAYOUT if o["instance_id"] == instance_id)
+    place = _house_frame(row)
+    vs = [place(v)[1] for v in built["T01_steel_profile"]["lods"][0].vertices]
+    assert min(vs) == pytest.approx(place((0.0, 0.0, 0.0))[1], abs=0.05) and max(vs) > 2.94
+
+
+def test_a_flag_is_a_plate_with_a_snag_round_its_rim(built):
+    for variant in ("T01_led_flag_green", "T01_led_flag"):
+        r = track_kit.rows_of(load(variant))
+        rim = built[variant]["snag"][0]
+        assert len(rim["points"]) == 5 and rim["points"][0] == rim["points"][-1]
+        assert rim["radius_m"] == pytest.approx(r["size_y_m"] / 2)
+        assert {abs(p[0]) for p in rim["points"]} == {r["size_x_m"] / 2}
+        assert {abs(p[2]) for p in rim["points"]} == {r["size_z_m"] / 2}
 
 
 def test_the_arc_is_its_length():
