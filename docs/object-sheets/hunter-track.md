@@ -245,6 +245,26 @@ Distance is from the object's origin to the solid part of the named surface, so 
 - **The four steel bars run inside end B's wall** and cross its whole window (X at 57 s) [C]. See the corrections below.
 - **Ball 395 sits at the end of slot 394.** With its assumed Ø0.30 it takes 0.15 m of that slot, leaving 0.93 m clear [D].
 
+### North-east house
+
+Marked openings:
+
+| Marker | Wall | Opening | Centre s | Centre h | Tilt ° | Width | Height | Lowest point h | Off marker, mm | Note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 41 | door | door | 2.710 | 1.260 | 0 | 1.420 | 2.520 | 0.000 | 15 |  |
+| 42 | door | door | 6.003 | 1.260 | 0 | 1.420 | 2.520 | 0.000 | 28 |  |
+| 40 | A | top pane | 2.879 | 2.707 | 0 | 0.643 | 0.453 | 2.480 | 0 |  |
+| 46 | B | top pane | 2.023 | 2.710 | 0 | 0.676 | 0.500 | 2.460 | 0 |  |
+| 39 | A | crawl bay | 3.527 | -0.485 | 0 | 3.153 | 0.850 | -0.910 | 2 |  |
+| 43 | B | crawl bay | 0.430 | -0.340 | 0 | 3.535 | 0.560 | -0.620 | 16 |  |
+
+Windows, end A and end B (the unmarked panes complete each window):
+
+| Wall | Column centres s | Column width | Mullion | Top row h | Transom | Lower row h | Marked |
+|---|---|---|---|---|---|---|---|
+| A | 2.176, 2.879 | 0.643 | 0.060 | 2.480–2.933 | 0.060 | 0.960–2.420 | 40 |
+| B | 2.023, 2.759 | 0.676 | 0.060 | 2.460–2.960 | 0.060 | 0.960–2.400 | 46 |
+
 ## Open points
 
 - **The houses.** No task builds them, and the route cannot be flown as in X and Y without them. This needs a decision in the plan.
