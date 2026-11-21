@@ -115,6 +115,13 @@
       ],
       "materials": { "concrete": "track_kit", "fabric": "track_kit", "plastic": "track_kit", "rubber": "track_kit", "steel": "track_kit", "timber": "track_kit" }
     },
+    "T02": {
+      "class": "track",
+      "generator": "track_house",
+      "variants": ["T02_north", "T02_north_east", "T02_south"],
+      "materials": { "boards": "House_Wood01", "post": "House_Wood01", "frame": "House_Windows", "floor": "House_Wood02",
+                     "roof": "House_IndoorWall", "brick": "House_IndoorWall", "bark": "track_kit", "batten": "track_kit" }
+    },
     "V01": {
       "class": "vegetation",
       "generator": "tree",
