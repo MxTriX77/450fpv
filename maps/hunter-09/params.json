@@ -1,0 +1,34 @@
+{
+  "format": "fpv450-track-params",
+  "format_version": 1,
+  "map": "hunter-09",
+  "about": "Every number tools/map/compile_track.py builds this map's ground and houses from. Each row is labelled measured, derived, published or assumed; sheet = docs/object-sheets/hunter-track.md.",
+  "rows": {
+    "map_rect_m": {"value": [0, 0, 1000, 1000], "label": "assumed", "why": "design 1: the farmland's rectangle, the file's x, y and z unchanged"},
+    "tile_resolution": {"value": 1025, "label": "assumed", "why": "the farmland map tile's grid, 0.977 m"},
+    "tile_height_m": {"value": 120, "label": "assumed", "why": "the farmland's tile height: one sample is 3.7 mm"},
+    "class_resolution": {"value": 2, "label": "assumed", "why": "one ground class until portion 3 dresses the ground"},
+    "ground_surface": {"value": "meadow_sod", "label": "assumed", "why": "stand-in class until portion 3"},
+    "foot_kinds": {"value": ["pylon_3m", "cone_light", "light_gate", "tent", "notice_board"], "label": "derived", "why": "sheet: origin at the foot; with foot_frames the 32 distinct upright objects of the spec"},
+    "foot_frames": {"value": [329, 330, 331], "label": "derived", "why": "sheet, the 10 gates: the frames standing at ground level"},
+    "resting_kinds": {"value": ["concrete_block", "tyre_red", "tyre_plain", "tyre_blue", "tyre_yellow"], "label": "derived", "why": "sheet: origin at the bottom face, so an upright one low enough rests on the ground"},
+    "resting_top_m": {"value": 20.05, "label": "derived", "why": "above the highest base-course block (20.027 m in the file), below the second course"},
+    "resting_tilt_deg": {"value": 5, "label": "assumed", "why": "a block on its side or a leaning tyre does not rest on its origin"},
+    "correction_radius_m": {"value": 8, "label": "assumed", "why": "the reach of the smooth local correction round each sample"},
+    "ribbon_step_m": {"value": 2.0, "label": "assumed", "why": "the spacing of the ground samples along a ribbon's straight runs"},
+    "ribbon_clear_m": {"value": 0.005, "label": "assumed", "why": "the ground lies this far under a ribbon's line, inside the band's own 10 mm lift"},
+    "sample_gap_m": {"value": 0.25, "label": "assumed", "why": "a later sample this close to an earlier one is dropped, so the fit stays well conditioned"},
+    "ribbon_end_m": {"value": 0.05, "label": "derived", "why": "the kit's DUPLICATE_POINT_M: a point this close to the last is the file's end marker"},
+    "dips": {"label": "derived", "why": "sheet, the 11 low objects: circular, a flat floor to the inner radius, a smooth blend to the outer", "value": [
+      {"id": 332, "centre_m": [416.06, 458.33], "floor_m": 19.19, "inner_m": 2.2, "outer_m": 3.9},
+      {"id": 334, "centre_m": [473.50, 458.11], "floor_m": 18.91, "inner_m": 2.2, "outer_m": 4.5},
+      {"id": 336, "centre_m": [496.18, 487.82], "floor_m": 18.02, "inner_m": 2.2, "outer_m": 6.4}
+    ]},
+    "houses": {"label": "derived", "why": "sheet, frame and poses; flat_m (ground kept level past the footprint) and bank_m (the blend beyond it) are assumed, the north house's fitted inside the 4.97 m to its neighbour", "value": [
+      {"variant": "T02_north", "ox": 505.400, "oz": 538.957, "bearing_deg": 275.33, "floor_m": 18.93, "flat_m": 0.8, "bank_m": 4.1},
+      {"variant": "T02_north_east", "ox": 517.899, "oz": 525.704, "bearing_deg": 328.30, "floor_m": 20.55, "flat_m": 0.3, "bank_m": 1.5},
+      {"variant": "T02_south", "ox": 515.985, "oz": 431.658, "bearing_deg": 2.77, "floor_m": 20.44, "flat_m": 0.5, "bank_m": 1.0}
+    ]},
+    "probes": {"value": {"seed": 450, "map": 500, "track": 500, "track_margin_m": 15}, "label": "assumed", "why": "SplitMix64 as the farmland's: 500 over the map and 500 over the layout, where the ground has its shape"}
+  }
+}
