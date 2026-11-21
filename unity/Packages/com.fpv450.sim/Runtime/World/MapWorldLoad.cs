@@ -305,7 +305,7 @@ namespace Fpv450.Sim.World
                 }
             }
             _first[rowMeta.Length] = at;
-            PlaceWind(rowMeta, rowPosition, rowYawRad, rowScale, rowGroup, file);
+            PlaceWind(rowMeta, rowPosition, rowRotation, rowYawRad, rowScale, rowGroup, file);
 
             // The ground: the plane (none on a terrain), the patches' footprints and the hole bands (a package has no record).
             JsonNode ground = package ? null : Need(root, "ground", JsonKind.Object, file);
