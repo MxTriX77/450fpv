@@ -265,9 +265,54 @@ Windows, end A and end B (the unmarked panes complete each window):
 | A | 2.176, 2.879 | 0.643 | 0.060 | 2.480–2.933 | 0.060 | 0.960–2.420 | 40 |
 | B | 2.023, 2.759 | 0.676 | 0.060 | 2.460–2.960 | 0.060 | 0.960–2.400 | 46 |
 
+### South house
+
+Marked openings:
+
+| Marker | Wall | Opening | Centre s | Centre h | Tilt ° | Width | Height | Lowest point h | Off marker, mm | Note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 29 | door | door | 2.767 | 1.235 | 0 | 1.420 | 2.470 | 0.000 | 12 |  |
+| 30 | door | door | 6.047 | 1.235 | 0 | 1.420 | 2.470 | 0.000 | 1 |  |
+| 28 | A | top pane | 2.182 | 2.716 | 0 | 0.625 | 0.475 | 2.479 | 0 |  |
+| 31 | B | top pane | 2.735 | 2.704 | 0 | 0.635 | 0.462 | 2.473 | 0 |  |
+| 27 | A | crawl bay | 0.834 | -0.285 | 0 | 3.371 | 0.410 | -0.490 | 11 |  |
+| 32 | B | crawl bay | 3.420 | -0.285 | 0 | 3.311 | 0.410 | -0.490 | 19 | **raised**, marker 0.330 |
+
+Windows, end A and end B (the unmarked panes complete each window):
+
+| Wall | Column centres s | Column width | Mullion | Top row h | Transom | Lower row h | Marked |
+|---|---|---|---|---|---|---|---|
+| A | 2.182, 2.867 | 0.625 | 0.060 | 2.479–2.954 | 0.060 | 0.960–2.419 | 28 |
+| B | 2.040, 2.735 | 0.635 | 0.060 | 2.473–2.935 | 0.060 | 0.960–2.413 | 31 |
+
+### The three small markers
+
+| Marker | What the clips show | Verdict |
+|---|---|---|
+| 416, 0.570 wide | the window's top pane measures about 0.56 × 0.40, scaled by the bars' 0.30 pitch, X at 57 s [C] | **Not larger.** Opens to **0.62** (design decision 9) |
+| 394, 0.279 tall | one missing board course with the marker's own 3.8:1 proportion, X at 334 s [C] | **Not larger.** Opens to **0.40** |
+| 32, 0.330 tall | the gap from ground to floor frame is about 0.38 ± 0.05, X at 124 s [C] | **Larger, but not safely above the quad's 0.382.** Set to **0.41**, one gap with marker 27 (0.406) at the same floor |
+
+The other top panes also measure smaller in the clips than their markers. The openings follow the markers, as design decision 9 assumes.
+
+### The ground the houses need
+
+- **The north house stands in a hollow.** Its floor is 1.06 m below the track's 19.99 m ground [F], and X at 65 s shows a grass bank with timber steps rising from its porch to the track [C]. The ground under it must come down to **18.10** [D], about 1.89 m below the track. Its nearest neighbour, the north-east house, is 4.97 m away at the closest corners [D], so the bank fits between them. The blend is the world builder's.
+- **The north-east house** needs a shallow scoop falling from 19.93 at end B to 19.64 at end A [D].
+- **The south house** needs a 40 mm scrape to 19.95 [D].
+
+### Corrections to the rows above
+
+These come from the same measurements. The kit rows are unchanged here, for the kit's owner to apply.
+
+- **`steel_profile`:** the origin is at one **end** of the bar, not its centre, and the bar is about **2.40** long, not 1.25 [D]. The origins lie at v 0.70–1.01, and each bar must reach past the window's far jamb at v 2.94, with both ends hidden in the wall.
+- **`led_flag` and `led_flag_green`:** a flat plate about **0.70 × 0.42** carrying chevrons, mounted at 45° (X at 53 s) [C], not a thin light bar.
+- **`board_large`:** about **2.20 × 1.33** [C], not 1.10 wide. Board 417 stands landscape on the floor, spanning about v 0.8–3.0 and h 0–1.3. Board 418 is portrait above it, spanning about v 0.7–2.2 and h 1.5–3.7 (X at 61 s) [C]. No single origin fits both, so this stays open.
+- **Low objects 417 and 385** do not stand below the house's floor. That floor is at 18.93 [D]: 417 stands on it and 385 is on the door wall.
+
 ## Open points
 
-- **The houses.** No task builds them, and the route cannot be flown as in X and Y without them. This needs a decision in the plan.
+- **The houses.** Measured above. Not settled: the pier layout, the large boards' origin, and the ground around the north house.
 - **Arch 336.** The spec's whole-opening rule and the clip disagree. The dip above follows the spec.
 - **Arch 334 and frame 335** are not visible in any sampled frame. Their rows are estimates.
 - **`frame_square_b`'s leg length** is 4.9 ± 0.5 m: two views gave 4.3–5.3 m. Its feet are underground in both placements, so only the head's height matters. Even at 4.3 m both openings stay above the ground.
