@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "id": "T01",
+  "variant": "T01_steel_profile",
+  "generator": "track_kit",
+  "params_sha256": "fce7e1ac1b6316ec634c8bb77f75038c9934bf140103aebb59a3decc327ec7f2",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.045,
+      -0.625,
+      -0.02
+    ],
+    "max": [
+      0.045,
+      0.625,
+      0.02
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "T01_steel_profile_LOD0",
+      "tris": 12,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 300.0,
+  "materials": [
+    {
+      "slot": "steel",
+      "visual": "track_kit",
+      "physics": "steel"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.09,
+        1.25,
+        0.04
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": []
+}
