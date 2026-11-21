@@ -13,6 +13,10 @@ The map SHALL take every object's kind, position, rotation and scale from the pi
 - **WHEN** the import reads the pilot's track file
 - **THEN** it reports 334 objects, 278 drawn and 56 kept as data only, and refuses to finish if any object's kind has no entry in its kind table
 
+#### Scenario: Doubled rows stand once
+- **WHEN** the map is compiled from the layout
+- **THEN** the file's 7 byte-identical doubled rows are each placed once, so 272 distinct drawn objects stand on the map, while the layout keeps all 334 rows
+
 #### Scenario: Poses are exact
 - **WHEN** the imported layout is compared with the file
 - **THEN** every object's position is within 1 mm, its rotation within 0.01° and its scale within 0.1 %
@@ -44,7 +48,7 @@ The ground under the layout SHALL be derived from the heights of the objects sta
 
 #### Scenario: Standing objects meet the ground
 - **WHEN** the map loads
-- **THEN** each of the 34 upright objects standing on the ground has its foot within 50 mm of the ground
+- **THEN** each of the 32 distinct upright objects standing on the ground has its foot within 50 mm of the ground
 
 #### Scenario: Openings are clear
 - **WHEN** the map loads

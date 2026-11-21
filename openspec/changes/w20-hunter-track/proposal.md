@@ -11,8 +11,8 @@ The pilot wants their own race track, ХАНТЕР-09, as a new map: "objects la
 
 The map arrives in three portions, each ending in a build the pilot can fly:
 
-- **Portion 1, the layout.** A tool reads the pilot's track file into a neutral layout in the repository. All 278 drawn objects stand at the file's poses as simple shapes of the right size with real collision, on ground derived from the objects' own heights. The map is the third card in Play.
-- **Portion 2, the objects.** Our own models replace the simple shapes, kind by kind, starting with the concrete blocks (204 of the 278). Every frame opening is a gap the sim knows.
+- **Portion 1, the layout.** A tool reads the pilot's track file into a neutral layout in the repository. All 272 distinct drawn objects (the file's 278 drawn rows hold 6 exact doubles) stand at the file's poses as simple shapes of the right size with real collision, on ground derived from the objects' own heights. The map is the third card in Play.
+- **Portion 2, the objects.** Our own models replace the simple shapes, kind by kind, starting with the concrete blocks (199 of the 272). Every frame opening is a gap the sim knows.
 - **Portion 3, the ground.** Our own autumn field around the track: surfaces, grass and gentle relief outside the layout.
 - **Kept as data, not built:** the race's order (101 passages through 56 checkpoints), so checkpoints can be added later.
 
