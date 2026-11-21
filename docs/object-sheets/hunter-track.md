@@ -139,6 +139,112 @@ Where the houses stand, from the volumes that mark them [D]. These are the marke
 | North-east | 39–43, 46 | 512.2–520.7 | 527.3–536.8 | yaw about 327° [F] |
 | South | 27–32 | 516.3–520.0 | 431.6–443.3 | yaw about 2° [F] |
 
+## The three houses
+
+Our own buildings at the track's dimensions (design decision 9). The markers repeat the same spacing in all three, so this is **one building type placed three times**, with each marked opening set on its own marker. This section records dimensions and layout only: the choice of village material for each surface is the asset artist's.
+
+Clip values come from X at 50–94, 122–150 and 250–362 s; Y was not sampled. They carry about ±0.15 m unless a row says otherwise.
+
+### Frame and poses
+
+Each house has its own axes, in metres:
+
+- **u** runs along the ridge, from the outer face of end A (u = 0) to the outer face of end B (u = 11.90).
+- **v** runs across, from the outer face of the door wall (v = 0) to the outer face of the back wall (v = 5.82). The porch is at negative v.
+- **h** is height above the finished floor.
+
+World position: `x = ox + u·sin b + v·cos b`, `z = oz + u·cos b − v·sin b`, `y = floor + h`. All three use the same handedness, with no mirrored house.
+
+| House | ox [D] | oz [D] | Bearing b of +u, ° [D] | Floor y [D] | Floor underside y [D] | Ground under the house y [D] |
+|---|---|---|---|---|---|---|
+| North | 505.400 | 538.957 | 275.33 | 18.93 | 18.88 | 18.10 |
+| North-east | 517.899 | 525.704 | 328.30 | 20.55 | 20.49 | 19.64 at end A, 19.93 at end B |
+| South | 515.985 | 431.658 | 2.77 | 20.44 | 20.36 | 19.95 |
+
+The floor is the lowest door marker's bottom edge [F], rounded to 10 mm.
+
+### The building, common to all three
+
+| Part | Dimension | Label and basis |
+|---|---|---|
+| Storeys | 1, no ceiling, open to the rafters | [C] X at 61, 136 and 256 s |
+| Body, outer | 11.90 × 5.82 | [D] objects on the outer faces of end A, end B, the door wall and the back wall [F]; the windows of each house are 11.75–11.78 apart [F] |
+| Wall thickness | 0.18 | [D] plates 387 and 403 sit on opposite faces of end B, 0.187 apart [F] |
+| Room | **one room**, 11.54 × 5.46, no inner wall | [D] from the two rows above; no partition in any view [C] |
+| Door wall top | h 3.90, open above it to the roof | [D] clip belt at 3.75 [C], board 418 rests on it [F] |
+| Back wall top | h 4.27, meets the roof | [D] from the roof below |
+| End walls | full gables from floor to roof: v 0 to 5.82 up to the soffit, v −2.27 to 5.82 above it | [C] X at 124 s |
+| Roof | symmetric gable, ridge along u at v 1.78, pitch 36° | [D] ridge midway between the back wall and the porch posts; pitch from the slot markers' 32.7–38.9° [F] |
+| Roof height | underside 7.20 at the ridge, outer 7.30; sheet 0.08 thick | underside [D], marker 388 needs at least 7.19 [F], clip 7.18 ± 0.3 [C]; thickness [A] |
+| Roof overhang | 0.30 at both eaves, 0.25 at the gables | [C] eaves, [A] gables |
+| Porch | full length of the door wall, 2.27 deep to the post centres, floor level with the house floor | [C] X at 124 and 326 s |
+| Porch posts | four, 0.18 square, at v −2.27, u 0.09, 3.97, 7.93, 11.81 | section [A], spacing [A], line [C] |
+| Porch soffit | sloped boards from v 0, h 3.90 to v −2.27, h 3.50 | [C] X at 124 and 326 s |
+| Loft over the porch | open space between soffit and roof, joined to the room above the door wall | [C] X at 336–344 s; the route from slot 394 to slot 396 flies through it |
+| Piers | 0.90 along u × 0.50 along v, ground to floor underside, at u 1.5, 5.95, 10.4 in rows v 0, 5.82 and −2.27 | section [C], layout [A]: none stands under an end wall, and the three diagonal crawl lines clear them by at least 0.369 m (0.307 needed) [D] |
+| Chimney | in the back corner at end B: u 11.02–11.72; v 4.40–5.64 up to h 3.90, then v 4.75–5.64 up to h 7.40, through the roof | [C] ± 0.3; narrowed above h 3.90 so slot 386 stays clear [D] |
+| Doors | no leaf, 1.42 wide, sill at the floor, one height per house | width [F], the widest door marker (50) plus 19 mm |
+| Windows | no glass; 2 columns × 2 rows, mullion and transom 0.06, lower row's sill at h 0.96 | [C] X at 57 and 124 s |
+
+### How to read the opening tables
+
+Every value is **[D]** from the marker's pose and size [F], except where the Note column says otherwise. **s** is u on the door wall and v on the end walls. **Tilt** turns the opening in the wall's plane, positive when h rises with v. A **crawl bay** is open from the ground to the floor underside. A **gable slot** is one clean straight-edged hole: the source shows a row of torn board courses along the roof [C], and one hole gives the larger quad a single flyable gap.
+
+### North house
+
+Marked openings:
+
+| Marker | Wall | Opening | Centre s | Centre h | Tilt ° | Width | Height | Lowest point h | Off marker, mm | Note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 49 | door | door | 2.667 | 1.320 | 0 | 1.420 | 2.640 | 0.000 | 21 |  |
+| 50 | door | door | 5.932 | 1.320 | 0 | 1.420 | 2.640 | 0.000 | 6 |  |
+| 48 | A | top pane | 2.795 | 2.737 | 0 | 0.768 | 0.435 | 2.520 | 0 |  |
+| 51 | B | top pane | 2.620 | 2.737 | 0 | 0.640 | 0.520 | 2.477 | 9 |  |
+| 416 | B | top pane | 1.933 | 2.737 | 0 | 0.620 | 0.520 | 2.477 | 26 | **widened**, marker 0.570 |
+| 47 | A | crawl bay | 0.937 | -0.440 | 0 | 3.105 | 0.780 | -0.830 | 49 |  |
+| 52 | B | crawl bay | 3.804 | -0.440 | 0 | 3.414 | 0.780 | -0.830 | 3 |  |
+| 386 | B | gable slot | 3.965 | 4.937 | -38.9 | 1.268 | 0.735 | 4.253 | 0 |  |
+| 388 | A | gable slot | 4.225 | 4.917 | -36.9 | 2.424 | 0.760 | 3.885 | 1 |  |
+| 394 | B | gable slot | -0.899 | 4.520 | 0 | 1.080 | 0.400 | 4.320 | 45 | **raised**, marker 0.279 |
+| 396 | A | gable slot | -0.973 | 4.512 | 32.7 | 1.107 | 0.542 | 3.985 | 0 |  |
+
+Windows, end A and end B (the unmarked panes complete each window):
+
+| Wall | Column centres s | Column width | Mullion | Top row h | Transom | Lower row h | Marked |
+|---|---|---|---|---|---|---|---|
+| A | 1.967, 2.795 | 0.768 | 0.060 | 2.520–2.954 | 0.060 | 0.960–2.460 | 48 |
+| B | 1.933, 2.620 | 0.620 / 0.640 | 0.057 | 2.477–2.997 | 0.060 | 0.960–2.417 | 51, 416 |
+
+### What holds the 19 attached objects
+
+Distance is from the object's origin to the solid part of the named surface, so 0 means the origin lies inside it.
+
+| Id | Kind | u [F] | v [F] | h [F] | Holding surface | Distance, mm [D] |
+|---|---|---|---|---|---|---|
+| 410 | `steel_profile` | 11.773 | 1.010 | 2.238 | end B wall | 0 |
+| 411 | `steel_profile` | 11.744 | 0.699 | 1.658 | end B wall | 0 |
+| 412 | `steel_profile` | 11.757 | 0.826 | 1.351 | end B wall | 0 |
+| 413 | `steel_profile` | 11.769 | 0.906 | 1.958 | end B wall | 0 |
+| 387 | `led_flag_green` | 11.898 | 3.227 | 4.368 | end B wall, outer face | 0 |
+| 403 | `led_flag` | 11.711 | 3.294 | 4.124 | end B wall, inner face | 9 |
+| 395 | `led_ball` | 11.784 | -1.435 | 4.573 | end B wall, end of slot 394 | 4 |
+| 419 | `light_curve` | 0.016 | 2.888 | 6.196 | end A wall, outer face | 0 |
+| 420 | `track_light` | 0.026 | -0.426 | 4.457 | end A wall, outer face | 0 |
+| 421 | `track_light` | 0.021 | -1.110 | 4.055 | end A wall, outer face | 0 |
+| 384 | `arrow_red` | 7.200 | 0.010 | 2.434 | door wall, outer face | 0 |
+| 385 | `arrow_red` | 7.230 | 0.012 | 0.712 | door wall, outer face | 0 |
+| 418 | `board_large` | 4.373 | 0.147 | 3.943 | door wall, top edge | 43 |
+| 415 | `led_flag_green` | 7.526 | 5.832 | 1.719 | back wall, outer face | 12 |
+| 417 | `board_large` | 4.417 | 2.034 | -0.037 | floor | 0 |
+| 405 | `led_flag_green` | 14.643 | 3.882 | 4.771 | birch batten | 7 |
+| 406 | `light_rig` | 14.670 | 4.076 | 4.757 | birch batten | 0 |
+| 407 | `light_rig` | 14.676 | 3.884 | 4.767 | birch batten | 0 |
+| 408 | `light_rig` | 14.700 | 3.622 | 4.782 | birch batten | 0 |
+
+- **Four of the 19 are not on the house.** Flag 405 and rigs 406–408 are fixed to a birch 2.8 m beyond end B (X at 51 and 320 s) [C]. The file holds no tree, so the build needs a stand-in: a batten at u 14.65–14.71, v 3.45–4.25, h 4.69–4.85 [D], on a trunk Ø0.30 centred at u 14.86, v 3.85, from the ground to h 6.5 [A].
+- **The four steel bars run inside end B's wall** and cross its whole window (X at 57 s) [C]. See the corrections below.
+- **Ball 395 sits at the end of slot 394.** With its assumed Ø0.30 it takes 0.15 m of that slot, leaving 0.93 m clear [D].
+
 ## Open points
 
 - **The houses.** No task builds them, and the route cannot be flown as in X and Y without them. This needs a decision in the plan.
