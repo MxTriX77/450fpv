@@ -4,7 +4,7 @@ Work branch: `unity/world/w20-hunter-track`, from the build branch. One fresh ag
 
 ## 1. Portion 1: the layout, flyable with simple shapes
 
-- [ ] 1.1 [reference-analyst] From the file and sampled frames of clips X and Y, settle each drawn kind's size and origin, and whether the 11 low objects stand in a dip; write `docs/object-sheets/hunter-track.md` with every number labelled. Verify: all 24 drawn kinds have a row, and each of the 11 low objects has a stated resolution.
+- [x] 1.1 [reference-analyst] From the file and sampled frames of clips X and Y, settle each drawn kind's size and origin, and whether the 11 low objects stand in a dip; write `docs/object-sheets/hunter-track.md` with every number labelled. Verify: all 24 drawn kinds have a row, and each of the 11 low objects has a stated resolution.
 - [x] 1.2 [world-builder] Write `tools/map/import_track.py`, which reads the track and race files given on its command line into the neutral layout and race order under `maps/hunter-09/`. Verify: pytest covers the counts (334, 278, 56), the poses, byte-identical reruns, the race walk (101 passages, 56 checkpoints), and refusal of an unknown kind.
 - [ ] 1.3 [asset-artist] Build the track-kit generator with a params row per kind, drawing simple true-size shapes with collision, surfaces and gate gaps. Verify: `pwsh tools/build_asset.ps1` builds the kit and `python -m pytest tools` passes.
 - [ ] 1.4 [world-builder] Compile the map package: height tiles from the foot samples and 1.1's result, placements, manifest and height probes, with the kit's vendor list in the loader. Verify: `python tools/map/validate.py maps/hunter-09` passes, a test checks the ground and opening scenarios, and `flightbench --golden` passes with no re-record.
