@@ -69,6 +69,33 @@ Each drawn object SHALL be our own generated model of its kind at the size the f
 - **WHEN** views from the track are compared side by side with clips X and Y (REAL-03)
 - **THEN** the objects' arrangement, scale and flyable gaps match; the source game's art is not a target
 
+### Requirement: The track's three houses are ours, at the track's dimensions
+The map SHALL hold three houses of our own design at the places the race's markers show, with the dimensions of the pilot's track as measured from its file and clips X and Y, and with the village map's house textures. They SHALL be proper buildings with real wall thickness, rooms, window and door openings and roofs, and SHALL NOT copy the other game's models or textures.
+
+#### Scenario: Every marked opening exists
+- **WHEN** the houses are compared with the 23 opening markers in the layout
+- **THEN** each marker lies in a real opening at least its size, centred within 50 mm, except the three widened by the next scenario
+
+#### Scenario: The quad fits every opening
+- **WHEN** the drone's level outline with legs on and 1 kg (0.574 m wide, 0.342 m tall) is passed nose-first through each of the 23 openings
+- **THEN** it clears each side by at least 20 mm; the openings of markers 416, 394 and 32, which are too small for it as marked, are enlarged only as far as this requires
+
+#### Scenario: Objects fixed to the house stay fixed
+- **WHEN** the map loads
+- **THEN** each of the 19 drawn objects the sheet places on or in the north house is within 50 mm of a house surface
+
+#### Scenario: Walls are solid and honest
+- **WHEN** the world is queried across a wall, a window and a door of each house
+- **THEN** the wall answers on both faces at its real thickness, the openings answer nothing, each opening is a gap the sim knows, and collision follows the drawn shape within 20 mm
+
+#### Scenario: The textures stay local
+- **WHEN** QA inspects the committed files for the houses
+- **THEN** they reference the village's house materials and contain no texture or mesh from a local-only pack
+
+#### Scenario: A house is reviewed
+- **WHEN** a house is built
+- **THEN** it has a review sheet at 1.5, 10, 50 and 200 m, and its dimensions are compared side by side with clips X and Y
+
 ### Requirement: The map is flown from Play
 Play SHALL offer the map as a third card named ХАНТЕР-09, with no describing label, and a flight SHALL start at the race's spawn point. House and Village SHALL fly exactly as before.
 

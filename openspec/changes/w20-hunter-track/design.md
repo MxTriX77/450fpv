@@ -42,6 +42,11 @@ The repository has two placement formats. The test range's holds a yaw only. The
 
 **8. Doubled rows stand once.** The layout stays a faithful record of the file, all 334 rows. The map package places each byte-identical row once, because two coincident copies would double a collision shape and flicker on screen. *Alternative:* drop them in the import, rejected because the layout could then no longer be checked row by row against the file.
 
+**9. The three houses (the pilot, 2026-11-21, D-124).** "Not simple as in the first houses from the demo map, but not the 100% copy either": our own parametric buildings, with the village map's house materials and the track's dimensions.
+- *Dimensions:* footprint, storeys, wall heights and every opening come from the file's markers and clips X and Y (task 1.3b), each labelled. A marker is taken as the smallest its opening can be (**assumed**; markers are drawn inside their holes).
+- *Materials:* the existing village house materials are referenced, and their textures stay in the local store (D-089). Nothing of the other game's model or texture is used.
+- *Fit (**derived** from `drone.json`):* the drone is 0.574 m wide nose-first and 0.342 m tall with legs and 1 kg (0.304 m with legs off). 20 of the 23 markers pass it level. The windows are about 0.62 × 0.45 m, which leaves 23–28 mm each side and allows about 28–36° of pitch with legs on. Three are too small as marked: 416 (0.570 m wide), 394 (0.279 m tall) and 32 (0.330 m tall). If the clips do not show them larger, 416 opens to 0.62 m and 394 and 32 to 0.40 m, the same margin as the windows. They stay as hard as the rest.
+
 ## Risks / Trade-offs
 
 - [The 11 low objects turn out to need a real dip] → Height samples from the clips, marked as estimates; the pilot checks them on the first flight.
