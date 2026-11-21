@@ -78,11 +78,11 @@ The map SHALL hold three houses of our own design at the places the race's marke
 
 #### Scenario: The quad fits every opening
 - **WHEN** the drone's level outline with legs on and 1 kg (0.574 m wide, 0.342 m tall) is passed nose-first through each of the 23 openings
-- **THEN** it clears each side by at least 20 mm; the openings of markers 416, 394 and 32, which are too small for it as marked, are enlarged only as far as this requires
+- **THEN** it clears each side by at least 20 mm; the openings of markers 416, 394 and 32, which are too small for it as marked, are enlarged no further than 0.62 m wide (416), 0.40 m tall (394) and 0.41 m tall (32, which shares one gap with marker 27)
 
 #### Scenario: Objects fixed to the house stay fixed
 - **WHEN** the map loads
-- **THEN** each of the 19 drawn objects the sheet places on or in the north house is within 50 mm of a house surface
+- **THEN** each of the 15 drawn objects the sheet places on or in the north house is within 50 mm of a house surface, and each of the 4 it places on the tree beyond the house's end is within 50 mm of our stand-in birch's batten
 
 #### Scenario: Walls are solid and honest
 - **WHEN** the world is queried across a wall, a window and a door of each house
