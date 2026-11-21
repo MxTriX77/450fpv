@@ -1028,3 +1028,11 @@ The pilot, 2026-11-17 to 11-20: "a raw, even if untested, version with most of t
 - **Model 107, the laid line** (`p7d-tether` 1.11h): no more long spans through walls, a line on a face reads that face's air, a corner holds only while the line presses. Corners on rubble and nodes held inside members stay open, and the line's step on a ruin costs about 40 % more at its p99.
 - **Model 108, the cut table** (D-121). QA's independent review stopped unfinished (`unity/qa/physics-integration-2--cuts-review`, its verdict pending), and the full suite was not re-run on it.
 
+
+## D-123 The next map is the pilot's own race track, rebuilt from its own file · Accepted
+The pilot, 2026-11-21: a new map from their track "ХАНТЕР-09", with "objects layout, scales, sizes, etc, and general idea of the map, and the track itself". "We're not making a 100% copy." No checkpoints yet, maybe later.
+- **It is theirs, checked.** It is a user track the pilot built in another FPV sim's editor: 45 saved versions from 2024-05 to 2025-06, 334 placed objects of 30 kinds, and the game ships no content of that name.
+- **What is rebuilt:** the pilot's own design, from their own track file, which records each object's kind, position, rotation and scale: the layout, the sizes and the race line. Clips X and Y show how it is flown and what is flyable.
+- **What is not copied:** the track stands on one of that game's stock environments, and its objects come from that game's catalogue. So the ground and scenery are **our own**, of the same general kind (an autumn field), and every object is **our own model** of that kind at the file's size, with no brand marks. Nothing is extracted from the game's install.
+- **Physics metadata as for every asset:** real shapes, collision that follows the visual, every opening a gap the sim knows.
+- **Checkpoints:** not built. Their order is kept in the map's data so they can be added later.
