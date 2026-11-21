@@ -1036,3 +1036,9 @@ The pilot, 2026-11-21: a new map from their track "ХАНТЕР-09", with "objec
 - **What is not copied:** the track stands on one of that game's stock environments, and its objects come from that game's catalogue. So the ground and scenery are **our own**, of the same general kind (an autumn field), and every object is **our own model** of that kind at the file's size, with no brand marks. Nothing is extracted from the game's install.
 - **Physics metadata as for every asset:** real shapes, collision that follows the visual, every opening a gap the sim knows.
 - **Checkpoints:** not built. Their order is kept in the map's data so they can be added later.
+
+## D-124 The track's three houses are ours, in the village's textures, at the track's dimensions · Accepted
+The pilot, 2026-11-21, on the houses the race flies through, which their track file does not hold: "not simple as in the first houses from the demo map, but not the 100% copy either - just use textures from the village map, however, sizes and dimensions should be like in hunter 09", and "our simulator is hardcore".
+- **Built:** three proper buildings of our own design, with real wall thickness, rooms, windows, doors and roofs, at the dimensions measured from the pilot's file and clips X and Y.
+- **Materials:** the village map's house materials, by reference. Their textures stay in the local store (D-089). Nothing of the other game's models or textures is used.
+- **The quad fits, tightly (derived):** it is 0.574 m wide and 0.342 m tall with legs and 1 kg. 20 of the 23 marked openings pass it level, and the windows of about 0.62 × 0.45 m leave 23–28 mm a side. Three are too small as marked. Unless the clips show them larger, they open only as far as the quad needs, with the same margin.
