@@ -19,10 +19,13 @@ namespace Fpv450.Sim.Tether
         Peel = 5,
         /// <summary>The chain went non-finite (CableChain's wedge at a node): the line broken there so the flight goes on.</summary>
         Wedge = 6,
+        /// <summary>A liftoff's chance passed its draw (LiftoffCuts, design 26: empirical, the pilot's account): the line parted at
+        /// the hole's edge as the drone lifted off.</summary>
+        Liftoff = 7,
     }
 
     /// <summary>A strength's band (FiberSection's Index, low 2 bits; 0x40 a wear-through, 0x80 the strength a break met).</summary>
-    public enum SectionBand : byte { Intact = 0, Flaw = 1, Abraded = 2, Span = 3 }
+    public enum SectionBand : byte { Intact = 0, Flaw = 1, Abraded = 2, Span = 3, Edge = 4 }
 
     /// <summary>One bend of the line after a step (p7d-tether design 6, 8): a run of neighbouring nodes pressing one capstan
     /// member (one wrap), a single node on any other member, or the exit lip.</summary>
@@ -41,6 +44,8 @@ namespace Fpv450.Sim.Tether
         public double Macro, Micro;
         /// <summary>Where the line touches the member at its sharpest node, world m.</summary>
         public Double3 Point;
+        /// <summary>The hole's edge met at one point (design 18's law; Press then its normal force), not wrapped.</summary>
+        public bool PointEdge;
     }
 
     /// <summary>A break the checks found (FiberCuts.Check, FiberLine's prop check).</summary>
@@ -72,8 +77,9 @@ namespace Fpv450.Sim.Tether
     ///   Each band is its quantile table, read piecewise linearly: + − × ÷ only.
     /// - The bends after each step (Collect): every pressing contact, neighbouring nodes on one capstan member as one wrap of
     ///   their whole turn (the elastica over a point edge takes the wrap's θ), R_eff = max(R_edge + c, √(EI/T)/(2·sin(θ/4))),
-    ///   σ = E·r/R_eff + T/A_g; and the exit lip, the hole's edge (spool.lip_radius_m at the lip's wrap θ_e under the exit's
-    ///   tension: its 0.3 mm is under the elastica's radius at every tension the exit meets, so the elastica decides there).
+    ///   σ = E·r/R_eff + T/A_g; and the exit lip, the hole's edge (design 18): the line meets spool.lip_radius_m's 0.3 mm at one
+    ///   point (PointContact), turned there by the lip's wrap θ_e less the bore's free angle, its glass bent at the outer arm's
+    ///   curvature under the exit's tension; decision 6's bend only where the line wraps the edge (Wraps).
     /// - The hole's edge's wear (WearLip, D-087): the line paying out over it and its lead turning round it, at the edge's own
     ///   Archard k (spool.lip_archard_wear_coefficient), beyond the angle the bore lets the line leave without touching it.
     /// - Abrasion (Wear): a section pressed on a member other than the ground or a layer (the coating on soil or straw under the
@@ -115,11 +121,20 @@ namespace Fpv450.Sim.Tether
         public const double AbrasiveEdge = 0.001;
 
         readonly double _youngs, _glassRadius, _glassArea, _bending, _coating, _lineRadius, _reduced, _hardness, _severe, _mild;
-        readonly double _sectionLength, _flawChance, _lipRadius, _lipWear, _mouthRadius, _freeAngle;
+        readonly double _sectionLength, _flawChance, _lipRadius, _lipWear, _mouthRadius, _freeAngle, _lipFriction;
         readonly double[] _span, _flaw, _intact, _abraded;
         readonly double _macroA, _macroRadiusA, _macroDecay, _microSmooth, _microRough;
-        readonly bool _oneStrength;
+        readonly bool _oneStrength, _capstanLip, _beforeDesign21;
         SeedStream _sections;
+        // p7d-tether design 25 (unless FlightSetup.TetherEdgeIntact): the line's strength over the hole's edge, a Weibull of modulus
+        // _edgeModulus and scale _edgeScale (the flight's hole, spool.hole_edge_strength_pa) a section, each section's own draw.
+        readonly bool _edgeLaw;
+        readonly double _edgeModulus, _edgeScale;
+        SeedStream _edge;
+
+        /// <summary>Design 26: while a liftoff lasts the hole's edge is LiftoffCuts' alone, so the edge's Weibull yields (the
+        /// section's own strength stays: the glass's, not the hole's).</summary>
+        public bool EdgeYields;
 
         // The section table: open addressing on k, never emptied (the flight's).
         readonly long[] _key = new long[Capacity];
@@ -130,12 +145,25 @@ namespace Fpv450.Sim.Tether
         int _count, _wornCount;
         bool _full;
 
+        // Design 21: a contact's direct rubs wear the point of the line it rubs, not its whole section: they are kept by the
+        // point's place along the line in PointLength bins (numerical: the least piece between two contact nodes, so two
+        // contacts never share a bin), in their own open-addressed table of PointCapacity (numerical: twice the sections').
+        // A section's depth at a contact is its point's direct work plus the passes over the section's swept range.
+        public const double PointLength = 0.005;
+        const int PointCapacity = 2 * Capacity;
+        readonly long[] _pointKey = new long[PointCapacity];
+        readonly bool[] _pointUsed = new bool[PointCapacity];
+        readonly double[] _pointWork = new double[PointCapacity];
+        int _pointCount;
+
         readonly FiberBend[] _bends = new FiberBend[MaxBends];
         readonly int[] _open = new int[2], _next = new int[2];
         int _bendCount;
 
-        public FiberCuts(TetherTable table, FlightRandom random, bool oneStrength = false)
+        public FiberCuts(TetherTable table, FlightRandom random, bool oneStrength = false, bool capstanLip = false, bool beforeDesign21 = false,
+            bool edgeLaw = false)
         {
+            _beforeDesign21 = beforeDesign21;
             _youngs = table.Number("fiber.youngs_modulus_pa");
             _glassRadius = table.Number("fiber.glass_diameter_m") / 2;
             _glassArea = table.Number("fiber.glass_area_m2");
@@ -156,6 +184,7 @@ namespace Fpv450.Sim.Tether
             _lipRadius = table.Number("spool.lip_radius_m");
             _lipWear = table.Number("spool.lip_archard_wear_coefficient");
             _mouthRadius = table.Number("spool.mouth_radius_m");
+            _lipFriction = table.Number("spool.lip_friction");
             // The line lies across the bore before it bends over the hole's edge: no touch within atan(2·r_m/L_n) of the axis.
             _freeAngle = DetMath.Atan2(2 * _mouthRadius, table.Number("spool.nozzle_length_m"));
             _macroA = table.Number("link.macrobend_loss_a_db");
@@ -164,10 +193,19 @@ namespace Fpv450.Sim.Tether
             _microSmooth = table.Number("link.microbend_smooth_db_per_n");
             _microRough = table.Number("link.microbend_rough_db_per_n");
             _oneStrength = oneStrength;
+            _capstanLip = capstanLip;
 
             SeedStream span = random.Open("fiber.span_strength");
             SpanStrength = random.DrawQuantile(ref span, "span_strength_pa", _span);
             _sections = random.Open("fiber.section_strength");
+            _edgeLaw = edgeLaw && !oneStrength;
+            if (_edgeLaw)
+            {
+                _edgeModulus = table.Number("strength.edge_weibull_modulus");
+                SeedStream hole = random.Open("spool.hole_edge");
+                _edgeScale = random.DrawQuantile(ref hole, "hole_edge_strength_pa", table.Row("spool.hole_edge_strength_pa").Values);
+                _edge = random.Open("fiber.edge_strength");
+            }
             for (int i = 0; i < Capacity; i++)
             {
                 _lo[i] = double.PositiveInfinity;
@@ -201,6 +239,20 @@ namespace Fpv450.Sim.Tether
             return Quantile(flawed ? _flaw : _intact, Unit(_sections.BitsAt(i + 1)));
         }
 
+        /// <summary>Design 25: section k's strength over the hole's edge, Pa: the Weibull of the line marked by the flight's hole,
+        /// σ_e = σ_0·(−ln(1 − u))^(1/m) on the section's own draw u (fiber.edge_strength, counter-based on k), so the chance that a
+        /// section of the line breaks at a stress σ over the edge is 1 − exp(−(σ/σ_0)^m) (the weakest link over a section; σ_0 the
+        /// hole's, a flight's draw). +∞ without design 25.</summary>
+        public double EdgeStrength(long k)
+        {
+            if (!_edgeLaw) return double.PositiveInfinity;
+            double u = Unit(_edge.BitsAt((ulong)k));
+            return _edgeScale * DetMath.Exp(DetMath.Log(-DetMath.Log(1 - u)) / _edgeModulus);
+        }
+
+        /// <summary>Design 25: the flight's hole: the scale σ_0 of the line's strength over its edge, Pa (0 without design 25).</summary>
+        public double EdgeScale => _edgeScale;
+
         /// <summary>Section k's abraded strength, Pa: its third draw.</summary>
         public double AbradedDraw(long k) => _oneStrength ? SpanStrength : Quantile(_abraded, Unit(_sections.BitsAt((ulong)k * 3 + 2)));
 
@@ -221,6 +273,24 @@ namespace Fpv450.Sim.Tether
         {
             int slot = Find(k);
             return slot >= 0 ? Depth(slot, 0) : 0;
+        }
+
+        /// <summary>The wear's depth at the line's point s, m: its section's (the passes over the section's swept range and the
+        /// section's own direct rubs) and, since design 21, the direct rubs of the point's own bin (PointLength).</summary>
+        public double WearAt(double s)
+        {
+            int slot = Find(Section(s));
+            double depth = slot >= 0 ? Depth(slot, 0) : 0;
+            if (_beforeDesign21) return depth;
+            long k = s > 0 ? (long)(s / PointLength) : 0;
+            int h = (int)(FlightRandom.Mix64((ulong)k) & (PointCapacity - 1));
+            for (int probe = 0; probe < PointCapacity; probe++)
+            {
+                int i = (h + probe) & (PointCapacity - 1);
+                if (!_pointUsed[i]) break;
+                if (_pointKey[i] == k) return depth + _pointWork[i] / _hardness;
+            }
+            return depth;
         }
 
         /// <summary>Whether section k is worn through its coating.</summary>
@@ -259,6 +329,64 @@ namespace Fpv450.Sim.Tether
             double elastica = DetMath.Sqrt(_bending / tension) / (2 * sin);
             double cap = edge + _coating;
             return elastica > cap ? elastica : cap;
+        }
+
+        /// <summary>
+        /// The point-contact law at a sharp edge (p7d-tether design 18; fiber-exit.md §2.3, derived; Singh 2022 the published
+        /// check): a line with bending stiffness turned θ (rad) over an edge sharper than its own radius of curvature touches it at
+        /// one point and turns through two free elastica arms, φ₁ on the pack's side under T₁ and φ₂ outside under T₂, sliding
+        /// outward. Curvature continuous, √T₁·sin(φ₁/2) = √T₂·sin(φ₂/2), and the tangent's balance, T₂·cos φ₂ − T₁·cos φ₁ =
+        /// μ·(T₁·sin φ₁ + T₂·sin φ₂), give ratio = T₂/T₁ = sin²(φ₁/2)/sin²(φ₂/2) and the outer arm's turn φ₂ (rad), functions of θ
+        /// and μ alone: bisection on φ₁ in (θ/2, θ), a fixed 60 halvings (the residual rises from −2μ·sin(θ/2) to +∞). 1 and 0 at no
+        /// turn. The edge's curvature is κ = 2·sin(φ₂/2)·√(T₂/EI).
+        /// </summary>
+        public static void PointContact(double theta, double mu, out double ratio, out double outer)
+        {
+            if (!(theta > 0))
+            {
+                ratio = 1;
+                outer = 0;
+                return;
+            }
+            double lo = theta / 2, hi = theta;
+            for (int i = 0; i < 60; i++)
+            {
+                double p1 = 0.5 * (lo + hi);
+                DetMath.SinCos(p1 / 2, out double h1, out double g1);
+                DetMath.SinCos((theta - p1) / 2, out double h2, out double g2);
+                double s1 = 2 * h1 * g1, c1 = 1 - 2 * h1 * h1, s2 = 2 * h2 * g2, c2 = 1 - 2 * h2 * h2;
+                double k = h1 * h1 / (h2 * h2);
+                if (k * c2 - c1 - mu * (s1 + k * s2) > 0) hi = p1;
+                else lo = p1;
+            }
+            double phi1 = 0.5 * (lo + hi);
+            outer = theta - phi1;
+            DetMath.SinCos(phi1 / 2, out double a, out _);
+            DetMath.SinCos(outer / 2, out double b, out _);
+            ratio = a * a / (b * b);
+        }
+
+        /// <summary>Whether the line wraps an arris of radius cap (R_edge + c, m) at the point law's outer turn (rad) under T (N)
+        /// outside: the arris is at least the contact's radius of curvature 1/κ (design 18; the capstan law's domain).</summary>
+        public static bool Wraps(double outer, double cap, double bending, double tension)
+        {
+            if (!(outer > 0) || !(tension > 0)) return false;
+            DetMath.SinCos(outer / 2, out double s, out _);
+            return cap * 2 * s * DetMath.Sqrt(tension / bending) >= 1;
+        }
+
+        /// <summary>
+        /// The spool's factor over the nozzle, T outside over the pack's pull (design 18): the line pulled θ (rad) off the
+        /// nozzle's axis lies across the bore up to its free angle α (rad) and turns min(θ, α) at the bore's entry and the rest,
+        /// max(0, θ − α), at the hole's edge, each a point contact, in series; where the line wraps the edge (cap = R_edge + c, m,
+        /// at the last tension outside, N), decision 3's capstan e^(μθ) over the whole turn.
+        /// </summary>
+        public static double LipFactor(double theta, double free, double mu, double cap, double bending, double tension)
+        {
+            double entry = theta < free ? theta : free;
+            PointContact(entry, mu, out double inner, out _);
+            PointContact(theta - entry, mu, out double edge, out double outer);
+            return Wraps(outer, cap, bending, tension) ? DetMath.Exp(mu * theta) : inner * edge;
         }
 
         /// <summary>The glass's stress at a bend, σ = E·r/R_eff + T/A_g, Pa.</summary>
@@ -350,12 +478,46 @@ namespace Fpv450.Sim.Tether
             for (int b = 0; b < _bendCount; b++)
             {
                 ref FiberBend p = ref _bends[b];
-                p.Radius = BendRadius(p.Edge, p.Turn, p.Tension);
+                if (p.Kind == (byte)FiberMember.Lip) LipBend(ref p);
+                else p.Radius = BendRadius(p.Edge, p.Turn, p.Tension);
                 p.Stress = BendStress(p.Radius, p.Tension);
                 p.Macro = MacroLoss(p.Radius, p.Turn);
                 p.Micro = (p.Rough ? _microRough : _microSmooth) * p.Press;
                 if (p.Radius < MinBendRadius) MinBendRadius = p.Radius;
             }
+        }
+
+        // The hole's edge (design 18): the turn there is the lip's past the bore's free angle; none, no contact. A point contact
+        // bends the glass at the outer arm's curvature, R_eff = √(EI/T)/(2·sin(φ₂/2)), and presses the edge with T₁·sin φ₁ +
+        // T₂·sin φ₂; a wrapped edge takes decision 6's bend.
+        void LipBend(ref FiberBend p)
+        {
+            double edge = p.Turn > _freeAngle ? p.Turn - _freeAngle : 0;
+            p.PointEdge = false;
+            p.Press = 0;
+            if (_capstanLip)
+            {
+                // The known-wrong (FlightSetup.TetherBeforeDesign18): decision 6's bend over the whole wrap, as to model 88.
+                p.Radius = BendRadius(p.Edge, p.Turn, p.Tension);
+                return;
+            }
+            if (!(edge > 0) || !(p.Tension > 0))
+            {
+                p.Radius = double.PositiveInfinity;
+                return;
+            }
+            PointContact(edge, _lipFriction, out double ratio, out double outer);
+            if (Wraps(outer, _lipRadius + _coating, _bending, p.Tension))
+            {
+                p.Radius = BendRadius(p.Edge, p.Turn, p.Tension);
+                return;
+            }
+            DetMath.SinCos(outer / 2, out double s2, out _);
+            DetMath.SinCos(edge - outer, out double s1, out _);
+            DetMath.SinCos(outer, out double so, out _);
+            p.Radius = DetMath.Sqrt(_bending / p.Tension) / (2 * s2);
+            p.Press = p.Tension / ratio * s1 + p.Tension * so;
+            p.PointEdge = true;
         }
 
         static double TurnAt(CableChain chain, int i)
@@ -397,30 +559,56 @@ namespace Fpv450.Sim.Tether
                     double to = a.Material + c.Rubbed;
                     double dx = across.Length() * dt, ds = DetMath.Abs(to - from);
                     if (!(dx > 0) && !(ds > 0)) continue;
+                    // Design 21: the press that wears is the line's own there, the pull of its two tensions toward its neighbours
+                    // and its weight along the member's normal (a line of 0.07 g/m has no inertia to speak of against them); the
+                    // member's spring pushing harder is answering an overlap the contacts made (a wedge between two members, a
+                    // plane that moved under its node, a chord), not a load the line puts on the member.
+                    double press = c.NormalForce;
+                    if (!_beforeDesign21)
+                    {
+                        Double3 ua = chain[i - 1].Position - a.Position, ub = chain[i + 1].Position - a.Position;
+                        double la = ua.Length(), lb = ub.Length();
+                        Double3 pull = chain.Gravity * a.Mass;
+                        if (la > 0) pull = pull + ua * (chain.Tension(i - 1) / la);
+                        if (lb > 0) pull = pull + ub * (chain.Tension(i) / lb);
+                        double own = -Double3.Dot(c.Normal, pull);
+                        if (own < press) press = own;
+                        if (!(press > 0)) continue;
+                    }
                     // Hertz: crossed cylinders, the line's coating on the arris (a point edge as the coating's own radius); past the
                     // coating's hardness the contact is plastic, its area F/H (the pressure is never above H).
                     double r2 = c.Edge > _coating ? c.Edge : _coating, radius = DetMath.Sqrt(_lineRadius * r2);
-                    double contact = DetMath.Cbrt(3 * c.NormalForce * radius / (4 * _reduced));
-                    double p = c.NormalForce / (Pi * contact * contact);
+                    double contact = DetMath.Cbrt(3 * press * radius / (4 * _reduced));
+                    double p = press / (Pi * contact * contact);
                     if (p > _hardness)
                     {
                         p = _hardness;
-                        contact = DetMath.Sqrt(c.NormalForce / (Pi * _hardness));
+                        contact = DetMath.Sqrt(press / (Pi * _hardness));
                     }
                     // Archard's k by the member: abrasive (a rough row, a snag record, a metal arris of 1 mm or less) or smooth.
-                    bool abrasive = c.Rough || c.MemberKind == (byte)FiberMember.Snag
-                        || c.MemberKind == (byte)FiberMember.Shape && c.Edge <= AbrasiveEdge;
+                    // Before design 21 every rough row, record and sharp arris abraded; since, those harder than the coating
+                    // (CableContact.Abrasive, FiberContacts.AbrasiveOf).
+                    bool abrasive = _beforeDesign21 ? c.Rough || c.MemberKind == (byte)FiberMember.Snag
+                        || c.MemberKind == (byte)FiberMember.Shape && c.Edge <= AbrasiveEdge : c.Abrasive;
                     double wk = abrasive ? _severe : _mild;
                     long sec = Section(to);
                     int slot = Slot(sec, events, a.Position);
                     if (slot < 0) continue;
-                    _direct[slot] += wk * p * dx;
+                    double point = 0;
+                    int at = _beforeDesign21 ? -1 : PointSlot(to > 0 ? (long)(to / PointLength) : 0);
+                    if (at >= 0)
+                    {
+                        _pointWork[at] += wk * p * dx;
+                        point = _pointWork[at];
+                    }
+                    else _direct[slot] += wk * p * dx; // before design 21, or the points' table full: the section's
                     _passes[slot] += wk * p * 2 * contact * ds;
                     double lo = to < from ? to : from, hi = to < from ? from : to;
                     if (lo < _lo[slot]) _lo[slot] = lo;
                     if (hi > _hi[slot]) _hi[slot] = hi;
                     if (_worn[slot]) continue;
                     double depth = Depth(slot, 2 * contact);
+                    if (at >= 0) depth += point / _hardness;
                     if (!(depth >= _coating)) continue;
                     _worn[slot] = true;
                     _wornStrength[slot] = AbradedDraw(sec);
@@ -439,11 +627,13 @@ namespace Fpv450.Sim.Tether
         /// <summary>
         /// The hole's edge's wear over the step (after Collect; p7d-tether 1.8, D-087): the line pressed on the edge at the lip's
         /// wrap θ under the exit's tension T, beyond the angle it passes the bore free (spool.nozzle_length_m, spool.mouth_radius_m).
-        /// Its load per metre q = T/R_eff over the wrap's length R_eff·θ; Hertz's line contact of the coating on the edge, half-width
-        /// b = √(4·q·r_c/(π·E*)), mean pressure p = q/(2b), never above H (plastic: 2b = q/H). Archard at the lip's own k
-        /// (spool.lip_archard_wear_coefficient): line paying out (payout m this step) passes the edge once, each point sliding
-        /// R_eff·θ along it and, as the lead turns about the nozzle's axis (turn rad this step), r_m·turn round it for every
-        /// payout's worth, so its one pass wears k·p·R_eff·θ·√(1 + (r_m·turn/payout)²)/H, and the section at the lip wears through
+        /// At a point contact (design 18) the edge's normal force N, Hertz of the crossed cylinders (the coating's radius on the
+        /// arris), mean pressure never above H, over the contact's length 2a; on a wrapped edge (decision 17's), the load per metre
+        /// q = T/R_eff over the wrap's length R_eff·θ, Hertz's line contact, half-width b = √(4·q·r_c/(π·E*)), p = q/(2b), never
+        /// above H. Archard at the lip's own k (spool.lip_archard_wear_coefficient): line paying out (payout m this step) passes the
+        /// edge once, each point sliding that length along it and, as the lead turns about the nozzle's axis (turn rad this step),
+        /// r_m·turn round it for every
+        /// payout's worth, so its one pass wears k·p·length·√(1 + (r_m·turn/payout)²)/H, and the section at the lip wears through
         /// when that reaches the coating; line held still (no payout) rubs round the edge in place, k·p·r_m·turn on the section at
         /// the lip, its depth summed (Depth). A section worn through takes its abraded strength (FiberSection Abraded | 0x40 at the
         /// Lip); returns its depth's share of the coating this step (0 untouched, ≥ 1 worn through).
@@ -452,10 +642,29 @@ namespace Fpv450.Sim.Tether
         {
             ref readonly FiberBend lip = ref _bends[_bendCount - 1];
             if (!(lip.Turn > _freeAngle) || !(lip.Tension > 0) || !(lip.Radius < double.PositiveInfinity)) return 0;
-            double q = lip.Tension / lip.Radius;
-            double half = DetMath.Sqrt(4 * q * _lineRadius / (Pi * _reduced));
-            double p = q / (2 * half);
-            if (p > _hardness) p = _hardness;
+            double p, slide;
+            if (lip.PointEdge)
+            {
+                // Design 18: one point of contact pressed by N, Hertz of the crossed cylinders as Wear's (the coating's radius on
+                // the arris), plastic past H; a point of line passing slides the contact's length 2a.
+                double r2 = _lipRadius > _coating ? _lipRadius : _coating, radius = DetMath.Sqrt(_lineRadius * r2);
+                double contact = DetMath.Cbrt(3 * lip.Press * radius / (4 * _reduced));
+                p = lip.Press / (Pi * contact * contact);
+                if (p > _hardness)
+                {
+                    p = _hardness;
+                    contact = DetMath.Sqrt(lip.Press / (Pi * _hardness));
+                }
+                slide = 2 * contact;
+            }
+            else
+            {
+                double q = lip.Tension / lip.Radius;
+                double half = DetMath.Sqrt(4 * q * _lineRadius / (Pi * _reduced));
+                p = q / (2 * half);
+                if (p > _hardness) p = _hardness;
+                slide = lip.Radius * lip.Turn;
+            }
             double across = _mouthRadius * DetMath.Abs(turn);
             long sec = Section(material);
             double depth;
@@ -463,7 +672,7 @@ namespace Fpv450.Sim.Tether
             if (payout > 0)
             {
                 double ratio = across / payout;
-                depth = _lipWear * p * lip.Radius * lip.Turn * DetMath.Sqrt(1 + ratio * ratio) / _hardness;
+                depth = _lipWear * p * slide * DetMath.Sqrt(1 + ratio * ratio) / _hardness;
                 if (!(depth >= _coating)) return depth / _coating;
                 slot = Slot(sec, events, lip.Point);
                 if (slot < 0 || _worn[slot]) return depth / _coating;
@@ -559,6 +768,16 @@ namespace Fpv450.Sim.Tether
                         long sec = Section(s);
                         double strength = Strength(sec, out SectionBand band);
                         if ((band == SectionBand.Abraded) != (pass == 1)) continue;
+                        // Design 25: over the hole's edge the section is no stronger than its strength there.
+                        if (lip && _edgeLaw && !EdgeYields)
+                        {
+                            double edge = EdgeStrength(sec);
+                            if (edge < strength)
+                            {
+                                strength = edge;
+                                band = SectionBand.Edge;
+                            }
+                        }
                         if (pass == 0) Read(sec, strength, band, p, lip, names, events);
                         if (!(p.Stress >= strength)) continue;
                         b.Mechanism = band == SectionBand.Abraded ? TetherMechanism.Abrasion : TetherMechanism.Bend;
@@ -671,6 +890,27 @@ namespace Fpv450.Sim.Tether
         }
 
         // Section k's slot, made on first use; −1 when the table is full (a WorldBug, once).
+        // The point table's slot of bin k, taken if new; -1 at the table's load factor (numerical, as Slot's).
+        int PointSlot(long k)
+        {
+            int h = (int)(FlightRandom.Mix64((ulong)k) & (PointCapacity - 1));
+            for (int probe = 0; probe < PointCapacity; probe++)
+            {
+                int i = (h + probe) & (PointCapacity - 1);
+                if (_pointUsed[i])
+                {
+                    if (_pointKey[i] == k) return i;
+                    continue;
+                }
+                if (_pointCount >= PointCapacity * 3 / 4) return -1;
+                _pointUsed[i] = true;
+                _pointKey[i] = k;
+                _pointCount++;
+                return i;
+            }
+            return -1;
+        }
+
         int Slot(long k, StepEvents events, Double3 point)
         {
             int h = (int)(FlightRandom.Mix64((ulong)k) & (Capacity - 1));

@@ -115,13 +115,13 @@ namespace Fpv450.FlightBench
 
             public static long Interleave(Run a, Run b)
             {
-                long allocated = GC.GetAllocatedBytesForCurrentThread();
+                long allocated = AllocProbe.Before();
                 for (int block = 0; block < Steps / Block; block++)
                 {
                     a.Step(Block);
                     b.Step(Block);
                 }
-                return GC.GetAllocatedBytesForCurrentThread() - allocated;
+                return AllocProbe.After(allocated);
             }
 
             void Step(int n)

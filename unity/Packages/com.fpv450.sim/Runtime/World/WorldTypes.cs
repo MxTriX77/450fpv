@@ -201,6 +201,37 @@ namespace Fpv450.Sim.World
         public int Index => (int)(uint)Id;
     }
 
+    /// <summary>A grass layer's stems (w9-village-physics 2.1): the state its group draws.</summary>
+    public enum StemKind : byte
+    {
+        None = 0,
+        /// <summary>Live grass: the Green, GreenClump and TallGreen layers.</summary>
+        GreenBlade = 1,
+        /// <summary>Dead standing culms: the Dry, DryClump and TallDry layers.</summary>
+        DryCulm = 2,
+        /// <summary>Burnt standing culms: the Burnt and TallBurnt layers.</summary>
+        BurntCulm = 3,
+    }
+
+    /// <summary>
+    /// One grass layer in one cell of a map's stem field under a circle (IWorldQuery.StemsNear; w9-village-physics 2.1):
+    /// the stems in the circle are Density × Area.
+    /// </summary>
+    public struct StemPatch
+    {
+        /// <summary>The grass grid's cell: row · resolution + column, row 0 the northmost (the package's grass/map.raw).</summary>
+        public int Cell;
+        /// <summary>The package's grass layer (map.json grass.layers).</summary>
+        public byte Layer;
+        public StemKind Kind;
+        /// <summary>The query circle's area inside the cell, m² (&gt; 0).</summary>
+        public double Area;
+        /// <summary>The layer's stems per m² in the cell that reach the query's height above the ground (&gt; 0).</summary>
+        public double Density;
+        /// <summary>The layer's drawn tops, m above the ground: the mesh's top × the height scale's range.</summary>
+        public double HeightMin, HeightMax;
+    }
+
     /// <summary>What StaticContacts and Raycast leave out (p7d-tether design 9 and 12): None sees everything, as before.</summary>
     [Flags]
     public enum QueryFilter : byte

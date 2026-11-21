@@ -7,6 +7,8 @@
     <RootNamespace>Fpv450.Sim.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <!-- No background collection: during one, GC.GetAllocatedBytesForCurrentThread counts bytes nobody allocated (AllocProbe). -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
 
   <ItemGroup>

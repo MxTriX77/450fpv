@@ -8,8 +8,9 @@ namespace Fpv450.Sim.Contact
     /// <summary>A surface's moisture set (D-021): Sunny reads Dry, Rain Wet, Severe rain Saturated; a cover kind reads Wet for both rains.</summary>
     public enum Moisture : byte { Dry = 0, Wet = 1, Saturated = 2 }
 
-    /// <summary>The kinds the world's drawn elements are made of (p7a-ground design 8), in surfaces.json's cover order.</summary>
-    public enum CoverKind : byte { Straw = 0, Stem = 1, Twig = 2, Leaf = 3 }
+    /// <summary>The kinds the world's drawn elements are made of (p7a-ground design 8), in surfaces.json's cover order, then a map
+    /// stem field's (w9-village-physics 2.1 and 2.2: StemKind's green blades, dry and burnt culms).</summary>
+    public enum CoverKind : byte { Straw = 0, Stem = 1, Twig = 2, Leaf = 3, GrassBlade = 4, DryCulm = 5, BurntCulm = 6 }
 
     /// <summary>
     /// One moisture set of a ground surface (surfaces.json, p7a-ground design 1): Bekker's linear pressure–sinkage at a
@@ -34,6 +35,10 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>Viscous damping per footprint area, N·s/m³.</summary>
         public double Damping;
+
+        /// <summary>A flat tip's penetration resistance at ContactSpec.TipReferenceDepth, q_t (Pa; w17-four-legs design 1): a leg's tip
+        /// meets q(z) = q_t·z/z_ref; wet and saturated sets the dry set's × wetting.bearing_wet and bearing_saturated.</summary>
+        public double TipResistance;
 
         /// <summary>μs and μk of the drone's polymer and carbon parts on the surface.</summary>
         public double StaticFriction, KineticFriction;
@@ -92,6 +97,9 @@ namespace Fpv450.Sim.Contact
         /// <summary>The energy per section area to cut through it, J/m².</summary>
         public double CutEnergy;
 
+        /// <summary>A stem field's kind: its stems' outer diameter, m (a drawn element carries its own); 0 otherwise.</summary>
+        public double Diameter;
+
         /// <summary>μ across a loose element's axis as it rolls under a part (0 for a kind that never rolls), and ζ of its bending.</summary>
         public double RollFriction, DampingRatio;
     }
@@ -119,7 +127,7 @@ namespace Fpv450.Sim.Contact
 
     /// <summary>
     /// assets-src/surfaces.json, physics' ground surfaces table (p7a-ground design 1): the thirteen surfaces S01–S13 in
-    /// MapWorld.SurfaceIds' order, each dry, wet and saturated, and the four cover kinds, each dry and wet; every value
+    /// MapWorld.SurfaceIds' order, each dry, wet and saturated, and the cover kinds (the four drawn elements' and a stem field's three), each dry and wet; every value
     /// labelled, every value labelled derived meeting its formula. The file lies outside the world's content hash, so the
     /// log header records the table and its hash, and a replay refuses a log flown with another file. Read by DetJson
     /// (the same bits on every runtime); load time only.
@@ -129,7 +137,7 @@ namespace Fpv450.Sim.Contact
         public const string RelativePath = "assets-src/surfaces.json";
 
         /// <summary>surfaces.json's cover kinds, in CoverKind's order.</summary>
-        public static readonly string[] CoverKinds = { "straw", "stem", "twig", "leaf" };
+        public static readonly string[] CoverKinds = { "straw", "stem", "twig", "leaf", "grass_blade", "dry_culm", "burnt_culm" };
 
         /// <summary>Bekker's width b at which Bearing is stated, m (the reference foot's: a 15 mm disc's radius).</summary>
         public double ReferenceWidth;
@@ -168,7 +176,7 @@ namespace Fpv450.Sim.Contact
 
         static readonly string[] SoilFields =
         {
-            "bearing_n_per_m3", "cohesive_share", "k_c_n_per_m2", "k_phi_n_per_m3", "unload_ratio", "max_sink_m", "damping_ns_per_m3",
+            "bearing_n_per_m3", "tip_resistance_pa", "cohesive_share", "k_c_n_per_m2", "k_phi_n_per_m3", "unload_ratio", "max_sink_m", "damping_ns_per_m3",
             "friction_static", "friction_kinetic", "adhesion_pa", "interface_adhesion_pa", "adhesion_release_m", "lip_edge_radius_m",
             "cohesion_pa", "bulk_density_kg_m3", "sand_share", "stone_fraction", "stone_diameter_m",
         };
@@ -182,6 +190,10 @@ namespace Fpv450.Sim.Contact
             new[] { "elastic_modulus_pa", "wall_share", "density_kg_m3", "hook_release_n", "cut_energy_j_per_m2", "damping_ratio" },
             new[] { "elastic_modulus_pa", "wall_share", "density_kg_m3", "hook_release_n", "cut_energy_j_per_m2", "roll_friction", "damping_ratio" },
             new[] { "dry_mass_per_area_kg_m2", "dry_matter_content", "mass_per_area_kg_m2", "petiole_diameter_m", "cut_energy_j_per_m2" },
+            // A stem field's kinds (w9-village-physics 2.2): the stem's fields and its diameter.
+            new[] { "elastic_modulus_pa", "wall_share", "density_kg_m3", "hook_release_n", "cut_energy_j_per_m2", "damping_ratio", "diameter_m" },
+            new[] { "elastic_modulus_pa", "wall_share", "density_kg_m3", "hook_release_n", "cut_energy_j_per_m2", "damping_ratio", "diameter_m" },
+            new[] { "elastic_modulus_pa", "wall_share", "density_kg_m3", "hook_release_n", "cut_energy_j_per_m2", "damping_ratio", "diameter_m" },
         };
 
         static readonly string[] Levels = { "dry", "wet", "saturated" };
@@ -331,6 +343,7 @@ namespace Fpv450.Sim.Contact
             }
 
             s.Bearing = r.Number(o, "bearing_n_per_m3", path, out string lb, 0, true);
+            s.TipResistance = r.Number(o, "tip_resistance_pa", path, out string lq, 0, true);
             s.CohesiveShare = r.Number(o, "cohesive_share", path, out string lsh, 0, false, 1);
             s.CohesiveModulus = r.Number(o, "k_c_n_per_m2", path, out string lkc);
             s.FrictionalModulus = r.Number(o, "k_phi_n_per_m3", path, out string lkp);
@@ -363,6 +376,8 @@ namespace Fpv450.Sim.Contact
 
             bool sat = m == Moisture.Saturated;
             r.Derived(lb, s.Bearing, dry.Bearing * (sat ? w.BearingSaturated : w.BearingWet), path + ".bearing_n_per_m3", "the dry set's × wetting.bearing_" + level);
+            r.Derived(lq, s.TipResistance, dry.TipResistance * (sat ? w.BearingSaturated : w.BearingWet), path + ".tip_resistance_pa",
+                "the dry set's × wetting.bearing_" + level);
             r.Derived(lsh, s.CohesiveShare, dry.CohesiveShare, path + ".cohesive_share", "the dry set's");
             r.Derived(lu, s.UnloadRatio, dry.UnloadRatio * (sat ? w.UnloadRatioSaturated : w.UnloadRatioWet), path + ".unload_ratio",
                 "the dry set's × wetting.unload_ratio_" + level);
@@ -433,6 +448,8 @@ namespace Fpv450.Sim.Contact
             string lr = null;
             if (Array.IndexOf(fields, "roll_friction") >= 0) c.RollFriction = r.Number(o, "roll_friction", path, out lr, 0, true);
             c.DampingRatio = r.Number(o, "damping_ratio", path, out string lz);
+            string ld = null;
+            if (Array.IndexOf(fields, "diameter_m") >= 0) c.Diameter = r.Number(o, "diameter_m", path, out ld, 0, true);
             if (!wet) return c;
 
             double fE = straw ? w.StrawModulusWet : 1, fC = straw ? w.StrawCutEnergyWet : 1, fD = straw ? w.StrawDensityWet : 1;
@@ -446,6 +463,7 @@ namespace Fpv450.Sim.Contact
             r.Derived(lc, c.CutEnergy, dry.CutEnergy * fC, path + ".cut_energy_j_per_m2", straw ? "the dry set's × wetting.straw_cut_energy_wet" : "the dry set's");
             r.Derived(lr, c.RollFriction, dry.RollFriction, path + ".roll_friction", "the dry set's");
             r.Derived(lz, c.DampingRatio, dry.DampingRatio, path + ".damping_ratio", "the dry set's");
+            r.Derived(ld, c.Diameter, dry.Diameter, path + ".diameter_m", "the dry set's");
             return c;
         }
     }

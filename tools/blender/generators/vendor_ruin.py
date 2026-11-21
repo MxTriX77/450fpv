@@ -16,7 +16,10 @@ Params (assets-src/ruins/<variant>.json):
   name; a burnt copy's "_Burnt" is dropped), its normal class (up, down, vertical, sloped, any) and its centroid's box,
   in the source mesh's frame before the prefab moves it. Each rule's layer_m (a lining's share of a layered slab),
   sheet_m (a single-sided face's slab), landable, edge_radius_m (its snag records' arris) and merge_tol_m (its
-  rectangles' merge tolerance, where its diagonal edges allow a coarser staircase: a roof's hips).
+  rectangles' merge tolerance, where its diagonal edges allow a coarser staircase: a roof's hips). A lining (one with
+  layer_m) is never a free skin where the mesh draws its wall's other face (lib.slabs, w9-village-physics 2.15); its
+  core, a physics id, is what backs it to its sheet_m where the mesh draws no other face of its part (a ceiling's
+  boards): the rule of its part with that physics, or one made for it.
 - slabs: lib.slabs' settings.
 - gaps: the parts whose slabs are walls (their enclosed clear regions in the intact house are the openings), the skin
   parts (roof, ceiling: what the ruin lost of them are holes), the smallest gap, the band past a wall's faces that
@@ -39,7 +42,7 @@ VENDOR = os.path.join(ROOT, "vendor")
 NORMAL_CLASSES = ("any", "up", "down", "vertical", "sloped")
 UP_MIN, VERTICAL_MAX = 0.9, 0.2  # |n.y| at least this is up or down, at most this is vertical, between is sloped
 RULE_KEYS = {"part", "physics", "slots", "normal", "box", "layer_m", "sheet_m", "landable", "edge_radius_m",
-             "merge_tol_m"}
+             "merge_tol_m", "core"}
 CLEAR_M, STEP_M = 1e-4, 2.5e-4  # D-089: no pushed point within CLEAR_M of a vendor vertex; one there moves STEP_M
 
 PARAMS = {
@@ -158,6 +161,8 @@ def _rule_problems(rule):
     for key in ("layer_m", "sheet_m", "edge_radius_m", "merge_tol_m"):
         if rule.get(key) is not None and not (_is_num(rule[key]) and rule[key] > 0):
             problems.append(f"{key} must be a positive number")
+    if "core" in rule and not (isinstance(rule["core"], str) and rule.get("layer_m")):
+        problems.append("core must be a physics id, on a lining (a rule with layer_m)")
     return problems
 
 
@@ -168,6 +173,12 @@ def build(params):
     rules = params["parts"]
     parts = [slabs.Part(r["part"], r["physics"], r.get("layer_m"), r.get("sheet_m", 0.02), r.get("landable", False),
                         r.get("edge_radius_m", 0.002), r.get("merge_tol_m")) for r in rules]
+    for part, rule in zip(list(parts), rules):  # a lining's core: its part's rule of that physics, or one made for it
+        if "core" in rule:
+            part.core = next((k for k, p in enumerate(parts) if p.name == part.name and p.physics == rule["core"]), None)
+            if part.core is None:
+                parts.append(slabs.Part(part.name, rule["core"]))
+                part.core = len(parts) - 1
     mesh = _read(source["model"], source["model_sha256"])[source["object"]]
     place = _placement(mesh["vertices"], prefab)
     ruin_tris, lod0, slot_area = _triangles(mesh, rules, place, prefab["mirror_x"])

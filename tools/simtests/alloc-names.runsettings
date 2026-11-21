@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- For a 0 B check that failed: run the test again with this file as the test settings (dotnet test's settings option,
+     the test as the filter). The test host then starts with the runtime's allocation events on, and AllocProbe.Report names
+     the types, counts and bytes of the first window with bytes. They can only be turned on at startup (later, the JIT's fast
+     allocation helpers fire none), so the default run leaves them off. The session keeps 1 MB in memory and writes it beside
+     the tests at exit, one file per process (bin/, ignored). -->
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <DOTNET_EnableEventPipe>1</DOTNET_EnableEventPipe>
+      <DOTNET_EventPipeConfig>Microsoft-Windows-DotNETRuntime:0x200000:5</DOTNET_EventPipeConfig>
+      <DOTNET_EventPipeOutputStreaming>0</DOTNET_EventPipeOutputStreaming>
+      <DOTNET_EventPipeCircularMB>1</DOTNET_EventPipeCircularMB>
+      <DOTNET_EventPipeOutputPath>allocations-{pid}.nettrace</DOTNET_EventPipeOutputPath>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>

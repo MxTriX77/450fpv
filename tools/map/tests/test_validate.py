@@ -80,7 +80,8 @@ def write_package(root, edit=None):
             {"layer": "Furrows", "surface": "tilled", "id": 6, "note": "test"},
             {"layer": "Track", "surface": "dirt_track", "id": 13, "note": "test"}]},
         "grass": {"tile": "map", "file": "grass/map.raw", "resolution": 2,
-                  "layers": [{"layer": 0, "prefab": "Grass_A", "group": "Green", "instances": 6}]},
+                  "layers": [{"layer": 0, "prefab": "Grass_A", "group": "Green", "height_scale": [1.8, 2.6],
+                              "mesh_y_m": [-0.0423, 0.2579], "instances": 6}]},
         "counts": {"tree": 1, "bush": 1, "ruin": 1, "debris": 1, "ring_trees_left_out": 0},
         "height_probes": {"seed": 1},
     }
@@ -131,6 +132,7 @@ def test_a_valid_package_passes(tmp_path):
     errors, summary = v.validate(write_package(tmp_path))
     assert errors == []
     assert "2 tiles (1 seams)" in summary and "4 height probes" in summary
+    assert "stems green_blade 1,350" in summary  # 6 Grass_A instances x 225 stems each (w9-village-physics 2.1)
     assert v.main([str(tmp_path / "tiny")]) == 0
 
 
@@ -150,6 +152,9 @@ def test_a_valid_package_passes(tmp_path):
     (lambda p: p["map.json"]["ground_classes"]["layers"][0].update(id=3), "is not surface id 3"),
     (lambda p: p["map.json"]["grass"].update(resolution=3), "grass: 4 bytes for 1 layers of 3 x 3"),
     (lambda p: p["map.json"]["grass"]["layers"][0].update(instances=7), "instance count differs"),
+    (lambda p: p["map.json"]["grass"]["layers"][0].update(group="Purple"), "stems layer 0: group 'Purple' has no stem kind"),
+    (lambda p: p["map.json"]["grass"]["layers"][0].update(prefab="Grass_B"), "the plants' numbers have no layer 0 of Grass_B"),
+    (lambda p: p["map.json"]["grass"]["layers"][0].update(height_scale=[1.5, 2.6]), "stems layer 0: drawn heights"),
     (lambda p: jsonpart(p, "placements.json", lambda d: d["placements"][0]["position_m"].__setitem__(0, 10.5)), "lies outside the map"),
     (lambda p: jsonpart(p, "placements.json", lambda d: d["placements"][1].update(variant="Tree")), "is not a listed variant of that kind"),
     (lambda p: jsonpart(p, "placements.json", lambda d: d["placements"][2].update(rotation_xyzw=[0, 1, 0, 1])), "not a unit quaternion"),

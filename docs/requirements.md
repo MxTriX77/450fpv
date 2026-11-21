@@ -811,9 +811,10 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 - **The model:** descent rate normalised by the induced velocity at the *current* thrust, with thrust-to-weight driving it, not descent speed alone.
 
 **PHY-10 Throttle-punch shake (PR-1).**
-- After a fast descent is arrested by a sharp throttle increase: a damped, high-frequency disturbance that lasts as long as the arrest (**0.3–0.7 s** for the empty drone's moderate descents, longer heavy or from a fast descent; D-069), seen mainly as **camera shake**.
-- It depends on descent rate, input abruptness and payload, and doesn't fire on every throttle increase. It varies between occurrences.
-- **The pilot: it "doesn't happen much".** Its occurrence comes out of the physics, and is never tuned to a pilot number: mainly the rotors re-ingesting their wash through the arrest (D-069), then the motors' own spreads, which saturate at full duty (D-064, D-070); the frame's modes add a band above it. No ESC current limit trims it.
+- After a fast descent is arrested by a sharp throttle increase: a damped, high-frequency disturbance, seen mainly as **camera shake**. For most of the empty drone's sudden drops (from 9 m/s) it lasts **0.3–0.7 s**, about as long as the arrest; it is shorter from slower descents, and at 2 kg rarer and mostly no longer than the motors' spin-up kick (D-108; the payload clause is open there).
+- **The shake is what the hover before it does not show** (D-106): a field's motion over a margin above the same flight's own hover, set so that a held hover reads as a shake about once in 10,000 flights, and never under the visible line (one luma sample, 0.088°). The rotors' own wake (D-064) is the floor it is told from, not a cause.
+- It depends on descent rate, input abruptness and payload. It does not follow a hover, a gentle throttle increase or a punch from the hover, and it varies between occurrences.
+- **The pilot: it "doesn't happen much".** Its occurrence comes out of the physics, and is never tuned to a pilot number. It is the rigid body's: mainly the rotors re-ingesting their wash through the arrest (about three fifths of the punches that shake past the kick; D-069, D-108), then the motors' own spreads (about a sixth; D-064, D-070). The forward centre of mass and the frame's flexing carry none of it; the frame's modes add the camera's vibration band above it. No ESC current limit trims it.
 - It publishes the camera-vibration signal.
 
 **PHY-11 Battery.** State of charge and sag over the flight. The heavy corner's margin falls with the sag and is gone at the cut-off. Low-voltage warnings go to the OSD (D-048).

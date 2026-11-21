@@ -20,8 +20,13 @@ metres.
   pixel left unpaired is a sheet: a slab of its part's `sheet_m` behind the face. A slab between two parts with
   different materials is layered: a part with `layer_m` (a lining: plaster on a log wall) takes that much from its
   face, the other part the rest. With the air round the mesh (lib.air), a pair whose space is no closed cavity of its
-  own (a broken wall's siding and plaster, the outside reaching between them over the break) is two sheets instead,
-  open between them.
+  own (two boards, the outside reaching between them over the break) is two sheets instead, open between them; never
+  a pair with a lining's face (w9-village-physics 2.15): plaster or render is the face of its wall's core, never a
+  free skin, so the mesh's two faces of a broken wall bound its core. A lining's unpaired pixel is backed the same
+  way where the mesh draws its wall's other face in that column, at or above its row (on a wall, below the other
+  face's broken top: the nearest plane across its solid side within `max_thickness_m` holding a face of its part's
+  name); above that top it stays its sheet, since a core there would be a wall nobody sees (REAL-05). With no such
+  plane at all, a part with a `core` is its `sheet_m` on that core (a ceiling's plaster on its boards).
 - Cover: families run in order of area. Before an axis-aligned family pairs, the pixels of its planes that lie on or
   inside a box already made by an axis-aligned family (within `cover_tol_m`) are dropped: a sill's top is the wall's
   box, not a second slab.
@@ -31,6 +36,7 @@ metres.
   mid of each end's spread, so an end lies at most `merge_tol_m` off the face). Rectangles under `min_box_m` both ways
   are dropped (raster noise). An axis-aligned family's box has the identity rotation.
 """
+import bisect
 import math
 
 AXES = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
@@ -38,11 +44,14 @@ AXES = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 
 class Part:
     """A rule's physics: its name, physics material, lining layer (None or metres), sheet thickness, landable flag,
-    snag edge radius and its own rectangle merge tolerance (None: the settings')."""
+    snag edge radius, its own rectangle merge tolerance (None: the settings') and, for a lining, its core (a part
+    index, or None): what backs it where the mesh draws no other face of its wall."""
 
-    def __init__(self, name, physics, layer_m=None, sheet_m=0.02, landable=False, edge_radius_m=0.002, merge_tol_m=None):
+    def __init__(self, name, physics, layer_m=None, sheet_m=0.02, landable=False, edge_radius_m=0.002, merge_tol_m=None,
+                 core=None):
         self.name, self.physics, self.layer_m, self.sheet_m = name, physics, layer_m, sheet_m
         self.landable, self.edge_radius_m, self.merge_tol_m = landable, edge_radius_m, merge_tol_m
+        self.core = core
 
 
 class Family:
@@ -264,18 +273,23 @@ def _pair(fam, parts, t_max, air=None, r=None):
     at least an air cell between the two faces' sheets is, at the pixels where the space between them is no closed
     cavity of its own (lib.air.Air.open_bits), a sheet behind each face for the boxes, and still the pair for the
     shape; a narrower one stays whole (a door leaf's open end: what is left between its sheets is no space the air
-    resolves)."""
+    resolves). A pixel with a lining on either face never opens (a lining is no free skin), nor counts in the sheets
+    the air must leave room for. A lining's unpaired pixel is backed (_backing) for the boxes where its wall's other
+    face stands in its column; the shape keeps its sheet."""
     slabs, shape = {}, {}
     backs = [p for p in fam.planes if p.side < 0]
     fronts = [p for p in fam.planes if p.side > 0]
+
+    def skin(plane):
+        return max((parts[pi].sheet_m for pi in plane.parts if not parts[pi].layer_m), default=0.0)
+
     for B in backs:
         for F in fronts:
             if F.offset <= B.offset:
                 continue
             if F.offset - B.offset > t_max:
                 break
-            hollow = air is not None and F.offset - B.offset >= (max(parts[pi].sheet_m for pi in B.parts)
-                                                                 + max(parts[pi].sheet_m for pi in F.parts) + air.cell)
+            hollow = air is not None and F.offset - B.offset >= skin(B) + skin(F) + air.cell
             for j in list(B.rem):
                 m = B.rem[j] & F.rem.get(j, 0)
                 if not m:
@@ -283,6 +297,11 @@ def _pair(fam, parts, t_max, air=None, r=None):
                 B.rem[j] &= ~m
                 F.rem[j] &= ~m
                 opened = air.open_bits(fam, j, m, B.offset, F.offset, r) if hollow else 0
+                if opened:
+                    for P in (B, F):
+                        for pi, rows_p in P.parts.items():
+                            if parts[pi].layer_m:
+                                opened &= ~rows_p.get(j, 0)
                 for pb, rows_b in B.parts.items():
                     mb = m & rows_b.get(j, 0)
                     if not mb:
@@ -304,12 +323,58 @@ def _pair(fam, parts, t_max, air=None, r=None):
         for pi, rows in P.parts.items():
             t = parts[pi].sheet_m
             lo, hi = (P.offset, P.offset + t) if P.side < 0 else (P.offset - t, P.offset)
+            backed, under = _backing(fam, P, pi, parts, t_max) if parts[pi].layer_m else (None, None)
             for j, bits in rows.items():
                 m = bits & P.rem.get(j, 0)
                 if m:
-                    _add(slabs, (lo, hi, pi), j, m)
+                    mb = (m if under is None else m & under(j)) if backed else 0
+                    for key in backed or ():
+                        if mb:
+                            _add(slabs, key, j, mb)
+                    if m & ~mb:
+                        _add(slabs, (lo, hi, pi), j, m & ~mb)
                     _add(shape, (lo, hi, pi), j, m)
     return slabs, shape
+
+
+def _backing(fam, P, pi, parts, t_max):
+    """(layers, under) for the unpaired pixels of lining `pi` on plane P. Its wall's other face: the nearest plane
+    across P's solid side, farther than the part's sheet_m and within t_max, holding a face of the same part name;
+    the layers run from P to it, layered with that plane's part (its core where it has one, else the lining's own: a
+    partition plastered both sides is one slab, as its pairs are), and `under(j)` is row j's pixels whose column holds
+    that face at row j or above (on a wall, v is up: below the other face's broken top). With no such plane, the
+    part's sheet_m on its core, every pixel (under None); with neither, (None, None): its plain sheet."""
+    name, back, t = parts[pi].name, P.side < 0, parts[pi].sheet_m
+    sign = 1 if back else -1
+    across = [Q for Q in fam.planes if Q.side == -P.side and t < (Q.offset - P.offset) * sign <= t_max
+              and any(parts[k].name == name for k in Q.parts)]
+    if across:
+        Q = min(across, key=lambda q: abs(q.offset - P.offset))
+        same = sorted(k for k in Q.parts if parts[k].name == name)
+        q = next((k for k in same if parts[k].physics != parts[pi].physics), same[0])
+        drawn = {}
+        for k in same:
+            for j, bits in Q.parts[k].items():
+                drawn[j] = drawn.get(j, 0) | bits
+        tops, above = [], 0  # rows from the top down, each with the columns drawn at it or above
+        for j in sorted(drawn, reverse=True):
+            above |= drawn[j]
+            tops.append((j, above))
+        tops.reverse()
+        keys = [j for j, _ in tops]
+
+        def under(j):
+            k = bisect.bisect_left(keys, j)
+            return tops[k][1] if k < len(tops) else 0
+
+        layers = _layers(P.offset, Q.offset, pi, q, parts) if back else _layers(Q.offset, P.offset, q, pi, parts)
+        return layers, under
+    core = parts[pi].core
+    if core is None or t <= parts[pi].layer_m:
+        return None, None
+    if back:
+        return _layers(P.offset, P.offset + t, pi, core, parts), None
+    return _layers(P.offset - t, P.offset, core, pi, parts), None
 
 
 def _layers(lo, hi, pb, pf, parts):

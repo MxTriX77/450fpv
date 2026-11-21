@@ -23,7 +23,7 @@ namespace Fpv450.FlightBench
             var times = new long[steps];
             for (int k = 0; k < warmup; k++) model.SetPartMass(coil, spec.CoilMass(paid));
 
-            long allocated = GC.GetAllocatedBytesForCurrentThread();
+            long allocated = Fpv450.Sim.Tests.AllocProbe.Before();
             for (int k = 0; k < steps; k++)
             {
                 double mass = spec.CoilMass(paid + k * perStep);
@@ -31,7 +31,7 @@ namespace Fpv450.FlightBench
                 model.SetPartMass(coil, mass);
                 times[k] = Stopwatch.GetTimestamp() - t0;
             }
-            allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
+            allocated = Fpv450.Sim.Tests.AllocProbe.After(allocated);
 
             Array.Sort(times);
             double us = 1e6 / Stopwatch.Frequency;

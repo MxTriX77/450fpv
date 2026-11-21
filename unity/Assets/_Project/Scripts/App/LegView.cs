@@ -47,7 +47,8 @@ namespace Fpv450.App
     {
         public enum Part { Stub, Leg, TJoint, Skid }
 
-        /// <summary>The parts' kinds in their mesh names, in Part order.</summary>
+        /// <summary>The parts' kinds in their mesh names, in Part order: D01 on four separate legs draws the stub and the leg (w17-four-legs);
+        /// a model on skids also its T-joints and skid halves (model 105's).</summary>
         public static readonly string[] Kinds = { "stub", "leg", "tjoint", "skid" };
 
         /// <summary>Where a part is: drawn or not; on the drone (Slot −1, Body in the body frame) or in a loose piece's slot

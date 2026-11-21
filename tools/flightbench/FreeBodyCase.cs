@@ -71,14 +71,14 @@ namespace Fpv450.FlightBench
             var times = new long[steps];
             for (int k = 0; k < warmup; k++) core.Advance(StickSample.Neutral);
 
-            long allocated = GC.GetAllocatedBytesForCurrentThread();
+            long allocated = Fpv450.Sim.Tests.AllocProbe.Before();
             for (int k = 0; k < steps; k++)
             {
                 long t0 = Stopwatch.GetTimestamp();
                 core.Advance(StickSample.Neutral);
                 times[k] = Stopwatch.GetTimestamp() - t0;
             }
-            allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
+            allocated = Fpv450.Sim.Tests.AllocProbe.After(allocated);
 
             Array.Sort(times);
             double us = 1e6 / Stopwatch.Frequency;

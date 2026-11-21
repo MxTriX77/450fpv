@@ -154,12 +154,12 @@ namespace Fpv450.FlightBench
                 long due = wall + (long)(k * tick);
                 while (Stopwatch.GetTimestamp() < due) { }
                 StickSample stick = pilot.Sticks(core, core.State.Step * FlightCore.StepUs);
-                long a = GC.GetAllocatedBytesForCurrentThread(), t0 = Stopwatch.GetTimestamp();
+                long a = AllocProbe.Before(), t0 = Stopwatch.GetTimestamp();
                 core.Advance(stick);
                 long t = Stopwatch.GetTimestamp() - t0;
                 if (inside != null && inside(core)) held++;
                 if (k < Warmup) continue;
-                allocated += GC.GetAllocatedBytesForCurrentThread() - a;
+                allocated += AllocProbe.After(a);
                 times[k - Warmup] = t;
             }
             Array.Sort(times);

@@ -6,7 +6,7 @@ using UnityEngine.InputSystem;
 namespace Fpv450.UI
 {
     /// <summary>
-    /// The world map (w11-world-map 1.2, D-101): M shows and hides a panel over the output, in flight and in Explore, and
+    /// The world map (w11-world-map 1.2, D-101): M shows and hides a panel over the output, in flight, and
     /// nothing pauses; the panel only reads where its target is. It is centred and smaller than the window on every side
     /// (the pilot: "a little bit smaller than whole game window"), the flight showing round it: the map's top-down image
     /// (w11 1.1's <c>topdown/&lt;map-id&gt;.png</c> and <c>.json</c>) fitted into the window less <see cref="Margin"/> on

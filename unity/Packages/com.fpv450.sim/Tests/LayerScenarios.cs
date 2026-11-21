@@ -94,7 +94,7 @@ namespace Fpv450.Sim.Tests
                 Weight = mass * G, LegStiffness = setup.Contacts.LegStiffness,
             };
             var trace = new StepTrace();
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int k = 0; k < 40000 && r.Total < g * r.Weight; k++)
             {
                 FlightState was = s;
@@ -107,7 +107,7 @@ namespace Fpv450.Sim.Tests
                 model.Forces(ref s, setup.Mass.Properties, ref f, ref m, ref trace, events);
                 r.Total = f.Y;
             }
-            r.Allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            r.Allocated = AllocProbe.After(before);
             for (int c = 0; c < 4; c++)
             {
                 r.Soil[c] = model.SoilOf(c);

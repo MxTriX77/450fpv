@@ -54,7 +54,9 @@ namespace Fpv450.Sim.Tests
         public static FlightWorld Floor(string surface) => new FlightWorld(new FloorWorld(0, surface, "steel", "timber"));
 
         /// <summary>The legs-on drone with surfaces.json (or table) at rest on world at start, still air, in rain; rigid flies
-        /// without the table, the known-wrong rigid ground with plain friction (μ 0.5/0.4 on every surface, p6-flight-core 1.6).</summary>
+        /// without the table, the known-wrong rigid ground with plain friction (μ 0.5/0.4 on every surface, p6-flight-core 1.6).
+        /// Its props' stems read the rotors' air by tether.json's law (FlightSetup.StemAir, w9-village-physics 2.13), as a
+        /// pilot's flight does with the line.</summary>
         public static FlightSetup Setup(DroneSpec spec, FlightWorld world, Double3 start, RainLevel rain = RainLevel.Sunny, ulong seed = 0x450F,
             bool asymmetry = false, SurfaceTable table = null, bool rigid = false)
         {
@@ -64,9 +66,15 @@ namespace Fpv450.Sim.Tests
                 Seed = seed, World = world, Mass = spec.BuildMass(spec.Nominal), Propulsion = spec.BuildPropulsion(), Aero = spec.BuildAero(),
                 Asymmetry = asymmetry ? spec.BuildAsymmetry() : null, Rain = rain,
                 Contacts = spec.BuildContacts(spec.Nominal, materials, hash, rigid ? null : table ?? Table()), StartPosition = start, StartPackCharge = 0.9,
-                CameraPosition = spec.CameraPosition,
+                CameraPosition = spec.CameraPosition, StemAir = StemAir(),
             };
         }
+
+        static Tether.TetherTable _stemAir;
+
+        /// <summary>The repository's tether.json, read once: the stems' air without the line (w9-village-physics 2.13).</summary>
+        public static Tether.TetherTable StemAir() => _stemAir ??= Tether.TetherTable.Parse(System.IO.File.ReadAllText(
+            ContactScenarios.RepositoryFile(Tether.TetherTable.RelativePath)));
 
         /// <summary>The body origin's height with the skids' lowest point on y = 0, the legs unloaded.</summary>
         public static double Standing(DroneSpec spec)
@@ -145,6 +153,34 @@ namespace Fpv450.Sim.Tests
                 return new Double3(box.Center.X, 0, box.Center.Z);
             }
             throw new InvalidOperationException("the test range has no S04 patch");
+        }
+
+        /// <summary>A spot on the first S04 patch's straw mat where the drone stands wholly on one mat piece: the centre of the mat
+        /// piece nearest the patch's centre whose box holds a circle of reach (m; the skids' footprint's half diagonal and some) round
+        /// it. The patch's centre lies on a mat piece's edge, a corner of the drone over the 0.125 m step to the soil box
+        /// (w9-village-physics 2.6's addendum).</summary>
+        public static Double3 PatchMat(FlightWorld world, double reach = 0.3)
+        {
+            IWorldQuery q = world.Query;
+            Double3 centre = PatchCentre(world), best = default;
+            double nearest = double.PositiveInfinity;
+            for (int o = 0; q.ObjectName(o) != null; o++)
+            {
+                if (!q.ObjectName(o).StartsWith("S04_patch", StringComparison.Ordinal)) continue;
+                for (int s = 1; q.Geometry(o, s, out ShapeGeometry g); s++)
+                {
+                    if (g.Kind != ShapeKind.Box || q.MaterialName(g.Material) != "straw" || g.HalfExtents.X < reach || g.HalfExtents.Z < reach) continue;
+                    double dx = g.Center.X - centre.X, dz = g.Center.Z - centre.Z, d = dx * dx + dz * dz;
+                    if (d < nearest)
+                    {
+                        nearest = d;
+                        best = new Double3(g.Center.X, g.Center.Y + g.HalfExtents.Y, g.Center.Z);
+                    }
+                }
+                break;
+            }
+            if (double.IsInfinity(nearest)) throw new InvalidOperationException("the S04 patch has no mat piece the drone stands on wholly");
+            return best;
         }
 
         // ---- The re-landing on its own prints --------------------------------------------------------------------------
@@ -747,7 +783,7 @@ namespace Fpv450.Sim.Tests
             var lastS = new double[4];
             bool[] pulled = new bool[4];
             double beyond = 0, lift = 0;
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int k = 0; k < 20000 && beyond < 0.006; k++)
             {
                 FlightState was = s;
@@ -791,7 +827,7 @@ namespace Fpv450.Sim.Tests
                 }
                 if (!any && (pulled[0] || pulled[1] || pulled[2] || pulled[3] || lift > 0.03)) beyond += Step;
             }
-            r.Allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            r.Allocated = AllocProbe.After(before);
             return r;
         }
 

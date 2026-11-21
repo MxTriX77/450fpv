@@ -397,6 +397,86 @@ namespace Fpv450.Sim.Tests
             Assert.That(chain.Wedges, Is.EqualTo(0));
         }
 
+        // p7d-tether design 21 (finding 3): the line over two rods 2 m apart, the piece between them stretched to 2 N while the line
+        // beyond both is slack (as a node put on a chord and thrown out left a piece on a ruin and a pine). No wrap holds a pull
+        // with nothing beyond it, so the run of the two capstan nodes slides it slack; the known-wrong (RunEndsOnly, model 100's
+        // run, judged on its two outer tensions) keeps it, the nodes' holds along the line carrying it and pressing them on the rods.
+        [Test]
+        public void APieceStretchedBetweenSlackEndsSlidesSlack()
+        {
+            const double radius = 0.02, half = 0.15;
+            Double3 left = new Double3(-1, 0, 0), right = new Double3(1, 0, 0);
+            Double3 na = new Double3(-Math.Sin(half), Math.Cos(half), 0), nb = new Double3(Math.Sin(half), Math.Cos(half), 0);
+            Double3 a = left + na * radius, b = right + nb * radius;
+            foreach (bool endsOnly in new[] { false, true })
+            {
+                var x = new[] { new Double3(-1.5, -0.3, 0), a, b, new Double3(1.5, -0.3, 0) };
+                var s = new double[4];
+                s[1] = (x[1] - x[0]).Length() + 0.05;
+                s[2] = s[1] + (b - a).Length() / (1 + 2.0 / FiberStiffness);
+                s[3] = s[2] + (x[3] - x[2]).Length() + 0.05;
+                var chain = new CableChain(4, FiberMass, FiberStiffness) { RunEndsOnly = endsOnly };
+                chain.Reset(x, s, 4);
+                chain[1].Contact0 = CableContact.On(a, na, default, 1e4, 0, 1e4, 0.30, 0.25, true);
+                chain[2].Contact0 = CableContact.On(b, nb, default, 1e4, 0, 1e4, 0.30, 0.25, true);
+                double before = chain.Tension(1), most = 0;
+                for (int step = 1; step <= 20; step++)
+                {
+                    chain.Step(Dt);
+                    if (step > 1) most = Math.Max(most, chain.Tension(1));
+                }
+                TestContext.WriteLine($"{(endsOnly ? "model 100's run" : "design 21")}: the piece {before:F3} N, after the first step at most {most:F4} N; "
+                    + $"the ends {chain.Tension(0):F4} and {chain.Tension(2):F4} N; slides {chain.Slides}, wedges {chain.Wedges}");
+                Assert.That(before, Is.EqualTo(2.0).Within(0.01));
+                Assert.That(chain.Wedges, Is.EqualTo(0));
+                if (endsOnly) Assert.That(most, Is.GreaterThan(1.5), "the known-wrong keeps the pull its ends cannot hold");
+                else Assert.That(most, Is.LessThan(0.01), "the piece slides slack");
+            }
+        }
+
+        // p7d-tether design 24 (C1; QA's 1.11h finding, traced on the pilot's flight 2 at 29.2 s): a node lying 1 mm off a member
+        // (within KinematicBand, so its slot is taken speculative) does not press it, and without a press neither Coulomb nor the
+        // capstan holds anything. Ten such nodes over a plank, the line's far end anchored (the trail's end), its near end drawn
+        // along it at 2 mm/s: with HoldNeedsPress the pull passes them to the far end, the tension along the line the same to the
+        // solve's; model 105's slots (off) hold it along the line, so the far end carries less of it, step after step.
+        [Test]
+        public void ANodeThatDoesNotPressHoldsNothingAlongTheLine()
+        {
+            foreach (bool needsPress in new[] { false, true })
+            {
+                const int n = 12;
+                var x = new Double3[n];
+                var s = new double[n];
+                for (int i = 0; i < n; i++)
+                {
+                    x[i] = new Double3(0.01 * i, 0.001, 0);
+                    s[i] = 0.01 * i;
+                }
+                var chain = new CableChain(n, FiberMass, FiberStiffness) { HoldNeedsPress = needsPress };
+                chain.Reset(x, s, n);
+                Anchor(chain, 0, 1e4);
+                Anchor(chain, n - 1, 1e4);
+                for (int i = 1; i < n - 1; i++)
+                {
+                    chain[i].Contact0 = CableContact.On(new Double3(x[i].X, 0, 0), new Double3(0, 1, 0), default, 1e4, 0, 1e4, 0.45, 0.35, true);
+                    chain[i].Contact0.Kinematic = true;
+                }
+                for (int step = 1; step <= 200; step++)
+                {
+                    chain[n - 1].AnchorTarget = x[n - 1] + new Double3(2e-6 * step, 0, 0);
+                    chain[n - 1].AnchorVelocity = new Double3(0.002, 0, 0);
+                    chain.Step(Dt);
+                }
+                double far = chain.Tension(0), near = chain.Tension(n - 2), press = 0;
+                for (int i = 1; i < n - 1; i++) press = Math.Max(press, chain[i].Contact0.NormalForce);
+                TestContext.WriteLine($"{(needsPress ? "design 24" : "model 105's slots")}: near {near:F4} N, far {far:F4} N, most press {press:E2} N; wedges {chain.Wedges}");
+                Assert.That(near, Is.GreaterThan(0.1), "the drawn end is pulled");
+                Assert.That(press, Is.EqualTo(0), "nothing presses the plank");
+                if (needsPress) Assert.That(near - far, Is.LessThanOrEqualTo(CableChain.NewtonTolerance), "the pull passes: no press, no hold");
+                else Assert.That(near - far, Is.GreaterThan(0.1 * near), "model 105's slots hold the pull along the line");
+            }
+        }
+
         // ---- the drone's parts (p7d-tether 1.7's gliding slots) ----
 
         /// <summary>What "A line in a crotch of the drone's parts" measured.</summary>
@@ -883,6 +963,49 @@ namespace Fpv450.Sim.Tests
             Assert.That(chain[chain.Count - 1].Material, Is.EqualTo(length));
         }
 
+        // p7d-tether design 24 (R2): a contact node outranks a free one. A chain at the spacing law's room (8 nodes): GiveWay merges the
+        // free node nearest its neighbours' chord, never a kept one (an end of a segment a member meets), one on a member, an anchored
+        // one or one within the near spacing of the exit, mass and momentum kept; with no free node left the contact node takes the
+        // contacts' own room (SplitContact), and past it is refused; SplitAt (model 105's) refuses once the law's room is spent.
+        [Test]
+        public void AFreeNodeGivesWayToAContactNode()
+        {
+            double mu = FiberMass;
+            const int n = 8;
+            var x = new Double3[n];
+            var s = new double[n];
+            for (int i = 0; i < n; i++) x[i] = new Double3(i, i == 2 ? 0.30 : i == 4 ? 0.05 : i == 5 ? 0.001 : 0, 0);
+            for (int i = 1; i < n; i++) s[i] = s[i - 1] + (x[i] - x[i - 1]).Length();
+            var chain = new CableChain(n, mu, FiberStiffness, 0, 2);
+            chain.Reset(x, s, n);
+            for (int i = 0; i < n; i++) chain[i].Velocity = new Double3(0.1 * i, 0.05, -0.02 * i);
+            Anchor(chain, 0, 1e4);
+            chain.SetSpacing(0.1, 1.5, 1.5, s[n - 1]); // nodes 6 and 7 within 1.5 m of line of the exit: near
+            chain[3].Contact0 = CableContact.On(x[3], new Double3(0, 1, 0), default, 1e4, 0, 1e4, 0.5, 0.4, true); // on a member
+            Double3 p0 = Momentum(chain);
+            double m0 = 0;
+            for (int i = 0; i < n; i++) m0 += chain[i].Mass;
+            Assert.That(chain.SplitAt(1, 0.5), Is.False, "model 105's chain: the law's room spent, a contact node refused");
+            var keep = new bool[n];
+            keep[5] = true; // an end of a segment a member meets this step
+            int first = chain.GiveWay(keep);
+            int second = chain.GiveWay(keep);
+            int third = chain.GiveWay(keep);
+            double m1 = 0;
+            for (int i = 0; i < chain.Count; i++) m1 += chain[i].Mass;
+            TestContext.WriteLine($"gave way: node {first}, then {second}, then {third}; {chain.Count} nodes; mass {m1:E9} of {m0:E9}; momentum change {(Momentum(chain) - p0).Length():E2}");
+            Assert.That(first, Is.EqualTo(4), "node 4, 5 cm off its chord: node 5 (1 mm) is kept, node 1 is 15 cm off, 2 30 cm, 3 on a member, 6 near");
+            Assert.That(second, Is.EqualTo(1), "then node 1, not node 2");
+            Assert.That(third, Is.EqualTo(1), "then node 2, now at index 1");
+            Assert.That(chain.GiveWay(keep), Is.EqualTo(-1), "no free node left outside the near metre");
+            Assert.That(m1, Is.EqualTo(m0).Within(1e-12).Percent);
+            Assert.That((Momentum(chain) - p0).Length(), Is.LessThanOrEqualTo(1e-15));
+            int splits = 0;
+            while (chain.SplitContact(0, 0.5)) splits++;
+            Assert.That(splits, Is.EqualTo(5), "5 nodes to the law's 8 and the contacts' own 2");
+            Assert.That(chain.SplitAt(0, 0.5), Is.False, "model 105's split refuses past the law's room");
+        }
+
         static Double3 Momentum(CableChain c)
         {
             Double3 p = default;
@@ -933,15 +1056,15 @@ namespace Fpv450.Sim.Tests
                 Swing(chain, step);
                 chain.Step(Dt);
             }
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int step = 500; step < 3000; step++)
             {
                 Swing(chain, step);
                 chain.Step(Dt);
             }
-            long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+            long bytes = AllocProbe.After(before);
             TestContext.WriteLine($"2500 steps of {chain.Count} nodes: {bytes} B; slides {chain.Slides}, splits {chain.Splits}, merges {chain.Merges}");
-            Assert.That(bytes, Is.EqualTo(0));
+            Assert.That(bytes, Is.Zero, AllocProbe.Report());
             Assert.That(chain.Splits + chain.Merges, Is.GreaterThan(0));
         }
 

@@ -146,9 +146,9 @@ namespace Fpv450.Sim.Tests
             for (int k = 0; k < 9000; k++)
             {
                 var stick = new Control.StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = k >= 8, Throttle = k < 2000 ? 0 : 0.6 };
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(stick);
-                if (k >= 2100) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (k >= 2100) allocated += AllocProbe.After(before);
                 for (int i = 0; i < core.Events.Count; i++)
                     if (core.Events[i].Kind == EventKind.MotorDamaged && core.Events[i].Index >> 4 >= 5) health++;
                 recorder.RecordStep(core.State, stick, core.Trace, core.Events);
@@ -158,7 +158,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(recorder.Fault, Is.Null);
             TestContext.Out.WriteLine($"  {health} health events over {steps} steps; {allocated} B allocated in the 6.9 s of throttle");
             Assert.That(health, Is.GreaterThan(3), "the motors short and fail");
-            Assert.That(allocated, Is.Zero);
+            Assert.That(allocated, Is.Zero, AllocProbe.Report());
             ContactScenarios.RepositoryMaterials(out ulong materials);
             ReplayResult replay = FlightReplay.Run(new System.IO.MemoryStream(stream.ToArray()), id => SoilScenarios.Floor("dirt_track"), spec.ContentHash, null,
                 SoilScenarios.Table().Hash, materialsHash: materials);

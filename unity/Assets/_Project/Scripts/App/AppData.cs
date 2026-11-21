@@ -38,8 +38,9 @@ namespace Fpv450.App
         public static string File(string relative) => Path.Combine(Root, relative);
 
         /// <summary>
-        /// A review build (PRD-05): the menu offers Explore, and the flight has its review key (F the feed off and on;
-        /// V's view is every build's, D-055). <c>Fpv450.Build</c> makes one with <c>-review</c>; every development build and
+        /// A review build (PRD-05): the flight has its review key (F the feed off and on; V's view is every build's, D-055),
+        /// and tooling may open the farmland in noclip (<c>-farmbench</c>, the smoke test's world checks); its menu is the
+        /// pilot's build's (w18-menu-cleanup). <c>Fpv450.Build</c> makes one with <c>-review</c>; every development build and
         /// the editor are one too.
         /// </summary>
         public static bool Review =>

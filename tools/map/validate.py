@@ -8,6 +8,8 @@ Prints a summary and exits 0 when the package passes; prints every error and exi
 - the tiles: ids and rings, the map tile on map_rect_m, heightmaps of 2^n + 1 samples, samples within 0..32766, the
   seams between abutting tiles equal sample for sample, the ground classes known to assets-src/surfaces.json
 - the grass: one plane per listed layer on the map's detail grid
+- the stem field (w9-village-physics 2.1): each layer's stems per instance, kind and drawn heights from
+  assets-src/vendor_plant_numbers.json, and its stems over the map against the plane's instances
 - the placements: ids in order, known kinds and variants, every one on the map, unit rotations, counts as listed
 - the outlines: the fields' polygons counter-clockwise and on the map, the village circle on the map and holding
   every ruin and debris piece
@@ -27,6 +29,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 SURFACES = REPO / "assets-src" / "surfaces.json"
+PLANT_NUMBERS = REPO / "assets-src" / "vendor_plant_numbers.json"  # w9-village-physics 2.8: stems per grass instance
+# The stem field's kind per grass group (w9-village-physics 2.1; MapWorldStems.cs KindOf): the state the group draws.
+STEM_KINDS = {"Green": "green_blade", "GreenClump": "green_blade", "TallGreen": "green_blade",
+              "Dry": "dry_culm", "DryClump": "dry_culm", "TallDry": "dry_culm", "Burnt": "burnt_culm", "TallBurnt": "burnt_culm"}
 
 FORMAT = "fpv450-map-package"
 FORMAT_VERSION = 1
@@ -252,6 +258,58 @@ def _check_grass(manifest, contents, errors):
     return sum(entry.get("instances", 0) for entry in layers)
 
 
+def _check_stems(manifest, contents, errors, numbers_path=PLANT_NUMBERS):
+    """The stem field (w9-village-physics 2.1; MapWorldStems.cs) against the export's counts and the plants' numbers.
+
+    Per layer: assets-src/vendor_plant_numbers.json names its prefab with the same layer row, its group has a stem kind,
+    its stems per instance is the prefab profile's most, and its drawn heights are mesh_y_m[1] x height_scale (within
+    1 mm of the numbers' rounding). The field is count x stems per instance / the cell's area per cell and layer, so each
+    layer's stems over the map are the plane's instances x its stems per instance. Returns (stems by kind, the densest
+    cell's stems per m2 and its centre), or None when the package has no grass.
+    """
+    grass = manifest.get("grass")
+    data = contents.get((grass or {}).get("file"))
+    if not grass or data is None:
+        return None
+    numbers = json.loads(Path(numbers_path).read_text(encoding="utf-8"))["grass"]
+    rows = {row["layer"]: row for row in numbers.get("layers", [])}
+    rect = manifest["map_rect_m"]
+    res = grass["resolution"]
+    plane, side = res * res, (rect[2] - rect[0]) / res
+    per_cell = [0.0] * plane
+    by_kind = {}
+    for i, entry in enumerate(grass["layers"]):
+        prefab, group = entry.get("prefab"), entry.get("group")
+        kind = STEM_KINDS.get(group)
+        if kind is None:
+            errors.append(f"stems layer {i}: group '{group}' has no stem kind")
+            continue
+        p = numbers["prefabs"].get(prefab)
+        row = rows.get(i)
+        if p is None or row is None or row.get("prefab") != prefab or row.get("group") != group:
+            errors.append(f"stems layer {i}: the plants' numbers have no layer {i} of {prefab} ({group})")
+            continue
+        stems = p["stems"]
+        if stems != max(s["stems"] for s in p["profile"]) or row.get("stems_per_instance") != stems:
+            errors.append(f"stems layer {i}: {prefab}'s stems per instance is not its profile's most")
+            continue
+        top, scale = entry.get("mesh_y_m", [0, 0])[1], entry.get("height_scale", [0, 0])
+        if any(abs(top * s - h) > 0.001 for s, h in zip(scale, row.get("height_m", []))) or len(scale) != 2:
+            errors.append(f"stems layer {i}: drawn heights {[top * s for s in scale]} m are not the plants' numbers' {row.get('height_m')}")
+        counted = 0
+        for cell, count in enumerate(data[i * plane:(i + 1) * plane]):
+            if count:
+                counted += count * stems
+                per_cell[cell] += count * stems / (side * side)
+        if counted != entry.get("instances", 0) * stems:
+            errors.append(f"stems layer {i}: the field holds {counted} stems, not instances x stems per instance")
+        by_kind[kind] = by_kind.get(kind, 0) + counted
+    densest = max(range(plane), key=per_cell.__getitem__)
+    row, column = divmod(densest, res)
+    centre = (rect[0] + (column + 0.5) * side, rect[3] - (row + 0.5) * side)
+    return by_kind, per_cell[densest], centre
+
+
 def _inside(rect, x, z):
     return rect[0] <= x <= rect[2] and rect[1] <= z <= rect[3]
 
@@ -367,12 +425,17 @@ def validate(root):
     seams = _check_seams(tiles, errors)
     _check_classes(manifest, contents, errors)
     grass = _check_grass(manifest, contents, errors)
+    stems = _check_stems(manifest, contents, errors) if not errors else None
     rows = _check_placements(documents["placements.json"], manifest, rect, errors)
     fields = _check_outlines(documents["outlines.json"], rect, rows, errors)
     probes, worst = _check_probes(documents["height_probes.json"], tiles, errors)
     counts = ", ".join(f"{manifest['counts'].get(k)} {k}" for k in KINDS)
     summary = (f"{root.as_posix()}: {len(tiles)} tiles ({seams} seams), {counts}, {grass} grass instances, {fields} fields, "
                f"{probes} height probes within {worst * 1000:.4f} mm of Unity")
+    if stems:
+        by_kind, densest, (x, z) = stems
+        summary += (f"; stems {', '.join(f'{k} {n:,}' for k, n in sorted(by_kind.items()))}, "
+                    f"the densest cell {densest:.0f} /m2 at ({x:.3f}, {z:.3f})")
     return errors, summary
 
 

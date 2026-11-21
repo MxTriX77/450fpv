@@ -1063,7 +1063,7 @@ namespace Fpv450.FlightBench
                 long allocated = 0;
                 for (int k = -warmup; k < steps; k++)
                 {
-                    if (k == 0) allocated = GC.GetAllocatedBytesForCurrentThread();
+                    if (k == 0) allocated = Fpv450.Sim.Tests.AllocProbe.Before();
                     double wobble = 1e-4 * (k & 15);
                     var prev = new Pose(new Double3(wobble, 1, near ? -0.002 : -1), Quat.Identity);
                     var pose = new Pose(prev.P + new Double3(0, 0, 0.002), Quat.Identity);
@@ -1071,7 +1071,7 @@ namespace Fpv450.FlightBench
                     rings += Step(w, d, prev, pose, points, ground, rays, hits);
                     if (k >= 0) times[k] = Stopwatch.GetTimestamp() - t0;
                 }
-                allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
+                allocated = Fpv450.Sim.Tests.AllocProbe.After(allocated);
                 Array.Sort(times);
                 double us = 1e6 / Stopwatch.Frequency, p50 = times[steps / 2] * us, p99 = times[steps * 99 / 100] * us;
                 bool pass = allocated == 0 && p50 < 60;

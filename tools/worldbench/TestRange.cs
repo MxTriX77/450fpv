@@ -704,7 +704,7 @@ namespace Fpv450.WorldBench
                     long most = 0, queries = 0, allocated = 0;
                     for (int pass = 0; pass < 2; pass++) // the first pass warms the JIT and the caches
                     {
-                        long before = GC.GetAllocatedBytesForCurrentThread();
+                        long before = Fpv450.Sim.Tests.AllocProbe.Before();
                         queries = 0;
                         if (pattern == physics && pass == 0 && path.Name == paths[0].Name)
                             physics.Reset();
@@ -715,7 +715,7 @@ namespace Fpv450.WorldBench
                             times[s] = Stopwatch.GetTimestamp() - start;
                             queries += pattern.Queries;
                         }
-                        allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                        allocated = Fpv450.Sim.Tests.AllocProbe.After(before);
                     }
                     Array.Sort(times);
                     most = times[steps - 1];
@@ -752,14 +752,14 @@ namespace Fpv450.WorldBench
             for (int i = 0; i < 1000; i++)
                 world.StaticContacts(previous[i], current[i], PhysicsMargin, contacts);
             world.Raycast(rays.AsSpan(0, 1000), 2, hits);
-            long a0 = GC.GetAllocatedBytesForCurrentThread(), t0 = Stopwatch.GetTimestamp();
+            long a0 = Fpv450.Sim.Tests.AllocProbe.Before(), t0 = Stopwatch.GetTimestamp();
             for (int i = 0; i < n; i++)
                 world.StaticContacts(previous[i], current[i], PhysicsMargin, contacts);
             long t1 = Stopwatch.GetTimestamp();
             world.Raycast(rays, 2, hits);
             long t2 = Stopwatch.GetTimestamp();
             world.SampleGround(points, samples);
-            long t3 = Stopwatch.GetTimestamp(), a1 = GC.GetAllocatedBytesForCurrentThread();
+            long t3 = Stopwatch.GetTimestamp(), a1 = a0 + Fpv450.Sim.Tests.AllocProbe.After(a0);
             double ms = 1e3 / Stopwatch.Frequency;
             double capsulesMs = (t1 - t0) * ms, raysMs = (t2 - t1) * ms, samplesMs = (t3 - t2) * ms;
             Console.WriteLine($"  test-range.capsules {n} at random poses in {spots.Length} spot boxes, moving up to 30 mm: {capsulesMs:F2} ms (shown)");
@@ -804,7 +804,7 @@ namespace Fpv450.WorldBench
                 for (int pass = 0; pass < 2; pass++) // the first pass warms the JIT and the caches
                 {
                     found = most = 0;
-                    long before = GC.GetAllocatedBytesForCurrentThread();
+                    long before = Fpv450.Sim.Tests.AllocProbe.Before();
                     for (int s = 0; s < queries; s++)
                     {
                         Double3 c = path.At(25 * s); // a step of 25 ms between queries: the cache's refresh at most 40 Hz
@@ -814,7 +814,7 @@ namespace Fpv450.WorldBench
                         found += n;
                         most = Math.Max(most, n);
                     }
-                    allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                    allocated = Fpv450.Sim.Tests.AllocProbe.After(before);
                 }
                 Array.Sort(times);
                 double p99 = times[queries * 99 / 100] * us;
@@ -857,7 +857,7 @@ namespace Fpv450.WorldBench
                 for (int pass = 0; pass < 2; pass++) // the first pass warms the JIT and the caches
                 {
                     found = 0;
-                    long before = GC.GetAllocatedBytesForCurrentThread();
+                    long before = Fpv450.Sim.Tests.AllocProbe.Before();
                     for (int s = 0; s < queries; s++)
                     {
                         Double3 c = Lissajous(path.Box, 25 * s);
@@ -865,7 +865,7 @@ namespace Fpv450.WorldBench
                         found += world.WiresNear(c, path.Radius, results);
                         times[s] = Stopwatch.GetTimestamp() - start;
                     }
-                    allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                    allocated = Fpv450.Sim.Tests.AllocProbe.After(before);
                 }
                 Array.Sort(times);
                 double p99 = times[queries * 99 / 100] * us;
@@ -914,7 +914,7 @@ namespace Fpv450.WorldBench
                     for (int pass = 0; pass < 2; pass++) // the first pass warms the JIT and the caches
                     {
                         found = most = 0;
-                        long before = GC.GetAllocatedBytesForCurrentThread();
+                        long before = Fpv450.Sim.Tests.AllocProbe.Before();
                         for (int s = 0; s < queries; s++)
                         {
                             Double3 c = path.At(25 * s); // a step of 25 ms between queries: the cache's refresh at most 40 Hz
@@ -924,7 +924,7 @@ namespace Fpv450.WorldBench
                             found += n;
                             most = Math.Max(most, n);
                         }
-                        allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                        allocated = Fpv450.Sim.Tests.AllocProbe.After(before);
                     }
                     Array.Sort(times);
                     double p99 = times[queries * 99 / 100] * us;

@@ -25,7 +25,8 @@ namespace Fpv450.Sim.Wind
     ///   porosity; p7c-wind 1.5's porosity rule), with β_belt = e^(−λ·W/h) the optical porosity across its width W
     ///   (derived: crowns of mean frontal density λ/h scattered over the width, Beer–Lambert), never the product of the
     ///   crowns' cells (which multiplies a shrub at 1 m and a crown at 9 m on the same plan path). K§10.3's rule gives a
-    ///   path of length D through a volume its porosity, so the box carries α^(D_box/W).
+    ///   path of length D through a volume its porosity (since WakeGrid version 2 over each lane's chord), so the box
+    ///   carries α^(D_box/W) and a lane straight across its width W reads α.
     /// - **Never counted twice:** the belt's plants never enter the wake grid themselves; WindField gives the strip's
     ///   canopy its plan weight's share inside and over it, and the wake grid the rest (WindField.Air).
     /// </summary>

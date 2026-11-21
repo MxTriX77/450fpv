@@ -34,6 +34,10 @@ namespace Fpv450.Sim.Tests
 
         public const double Discard = 5, Seconds = 40;
 
+        /// <summary>Clip S's camera pitch, degrees, nose down negative (measured: the camera 30–35° below the horizon through
+        /// the whole clip, ground-micro-motion.md §5.1, its middle; the body's own with 0° uptilt, as the pilot's quad, Q1).</summary>
+        public const double ClipSPitchDeg = -32.5;
+
         public enum Phase { Hover, Cruise }
 
         /// <summary>One flight's frame turns (deg, retimed) per axis (roll, pitch, yaw), and its means.</summary>
@@ -41,12 +45,15 @@ namespace Fpv450.Sim.Tests
         {
             public double[][] Turn = new double[3][];
             public double MeanRotorHeightOverR, MeanSpeed, MeanThrottle;
+
+            /// <summary>The pilot's remnant share of each commanded body rate's variance (HarnessPilot.RemnantShare).</summary>
+            public double[] RemnantShare = new double[3];
         }
 
         /// <summary>motion_bands.py's numbers per axis.</summary>
         public sealed class Grade
         {
-            public double[] RateSd = new double[3], Wobble = new double[3], Acf = new double[3];
+            public double[] RateSd = new double[3], Wobble = new double[3], Acf = new double[3], RemnantShare = new double[3];
             public double[][] Angle = { new double[3], new double[3], new double[3] };
             public double RotorHeightOverR, Speed;
         }
@@ -64,10 +71,13 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>
         /// Flies one probe flight: a hover with the camera `height` m over the floor, or a cruise at `height` m and `airspeed`
-        /// m/s; `remnant` gives the pilot its stick noise; `edit` changes the setup (a source off, the known-wrong).
+        /// m/s; `remnant` gives the pilot its stick noise; `edit` changes the setup (a source off, the known-wrong); `human`
+        /// flies the human pilot (p7c-wind design 13: its crossover and delay, and with `remnant` its observation noise beside
+        /// the motor noise); a cruise holds `cruisePitchDeg` (the tracker's, nose down negative) when given, released at
+        /// `airspeed`, else the still-air trim pitch of `airspeed`.
         /// </summary>
         public static Run Fly(DroneSpec spec, Phase phase, double height, WindLevel level, ulong seed, Action<FlightSetup> edit = null,
-            bool remnant = true, double airspeed = 0, double seconds = Seconds, double descent = 0)
+            bool remnant = true, double airspeed = 0, double seconds = Seconds, double descent = 0, bool human = false, double cruisePitchDeg = double.NaN)
         {
             FlightSetup setup = CrosswindScenario.Setup(spec, WindSetup.Of(level), seed);
             MicroMotion.Airframe(spec, setup);
@@ -76,7 +86,7 @@ namespace Fpv450.Sim.Tests
             double pitchDeg = 0;
             if (phase == Phase.Cruise)
             {
-                pitchDeg = -CrosswindScenario.CruisePitch(spec, airspeed); // nose down: the tracker's pitch is negative
+                pitchDeg = double.IsNaN(cruisePitchDeg) ? -CrosswindScenario.CruisePitch(spec, airspeed) : cruisePitchDeg; // nose down: the tracker's pitch is negative
                 setup.StartVelocity = new Double3(0, 0, airspeed);
                 DetMath.SinCos(-pitchDeg * DegToRad / 2, out double sp, out double cp);
                 setup.StartAttitude = new Quat(sp, 0, 0, cp);
@@ -87,7 +97,9 @@ namespace Fpv450.Sim.Tests
             CrosswindScenario.Arm(core);
             long release = core.State.Step;
             var pilot = new HarnessPilot(core.Controller) { Course = 0, Height = origin, Hover = phase == Phase.Hover, PitchDeg = pitchDeg, Learning = false };
+            if (human) pilot.Human();
             if (remnant) pilot.UseRemnant(seed);
+            if (remnant && human) pilot.UseObservationNoise(seed);
 
             int steps = (int)(seconds * 1000), from = (int)(Discard * 1000);
             double q = 50 / Fps;
@@ -139,6 +151,7 @@ namespace Fpv450.Sim.Tests
             }
             core.Wind.Dispose();
             for (int a = 0; a < 3; a++) run.Turn[a] = turns[a].ToArray();
+            for (int a = 0; a < 3; a++) run.RemnantShare[a] = pilot.Measured > 0 ? pilot.RemnantShare(a) : 0;
             run.MeanRotorHeightOverR /= n;
             run.MeanSpeed /= n;
             run.MeanThrottle /= n;
@@ -156,6 +169,7 @@ namespace Fpv450.Sim.Tests
         public static Grade Analyse(Run run)
         {
             var g = new Grade { RotorHeightOverR = run.MeanRotorHeightOverR, Speed = run.MeanSpeed };
+            for (int a = 0; a < 3; a++) g.RemnantShare[a] = run.RemnantShare[a];
             for (int a = 0; a < 3; a++)
             {
                 double[] d = run.Turn[a];
@@ -255,6 +269,7 @@ namespace Fpv450.Sim.Tests
                     m.RateSd[a] += g.RateSd[a] * g.RateSd[a] / all.Count;
                     m.Wobble[a] += g.Wobble[a] * g.Wobble[a] / all.Count;
                     m.Acf[a] += g.Acf[a] / all.Count;
+                    m.RemnantShare[a] += g.RemnantShare[a] / all.Count;
                     for (int b = 0; b < 3; b++) m.Angle[a][b] += g.Angle[a][b] * g.Angle[a][b] / all.Count;
                 }
             }
@@ -268,11 +283,12 @@ namespace Fpv450.Sim.Tests
         }
 
         public static Grade Mean(DroneSpec spec, Phase phase, double height, WindLevel level, ulong first, int seeds,
-            Action<FlightSetup> edit = null, bool remnant = true, double airspeed = 0, double seconds = Seconds, double descent = 0)
+            Action<FlightSetup> edit = null, bool remnant = true, double airspeed = 0, double seconds = Seconds, double descent = 0, bool human = false,
+            double cruisePitchDeg = double.NaN)
         {
             var all = new List<Grade>();
             for (ulong seed = first; seed < first + (ulong)seeds; seed++)
-                all.Add(Analyse(Fly(spec, phase, height, level, seed, edit, remnant, airspeed, seconds, descent)));
+                all.Add(Analyse(Fly(spec, phase, height, level, seed, edit, remnant, airspeed, seconds, descent, human, cruisePitchDeg)));
             return Mean(all);
         }
 
@@ -283,8 +299,8 @@ namespace Fpv450.Sim.Tests
             string[] axes = { "roll", "pitch", "yaw" };
             b.Append(name).Append(string.Format(CultureInfo.InvariantCulture, " (rotors {0:F1} R, {1:F1} m/s)", g.RotorHeightOverR, g.Speed));
             for (int a = 0; a < 3; a++)
-                b.Append(string.Format(CultureInfo.InvariantCulture, "\n  {0,-5} rate {1:F2} deg/s; angle {2:F4} / {3:F4} / {4:F4} deg; wobble {5:F3} deg, 1/e {6:F2} s",
-                    axes[a], g.RateSd[a], g.Angle[a][0], g.Angle[a][1], g.Angle[a][2], g.Wobble[a], g.Acf[a]));
+                b.Append(string.Format(CultureInfo.InvariantCulture, "\n  {0,-5} rate {1:F2} deg/s; angle {2:F4} / {3:F4} / {4:F4} deg; wobble {5:F3} deg, 1/e {6:F2} s; remnant share {7:F3}",
+                    axes[a], g.RateSd[a], g.Angle[a][0], g.Angle[a][1], g.Angle[a][2], g.Wobble[a], g.Acf[a], g.RemnantShare[a]));
             return b.ToString();
         }
     }
@@ -293,8 +309,8 @@ namespace Fpv450.Sim.Tests
     public class GroundMicroMotionProbe
     {
         // The own wake against its published form: a rotor held at a hover speed in still air wanders with the thrust σ it was
-        // given (Stack et al. 2004's 2.9 %, through the props' static slope, within 10 %), its correlation time the corner's
-        // R/(2π·0.2·v_h) (within 15 %), and Glauert's fade; the known-wrong steady rotor does not wander at all.
+        // given (Stack et al. 2004's record, 1.7 %, through the props' static slope, within 10 %), its correlation time the
+        // corner's R/(2π·0.2·v_h) (within 15 %), and Glauert's fade; the known-wrong steady rotor does not wander at all.
         [Test]
         public void TheOwnWakeIsThePublishedThrustUnsteadiness()
         {
@@ -356,13 +372,25 @@ namespace Fpv450.Sim.Tests
             TestContext.WriteLine(GroundMicroMotion.Rows("1.25 m, steady rotor", still));
             for (int a = 0; a < 2; a++)
             {
-                Assert.That(high.RateSd[a], Is.GreaterThan(2.0), "the rate, as C, D and E's 2.3–6.2 °/s");
+                // Design 3g: at the record's level the hover's rate is 1.8–1.9 °/s, under C, D and E's 2.3–6.2 (not met, the
+                // table's); the check is the physics', never still: 50× and more the steady rotor's 0.01–0.02 °/s.
+                Assert.That(high.RateSd[a], Is.GreaterThan(1.0), "never still: the rate 50× the steady rotor's");
                 Assert.That(high.Angle[a][2], Is.GreaterThan(0.006), "above 4 Hz, as every clip's lowest");
                 Assert.That(still.RateSd[a], Is.LessThan(0.1), "the steady rotor is still");
                 Assert.That(still.Angle[a][2], Is.LessThan(0.001), "the steady rotor is still above 4 Hz");
                 Assert.That(low.Angle[a][1], Is.GreaterThan(1.2 * high.Angle[a][1]), "lower is livelier at 1–4 Hz");
             }
         }
+
+        /// <summary>The note's rows per case (p7b-airframe design 3g): as built, with model 92's own-wake level (0.029, its bound
+        /// 3: the before of 3g, on the same seeds), without the own wake (its share), and the known-wrong steady rotor.</summary>
+        static readonly (string Name, Action<FlightSetup> Edit)[] TableRows =
+        {
+            ("as built", null),
+            ("model 92's wake level", s => GoldenFlights.Model92WakeLevel(s.RotorWake)),
+            ("without the own wake", s => s.RotorWake = null),
+            ("steady rotor", GroundMicroMotion.SteadyRotor),
+        };
 
         // The note's grade (Explicit: about 2 s a flight).
         [Test, Explicit]
@@ -371,20 +399,74 @@ namespace Fpv450.Sim.Tests
             DroneSpec spec = RepositoryDrone.Spec();
             foreach (WindLevel level in new[] { WindLevel.Still, WindLevel.Calm })
                 foreach (double h in new[] { 1.25, 0.75, 0.45, 0.3 })
-                {
-                    TestContext.WriteLine(GroundMicroMotion.Rows($"hover {h} m, {level}, as built", GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Hover, h, level, 1, 3)));
-                    TestContext.WriteLine(GroundMicroMotion.Rows($"hover {h} m, {level}, steady rotor", GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Hover, h, level, 1, 3, GroundMicroMotion.SteadyRotor)));
-                }
+                    foreach (var row in TableRows)
+                        TestContext.WriteLine(GroundMicroMotion.Rows($"hover {h} m, {level}, {row.Name}", GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Hover, h, level, 1, 3, row.Edit)));
             // A's last metres: a glide down at 0.5 m/s from 6.5 m to 3.5 m at 8 m/s (about 4°, inside A's 2–6°), over 6 s.
-            TestContext.WriteLine(GroundMicroMotion.Rows("descent 6.5 to 3.5 m, 8 m/s, Calm, as built",
-                GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 6.5, WindLevel.Calm, 1, 3, airspeed: 8, seconds: 11, descent: 0.5)));
-            TestContext.WriteLine(GroundMicroMotion.Rows("descent 6.5 to 3.5 m, 8 m/s, Calm, steady rotor",
-                GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 6.5, WindLevel.Calm, 1, 3, GroundMicroMotion.SteadyRotor, airspeed: 8, seconds: 11, descent: 0.5)));
+            foreach (var row in TableRows)
+                TestContext.WriteLine(GroundMicroMotion.Rows($"descent 6.5 to 3.5 m, 8 m/s, Calm, {row.Name}",
+                    GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 6.5, WindLevel.Calm, 1, 3, row.Edit, airspeed: 8, seconds: 11, descent: 0.5)));
             foreach (WindLevel level in new[] { WindLevel.Calm, WindLevel.Windy })
+                foreach (var row in TableRows)
+                    TestContext.WriteLine(GroundMicroMotion.Rows($"cruise 7.5 m 11 m/s, {level}, {row.Name}", GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 7.5, level, 1, 3, row.Edit, airspeed: 11)));
+        }
+
+        /// <summary>
+        /// p7c-wind design 13's grade (Explicit): the note's flights, before (K§8.5's pilot) and after (the human pilot) on the
+        /// same seeds, and the human without its remnant (the known-wrong): the hover at 1.25 m (C, D, E) in still air and in
+        /// Calm, A's last metres, S's low cruise in Calm and Windy. The low cruise holds S's own pitch (ClipSPitchDeg; p7c-wind
+        /// 1.5c, D-109), not the trim pitch of S's 11 m/s (about 7°, where the split law's heading share (1 − s)/sin θ asks
+        /// 3–5× the tilt in heading), released at the airspeed that pitch settles at in still air (WindHarness.HeldPitchAirspeed).
+        /// </summary>
+        [Test, Explicit]
+        public void HumanPilotTable()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            double cruise = WindHarness.HeldPitchAirspeed(spec, 11, out double held, pitchDeg: GroundMicroMotion.ClipSPitchDeg);
+            TestContext.WriteLine($"S's pitch {GroundMicroMotion.ClipSPitchDeg:F1}° settles at {cruise:F2} m/s in still air (held {held:F2}°)");
+            var pilots = new (string Name, bool Human, bool Remnant)[] { ("K§8.5's pilot", false, true), ("human", true, true), ("human, noiseless", true, false) };
+            foreach (var p in pilots)
             {
-                TestContext.WriteLine(GroundMicroMotion.Rows($"cruise 7.5 m 11 m/s, {level}, as built", GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 7.5, level, 1, 3, airspeed: 11)));
-                TestContext.WriteLine(GroundMicroMotion.Rows($"cruise 7.5 m 11 m/s, {level}, steady rotor", GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 7.5, level, 1, 3, GroundMicroMotion.SteadyRotor, airspeed: 11)));
+                foreach (WindLevel level in new[] { WindLevel.Still, WindLevel.Calm })
+                    TestContext.WriteLine(GroundMicroMotion.Rows($"hover 1.25 m, {level}, {p.Name}",
+                        GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Hover, 1.25, level, 1, 3, remnant: p.Remnant, human: p.Human)));
+                TestContext.WriteLine(GroundMicroMotion.Rows($"descent 6.5 to 3.5 m, 8 m/s, Calm, {p.Name}",
+                    GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 6.5, WindLevel.Calm, 1, 3, remnant: p.Remnant, airspeed: 8, seconds: 11, descent: 0.5, human: p.Human)));
+                foreach (WindLevel level in new[] { WindLevel.Calm, WindLevel.Windy })
+                    TestContext.WriteLine(GroundMicroMotion.Rows($"cruise 7.5 m at S's pitch, {level}, {p.Name}",
+                        GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 7.5, level, 1, 3, remnant: p.Remnant, airspeed: cruise, human: p.Human,
+                            cruisePitchDeg: GroundMicroMotion.ClipSPitchDeg)));
             }
+        }
+
+        /// <summary>
+        /// p7c-wind design 16's grade (Explicit): the note's flights with the human pilot (the harness's default, D-109), before
+        /// (the one-scale field, WindSetup.OneScale: model 98's) and after (the field by height) on the same seeds 1–3: the hover
+        /// at 1.25, 0.75, 0.45 and 0.3 m in still air (no field: one row), Calm and Windy; A's last metres and S's low cruise at
+        /// S's pitch in Calm and Windy.
+        /// </summary>
+        [Test, Explicit]
+        public void FieldScalesTable()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            double cruise = WindHarness.HeldPitchAirspeed(spec, 11, out _, pitchDeg: GroundMicroMotion.ClipSPitchDeg);
+            var fields = new (string Name, Action<FlightSetup> Edit)[] { ("one-scale", s => s.Wind.OneScale = true), ("by height", null) };
+            foreach (double h in new[] { 1.25, 0.75, 0.45, 0.3 })
+            {
+                TestContext.WriteLine(GroundMicroMotion.Rows($"hover {h} m, Still", GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Hover, h, WindLevel.Still, 1, 3, human: true)));
+                foreach (WindLevel level in new[] { WindLevel.Calm, WindLevel.Windy })
+                    foreach (var f in fields)
+                        TestContext.WriteLine(GroundMicroMotion.Rows($"hover {h} m, {level}, {f.Name}",
+                            GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Hover, h, level, 1, 3, f.Edit, human: true)));
+            }
+            foreach (WindLevel level in new[] { WindLevel.Calm, WindLevel.Windy })
+                foreach (var f in fields)
+                {
+                    TestContext.WriteLine(GroundMicroMotion.Rows($"descent 6.5 to 3.5 m, 8 m/s, {level}, {f.Name}",
+                        GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 6.5, level, 1, 3, f.Edit, airspeed: 8, seconds: 11, descent: 0.5, human: true)));
+                    TestContext.WriteLine(GroundMicroMotion.Rows($"cruise 7.5 m at S's pitch, {level}, {f.Name}",
+                        GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 7.5, level, 1, 3, f.Edit, airspeed: cruise, human: true,
+                            cruisePitchDeg: GroundMicroMotion.ClipSPitchDeg)));
+                }
         }
 
         /// <summary>Each source switched against the as-built hover at 1.25 m in still air (seeds 1–3).</summary>

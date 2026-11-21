@@ -16,10 +16,11 @@ namespace Fpv450.Sim.Tests
     /// </summary>
     public class SoilTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         const double R = 0.005, L = 0.22, Joint = 0.1025; // drone.json's skid tube (measured)
 
         static DroneSpec _drone;
-        static DroneSpec Drone() => _drone ??= DroneSpec.Parse(System.IO.File.ReadAllText(ContactScenarios.RepositoryFile("assets-src/drone/drone.json")));
+        static DroneSpec Drone() => _drone ??= DroneSpec.Parse(System.IO.File.ReadAllText(ContactScenarios.RepositoryFile(SkidsDrone.RelativePath)));
 
         static SoilSet Set(string surface, Moisture m = Moisture.Dry) => Array.Find(SoilScenarios.Table().Surfaces, s => s.Name == surface).Set(m);
 
@@ -477,11 +478,11 @@ namespace Fpv450.Sim.Tests
                 x.Advance(new Control.StickSample { HostUs = k * FlightCore.StepUs });
                 y.Advance(new Control.StickSample { HostUs = k * FlightCore.StepUs });
             }
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int k = 500; k < 1500; k++) x.Advance(new Control.StickSample { HostUs = k * FlightCore.StepUs });
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            long allocated = AllocProbe.After(before);
             for (int k = 500; k < 1500; k++) y.Advance(new Control.StickSample { HostUs = k * FlightCore.StepUs });
-            Assert.That(allocated, Is.EqualTo(0), "0 B a step on soil");
+            Assert.That(allocated, Is.Zero, "0 B a step on soil" + AllocProbe.Report());
             Assert.That(BitConverter.DoubleToInt64Bits(x.State.Position.Y), Is.EqualTo(BitConverter.DoubleToInt64Bits(y.State.Position.Y)));
             Assert.That(x.Contacts.SoilOf(0).Engaged, Is.True);
         }

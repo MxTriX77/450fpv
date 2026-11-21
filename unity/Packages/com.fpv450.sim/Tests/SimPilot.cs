@@ -37,6 +37,12 @@ namespace Fpv450.Sim.Tests
         public double YawGain = 2, ThrottleBase = 0.5, ThrottleGain = 0.1, ThrottleDamping = 0.1;
         public double MaxTiltSin = 0.5736; // sin 35°
 
+        /// <summary>A throttle stick held instead of the height loop's (0–1); NaN the loop's (p7d-tether 1.11's pitch-back).</summary>
+        public double HeldThrottle = double.NaN;
+
+        /// <summary>The throttle stick last reported.</summary>
+        public double Throttle => _last.Throttle;
+
         /// <summary>Steps between stick reports: 4, the radio's 250 Hz (fc-profiles §1).</summary>
         public int Period = 4;
 
@@ -110,6 +116,7 @@ namespace Fpv450.Sim.Tests
             // Height on the throttle.
             double throttle = ThrottleBase + ThrottleGain * (Target.Y - s.Position.Y) - ThrottleDamping * s.Velocity.Y;
             throttle = throttle < 0 ? 0 : throttle > 1 ? 1 : throttle;
+            if (!double.IsNaN(HeldThrottle)) throttle = HeldThrottle;
 
             // The pilot's axes (DetMath.cs): roll right −ω_z, nose down +ω_x, yaw right +ω_y, in °/s.
             return _last = new StickSample

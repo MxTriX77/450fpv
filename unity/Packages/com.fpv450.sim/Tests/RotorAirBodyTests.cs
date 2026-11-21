@@ -215,7 +215,7 @@ namespace Fpv450.Sim.Tests
             }
             for (int k = 0; k < 2000; k++) { Step(with); Step(through); } // the JIT's warm-up
             double[] ns = { double.PositiveInfinity, double.PositiveInfinity };
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int round = 0; round < 40; round++)
             {
                 RotorAir f = round % 2 == 0 ? with : through;
@@ -224,10 +224,10 @@ namespace Fpv450.Sim.Tests
                 double t = (Stopwatch.GetTimestamp() - t0) * 1e9 / Stopwatch.Frequency / 1000.0;
                 if (t < ns[round % 2]) ns[round % 2] = t;
             }
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            long allocated = AllocProbe.After(before);
             Print($"a step of the field over 32 nodes under the resting drone: {ns[0] / 1000:F2} µs with the body ({model.ShapeCount} shapes placed), "
                 + $"{ns[1] / 1000:F2} µs through it (+{(ns[0] - ns[1]) / 1000:F2} µs; the least of 20 rounds, under load); {allocated} B ({sink:E1})");
-            Assert.That(allocated, Is.Zero, "0 B in the steps");
+            Assert.That(allocated, Is.Zero, "0 B in the steps" + AllocProbe.Report());
         }
     }
 }

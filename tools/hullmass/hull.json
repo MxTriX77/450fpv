@@ -1,0 +1,16 @@
+{
+  "about": "The airframe's hull as the air sees it (p7c-wind design 12): the closed parts of assets-src/drone/drone.json whose union the boundary-element tool (tools/hullmass) takes, with the canister's cone and nozzle; the arms, motors, props, legs, skids, clamps and T-joints stand apart (thin members, each its own drag). Run: dotnet run -c Release --project tools/hullmass",
+  "parts": ["plates", "electronics", "payload", "pack_left", "pack_right", "canister"],
+  "tails": [
+    {
+      "of": "canister",
+      "note": "aft of the canister's body along its axis (drone.json's canister notes): the cone from the Ø0.101 m body to a Ø24 mm collar over 0.047 m, then the aluminium nozzle, Ø18 mm over 0.070 m, its further 12.5° bend at the collar left out (assumed: 0.3 % of the hull's volume)",
+      "segments": [
+        {"length_m": 0.047, "d0_m": 0.101, "d1_m": 0.024},
+        {"length_m": 0.070, "d0_m": 0.018, "d1_m": 0.018}
+      ]
+    }
+  ],
+  "cell_m": 0.005,
+  "gap_closed_m": 0.010
+}

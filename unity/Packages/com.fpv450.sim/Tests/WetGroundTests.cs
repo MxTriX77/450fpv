@@ -18,10 +18,11 @@ namespace Fpv450.Sim.Tests
     /// </summary>
     public class WetGroundTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         const double R = 0.005, L = 0.22; // drone.json's skid tube (measured)
 
         static DroneSpec _drone;
-        static DroneSpec Drone() => _drone ??= DroneSpec.Parse(File.ReadAllText(ContactScenarios.RepositoryFile("assets-src/drone/drone.json")));
+        static DroneSpec Drone() => _drone ??= DroneSpec.Parse(File.ReadAllText(ContactScenarios.RepositoryFile(SkidsDrone.RelativePath)));
 
         static SoilSet Set(string surface, Moisture m) => Array.Find(SoilScenarios.Table().Surfaces, s => s.Name == surface).Set(m);
 
@@ -55,7 +56,7 @@ namespace Fpv450.Sim.Tests
                 Assert.That(u.Work[c], Is.EqualTo(work).Within(1).Percent, name + ": the work to part is ½·σ_a·δ_a·S_m");
                 Assert.That(u.Holding[c], Is.False, name + ": let go");
             }
-            Assert.That(u.Allocated, Is.EqualTo(0), name + ": 0 B a step while the groove holds and lets go");
+            Assert.That(u.Allocated, Is.Zero, name + ": 0 B a step while the groove holds and lets go" + AllocProbe.Report());
         }
 
         [Test]

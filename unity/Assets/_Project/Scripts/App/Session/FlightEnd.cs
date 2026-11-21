@@ -103,4 +103,25 @@ namespace Fpv450.App.Session
         public LoggedEvent Cause;
         public string Object, Material;
     }
+
+    /// <summary>A rotor's cut stems in the log (w9-village-physics 2.2), found by PostFlight from its StemEpisode events alone:
+    /// its episodes and the first one's start, and over them the stems cut and their work, each episode's at its last event
+    /// (its end, or its start for one the flight's end cut short). None ends the flight.</summary>
+    public struct CutStems
+    {
+        /// <summary>The rotor's corner (Corners order: rear right, front right, rear left, front left).</summary>
+        public int Corner;
+
+        /// <summary>Its first episode's start, and how many episodes it had.</summary>
+        public LoggedEvent First;
+        public int Episodes;
+
+        /// <summary>The stems cut (the mean count, each episode's B) and their work, J (each episode's A).</summary>
+        public double Count, Energy;
+
+        /// <summary>The cover kind its largest episode cut most of, as the event names it (CoverKind + 1; 0 for none), and that
+        /// episode's stems.</summary>
+        public ushort Kind;
+        public double Largest;
+    }
 }

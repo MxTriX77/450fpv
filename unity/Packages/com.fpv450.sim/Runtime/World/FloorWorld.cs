@@ -215,6 +215,9 @@ namespace Fpv450.Sim.World
         /// <summary>The stub places no assets, so it has no micro elements.</summary>
         public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results) => 0;
 
+        /// <summary>The floor grows no grass.</summary>
+        public int StemsNear(XZ centre, double radius, double height, Span<StemPatch> results) => 0;
+
         /// <summary>The stub places no assets, so no shape belongs to a ground feature.</summary>
         public bool Feature(int obj, int shape, out GroundFeature feature)
         {

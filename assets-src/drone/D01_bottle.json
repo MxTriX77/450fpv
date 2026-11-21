@@ -23,7 +23,6 @@
   "bottle": {"neck_d_m": 0.025, "cap_d_m": 0.030, "cap_h_m": 0.015, "shoulder_m": 0.06, "base_r_m": 0.012},
   "pack": {"corner_r_m": 0.008},
   "straps": 2,
-  "skid_band": true,
   "camera": {"lens_y_m": 0.015, "lens_z_m": 0.115},
   "lod": {"lod1_switch_m": 3.0, "lod2_switch_m": 10.0, "lod3_switch_m": 35.0, "cull_m": 120.0}
 }

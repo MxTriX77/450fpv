@@ -12,11 +12,12 @@ namespace Fpv450.Sim.Tests
     // known-wrong model it fails.
     public sealed class StrikeTests
     {
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
         const double R = 0.127, H = 0.004;
         static readonly Double3 Up = new Double3(0, 1, 0);
         static readonly Double3 South = new Double3(0, 0, -1);
 
-        static DroneSpec Spec => RepositoryDrone.Spec();
+        static DroneSpec Spec => SkidsDrone.Spec();
 
         static StrikeScenarios.Rig Rig(Double3 at, Quat attitude, params ShapeGeometry[] shapes) =>
             new StrikeScenarios.Rig(StrikeScenarios.Setup(Spec, at, attitude, shapes.Length > 0 ? StrikeScenarios.One(shapes[0]) : null),
@@ -265,6 +266,54 @@ namespace Fpv450.Sim.Tests
                 Assert.That(bent, Is.GreaterThan(0));
                 Assert.That(crush, Is.EqualTo(0), "no crush on a tilted face");
             }
+        }
+
+        // w9-village-physics 2.6's addendum: a thin branch met along the disc's axis faster than its own thickness and the slab's
+        // (2h = 8 mm) a step is in neither the step's start slab nor its end's. A 10 mm bark branch across the fr disc 80 mm out,
+        // the rig driving the drone up through it at 20 m/s, one step a crossing: the slab holds the branch for (10 + 8)/20 = 0.9
+        // of the step (0.8 on the slab's samples at most h apart, BladeCut.Crossing), and each blade meets it when its azimuth passes
+        // the branch's within that share: by hand 2 · 942 rad/s · 1 ms · 0.9 / 2π = 0.27 of the crossings. The known-wrong (the slab
+        // at the step's ends only, model 93's) meets it on none.
+        [Test]
+        public void ABranchCrossedWithinAStepIsMet()
+        {
+            DroneSpec spec = Spec;
+            const double V = 20, D = 0.010;
+            const int Crossings = 120;
+            Double3 hub = spec.Motors[1].Position, origin = StrikeScenarios.Sky;
+            var branch = new ShapeGeometry
+            {
+                Kind = ShapeKind.Capsule, Center = origin + hub + new Double3(0.08, 0, 0), AxisX = new Double3(1, 0, 0), AxisY = new Double3(0, 0, 1),
+                AxisZ = new Double3(0, -1, 0), Radius = D / 2, HalfLength = 0.12, Material = RangeScenarios.World.MaterialId("bark"),
+            };
+            Double3 below = origin + new Double3(0, -V * FlightCore.Dt / 2, 0), above = origin + new Double3(0, V * FlightCore.Dt / 2, 0);
+            int met = 0, atEnds = 0, tunnels = 0, lost = 0;
+            foreach (Double3 end in new[] { below, above })
+                if (BladeCut.Nearest(branch, default, end + hub, new Double3(0, 1, 0), H, R, out _)) atEnds++;
+            for (int k = 0; k < Crossings; k++)
+            {
+                // A fresh rig each crossing (a pass may break a blade), held 1 + k steps first so the rotor's phase at the crossing
+                // varies.
+                var rig = Rig(below, Quat.Identity, branch);
+                rig.Core.Strikes.Record = new List<PropStrikes.PassRecord>();
+                rig.Hold(below, 1 + k);
+                rig.Core.Strikes.Record.Clear();
+                rig.Step(above, new Double3(0, V, 0));
+                foreach (PropStrikes.PassRecord r in rig.Core.Strikes.Record)
+                    if (r.Corner == 1)
+                    {
+                        met++;
+                        break;
+                    }
+                tunnels += rig.Count(EventKind.Tunnel);
+                lost += rig.Count(EventKind.ContactsLost);
+            }
+            double share = met / (double)Crossings, hand = 2 * StrikeScenarios.HoverSpeed * FlightCore.Dt * ((D + 2 * H) / (V * FlightCore.Dt)) / (2 * Math.PI);
+            TestContext.Out.WriteLine($"{met} of {Crossings} crossings met ({share:F3}; by hand {hand:F3}); the slab at the step's ends holds it {atEnds} times; "
+                + $"{tunnels} tunnels");
+            Assert.That(atEnds, Is.Zero, "the known-wrong: the branch is in neither end's slab");
+            Assert.That(share, Is.EqualTo(hand).Within(0.4 * hand), "the blades meet it on their share of the crossings");
+            Assert.That(tunnels + lost, Is.Zero);
         }
 
         // "A head-on rod breaks the blade": a 12 mm steel rod 40 mm inside the rim of a disc at 9000 rpm. The blade breaks at a
@@ -577,9 +626,9 @@ namespace Fpv450.Sim.Tests
             Assert.That(StrikeScenarios.TipStops(r), Is.True, "the landing stops on the ground");
             if (disarm)
             {
-                StrikeScenarios.TipResult free = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(DroneSpec.Parse(RepositoryDrone.Text())), World(site, out at),
+                StrikeScenarios.TipResult free = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(DroneSpec.Parse(SkidsDrone.Text())), World(site, out at),
                     at, rain, SoilScenarios.Table(), true);
-                StrikeScenarios.TipResult freeWrong = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(DroneSpec.Parse(RepositoryDrone.Text())), World(site, out at),
+                StrikeScenarios.TipResult freeWrong = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(DroneSpec.Parse(SkidsDrone.Text())), World(site, out at),
                     at, rain, null, true);
                 TestContext.Out.WriteLine("  the known-wrong (the ESCs freewheeling): " + free.Describe());
                 TestContext.Out.WriteLine("  freewheeling without surfaces.json: " + freeWrong.Describe());

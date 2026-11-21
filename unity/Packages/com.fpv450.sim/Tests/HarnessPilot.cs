@@ -97,6 +97,12 @@ namespace Fpv450.Sim.Tests
     ///   without forward speed, k = −sin θ ≈ 0) and the pitch θ_ref = ē_p + u/(g·τ_v) from the forward slide u, ē_p trimmed
     ///   as ē is; the heading holds the course. Its loops, delay, τ and stick noise are K§8.5's (assumed to carry over from
     ///   P's cruise to a hover).
+    /// - **The human pilot** (p7c-wind design 13, task 1.5b; `Human`): the same laws flown as a human closes a loop through
+    ///   video, from published manual-control models: McRuer's crossover pilot on a rate-command (K/s) element, a gain on
+    ///   each attitude error at the crossover `HumanCrossover` (τ = 1/ω_c on every axis) behind its effective delay
+    ///   `HumanEffectiveDelay`; and Levison's remnant referred to the input, the optimal-control model's observation noise
+    ///   (`UseObservationNoise`: −20 dB of each attitude error's variance, white, per frame, through τ_n) on top of its motor
+    ///   noise. The split per stretch stays the harness's (WindHarness).
     /// It reports the sticks at the TX12's 250 Hz (every `Period` steps). Basic operations only, so its flights give
     /// the same bits on every runtime.
     /// </summary>
@@ -158,6 +164,40 @@ namespace Fpv450.Sim.Tests
         /// before its discarded start and through its climb between the stretches).</summary>
         public bool Learning = true;
 
+        /// <summary>The observation noise ratio, dB: ρ_y = 10^(dB/10) (published: −20 dB, the optimal-control model's, Kleinman,
+        /// Baron and Levison 1970; Levison, Baron and Kleinman 1969; recalled; the pair −20 / −25 dB read in Lone and Cooke,
+        /// ICAS 2010).</summary>
+        public double ObservationNoiseDb = -20;
+
+        /// <summary>
+        /// The human pilot's crossover, rad/s (published: McRuer's data for a rate-command element K/s, ω_c = 0.14·ω_i + 4.3
+        /// as Tohidi and Yildiz 2020 fit them, read; ω_i → 0, assumed, within 10 % up to ω_i 3 rad/s), the same on every
+        /// axis: in rate mode each axis is the same controlled element, and McRuer's rules set the crossover by the element.
+        /// </summary>
+        public const double HumanCrossover = 4.3;
+
+        /// <summary>The human pilot's effective time delay, s (published: 0.1–0.2 s, McRuer and Krendel 1974 as the MathWorks
+        /// crossover pilot model cites it, read; its trained end, assumed, since the video frames, the radio, the controller
+        /// and the motors add their own lags in the sim; the neuromuscular lag lumped in it, as McRuer's τ_e lumps it).</summary>
+        public const double HumanEffectiveDelay = 0.10;
+
+        /// <summary>
+        /// Sets the human pilot (p7c-wind design 13): τ = 1/ω_c on every axis and the effective delay. Its remnant is the
+        /// harness's to give (UseRemnant, UseObservationNoise).
+        /// </summary>
+        public void Human()
+        {
+            TauRoll = TauPitch = TauYaw = 1 / HumanCrossover;
+            Delay = HumanEffectiveDelay;
+        }
+
+        /// <summary>The remnant's measure (p7c-wind design 13), over the reports while Learning: per body rate (p, q, r) the
+        /// sums of the commanded rate and its square, and of its remnant and its square (the command less what the pilot's
+        /// law gives on the true frame it saw: the observation noise through the law, plus the motor noise), and the
+        /// reports counted.</summary>
+        public readonly double[] CommandSum = new double[3], CommandSquares = new double[3], RemnantSum = new double[3], RemnantSquares = new double[3];
+        public long Measured;
+
         /// <summary>The course's bearing, radians from north toward east, and the height to hold, m.</summary>
         public double Course, Height;
 
@@ -188,6 +228,15 @@ namespace Fpv450.Sim.Tests
         readonly double[] _mean = new double[4], _variance = new double[4], _lagged = new double[4];
         readonly long[] _learnt = new long[4];
         long _reports;
+
+        // The observation noise (design 13): its stream, each attitude error's running mean and variance and its noise
+        // through the neuromotor lag, the frames learnt and perceived, the last frame as perceived.
+        const int Observed = 3;
+        bool _observe;
+        SeedStream _observeStream;
+        readonly double[] _seenMean = new double[Observed], _seenVariance = new double[Observed], _seenNoise = new double[Observed], _error = new double[Observed];
+        long _seenLearnt, _perceived;
+        Frame _view;
 
         public HarnessPilot(FlightController fc)
         {
@@ -228,12 +277,14 @@ namespace Fpv450.Sim.Tests
                 return _last;
             }
 
-            // The frames seen by now: each one taken Delay ago or earlier, the integrators stepped once per new frame.
+            // The frames seen by now: each one taken Delay ago or earlier, the integrators stepped once per new frame (as
+            // the pilot perceives it, with its observation noise when it has one).
             long delaySteps = (long)(Delay * 1000 + 0.5);
             long seen = _used;
             while (seen < _taken && _frames[seen % _frames.Length].Step + delaySteps <= step)
             {
-                ref readonly Frame f = ref _frames[seen % _frames.Length];
+                Frame f = _frames[seen % _frames.Length];
+                if (_observe) _view = f = Perceive(f);
                 double dt = 1 / CameraHz;
                 _meanTilt -= f.Slide / (G * TauV * TrimTau) * dt;
                 if (Hover) _meanPitch += f.Forward / (G * TauV * TrimTau) * dt;
@@ -243,27 +294,14 @@ namespace Fpv450.Sim.Tests
             _used = seen;
             if (seen == 0)
                 return _last = new StickSample { HostUs = hostUs, Throttle = ThrottleStart, Arm = true };
-            ref readonly Frame v = ref _frames[(seen - 1) % _frames.Length];
+            Frame v = _observe ? _view : _frames[(seen - 1) % _frames.Length];
+            Command(v, out double p, out double q, out double r, out double throttle);
 
-            // The tilt it wants, split between the horizon and the heading.
-            DetMath.SinCos(PitchDeg * DegToRad, out double sinRef, out _);
-            double k = -sinRef;
-            double change = -v.Slide / (G * TauV); // e* − ē
-            double rollRef = _meanTilt + (Hover ? change : Split * change);
-            double headingRef = Hover ? Course : Course + (1 - Split) * change / k;
-            double pitchRef = Hover ? _meanPitch + v.Forward / (G * TauV) : PitchDeg * DegToRad;
+            // The remnant's measure: what the law gives on the true frame.
+            bool measure = Learning && (_remnant || _observe);
+            double tp = 0, tq = 0, tr = 0;
+            if (measure) Command(_frames[(seen - 1) % _frames.Length], out tp, out tq, out tr, out _);
 
-            // The Euler rates, then the body rates by the exact ZYX relations.
-            double rollRate = (rollRef - v.Roll) / TauRoll;
-            double pitchRate = (pitchRef - v.Pitch) / TauPitch;
-            double headingRate = TrackerAngles.Wrap(headingRef - v.Heading) / TauYaw;
-            DetMath.SinCos(v.Roll, out double sinRoll, out double cosRoll);
-            DetMath.SinCos(v.Pitch, out double sinPitch, out double cosPitch);
-            double p = rollRate - headingRate * sinPitch;
-            double q = pitchRate * cosRoll + headingRate * cosPitch * sinRoll;
-            double r = headingRate * cosPitch * cosRoll - pitchRate * sinRoll;
-
-            double throttle = ThrottleStart + _throttleIntegral + ClimbGain * ClimbError(v);
             if (_remnant)
             {
                 p += Motor(0, p, _reports, Learning);
@@ -271,6 +309,13 @@ namespace Fpv450.Sim.Tests
                 r += Motor(2, r, _reports, Learning);
                 throttle += Motor(3, throttle, _reports, Learning);
                 _reports++;
+            }
+            if (measure)
+            {
+                Accumulate(0, p, p - tp);
+                Accumulate(1, q, q - tq);
+                Accumulate(2, r, r - tr);
+                Measured++;
             }
             throttle = throttle < 0 ? 0 : throttle > 1 ? 1 : throttle;
 
@@ -286,7 +331,99 @@ namespace Fpv450.Sim.Tests
             };
         }
 
+        // The attitude the law wants on a frame (no state changes).
+        void References(in Frame v, out double rollRef, out double pitchRef, out double headingRef)
+        {
+            // The tilt it wants, split between the horizon and the heading.
+            DetMath.SinCos(PitchDeg * DegToRad, out double sinRef, out _);
+            double k = -sinRef;
+            double change = -v.Slide / (G * TauV); // e* − ē
+            rollRef = _meanTilt + (Hover ? change : Split * change);
+            headingRef = Hover ? Course : Course + (1 - Split) * change / k;
+            pitchRef = Hover ? _meanPitch + v.Forward / (G * TauV) : PitchDeg * DegToRad;
+        }
+
+        // The law on a frame: the body rates and the throttle it commands (no state changes).
+        void Command(in Frame v, out double p, out double q, out double r, out double throttle)
+        {
+            References(v, out double rollRef, out double pitchRef, out double headingRef);
+
+            // The Euler rates, then the body rates by the exact ZYX relations.
+            double rollRate = (rollRef - v.Roll) / TauRoll;
+            double pitchRate = (pitchRef - v.Pitch) / TauPitch;
+            double headingRate = TrackerAngles.Wrap(headingRef - v.Heading) / TauYaw;
+            DetMath.SinCos(v.Roll, out double sinRoll, out double cosRoll);
+            DetMath.SinCos(v.Pitch, out double sinPitch, out double cosPitch);
+            p = rollRate - headingRate * sinPitch;
+            q = pitchRate * cosRoll + headingRate * cosPitch * sinRoll;
+            r = headingRate * cosPitch * cosRoll - pitchRate * sinRoll;
+
+            throttle = ThrottleStart + _throttleIntegral + ClimbGain * ClimbError(v);
+        }
+
         double ClimbError(in Frame f) => (Height - f.Height) / HeightTau - f.Climb;
+
+        /// <summary>Gives the pilot the optimal-control model's observation noise (p7c-wind design 13), drawn from the flight
+        /// seed's named stream `pilot.observe`.</summary>
+        public void UseObservationNoise(ulong seed)
+        {
+            _observeStream = new FlightRandom(seed).Open("pilot.observe");
+            _observe = true;
+        }
+
+        // A frame as the pilot perceives it (design 13): Levison's remnant referred to the input, the optimal-control
+        // model's observation noise on each attitude error the pilot's crossover loops close (roll, pitch, heading). White
+        // noise of covariance π·ρ_y·E{e²}, E{e²} the error's variance about its running mean over RemnantWindow, learnt from
+        // the true errors while Learning (as the motor noise's), one draw per frame and error (variance π·ρ_y·E{e²}·fps),
+        // through the neuromotor lag τ_n; the frame's angle is moved by it, so the law's error reads e + n.
+        internal Frame Perceive(Frame f)
+        {
+            if (!_observe) return f; // the noiseless pilot sees the frame as it is
+            References(f, out double rollRef, out double pitchRef, out double headingRef);
+            _error[0] = rollRef - f.Roll;
+            _error[1] = pitchRef - f.Pitch;
+            _error[2] = TrackerAngles.Wrap(headingRef - f.Heading);
+            double window = RemnantWindow * CameraHz, alpha = 0;
+            if (Learning)
+            {
+                long n = ++_seenLearnt;
+                alpha = n < window ? 1.0 / n : 1 / window;
+            }
+            double scale = TrackerAngles.Pi * DetMath.Exp(ObservationNoiseDb * 0.23025850929940458) * CameraHz; // π·ρ_y/Δt
+            double a = DetMath.Exp(-1 / (CameraHz * NeuromotorTau));
+            for (int i = 0; i < Observed; i++)
+            {
+                if (Learning)
+                {
+                    double d = _error[i] - _seenMean[i];
+                    _seenMean[i] += alpha * d;
+                    _seenVariance[i] = (1 - alpha) * (_seenVariance[i] + alpha * d * d);
+                }
+                double white = DetMath.Sqrt(scale * _seenVariance[i]) * Normal(_observeStream, (ulong)_perceived * Observed + (ulong)i);
+                _seenNoise[i] = a * _seenNoise[i] + (1 - a) * white;
+            }
+            _perceived++;
+            f.Roll -= _seenNoise[0];
+            f.Pitch -= _seenNoise[1];
+            f.Heading -= _seenNoise[2];
+            return f;
+        }
+
+        void Accumulate(int i, double command, double remnant)
+        {
+            CommandSum[i] += command;
+            CommandSquares[i] += command * command;
+            RemnantSum[i] += remnant;
+            RemnantSquares[i] += remnant * remnant;
+        }
+
+        /// <summary>The remnant's share of each commanded body rate's variance (p, q, r) over the measured reports.</summary>
+        public double RemnantShare(int i)
+        {
+            double n = Measured, c = CommandSquares[i] / n - CommandSum[i] / n * (CommandSum[i] / n);
+            double m = RemnantSquares[i] / n - RemnantSum[i] / n * (RemnantSum[i] / n);
+            return m / c;
+        }
 
         // Command i's motor noise at stick report `report` (from 0, once per report and command): when `learn`, its running
         // mean and variance (exponentially weighted over RemnantWindow, the plain mean until it has learnt that many

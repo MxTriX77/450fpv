@@ -24,8 +24,9 @@ namespace Fpv450.Tests.App
     public sealed class AppTests
     {
         /// <summary>physics_materials.json's hash at the physics integration 2 with p7f-damage (model 40): both sides' fields on
-        /// every row (p7f-damage 1.3's integration note).</summary>
-        const ulong MergedMaterialsHash = 0x2932AC6166D91022UL;
+        /// every row (p7f-damage 1.3's integration note); since model 91 (w9-village-physics 2.3) with the crowns' leaf_cell_m at
+        /// 0.025 m (0x2932AC6166D91022 before).</summary>
+        const ulong MergedMaterialsHash = 0x795F8E046220352CUL;
 
         // The player's copies alone (AppData.PlayerFiles under a folder of their own, as Fpv450.Build copies them) give the
         // drone, the farmland's map package with its objects (w3-farmland-ground 3.1 and 1.2: placements.json, the vendor lists
@@ -152,6 +153,29 @@ namespace Fpv450.Tests.App
             Assert.That(FeedSignalLog.Value(feed, FeedSignal.LinkState), Is.EqualTo("Broken by Prop"));
         }
 
+        /// <summary>The props' cut stems (w9-village-physics 2.2) pass on per rotor as the physics publishes them, with no Live bit
+        /// and no stub: 0 before a flight (w15-player-physics 1.1).</summary>
+        [Test]
+        public void TheFeedPassesOnTheStemsCuts()
+        {
+            var feed = new FlightFeedSignals();
+            feed.Update(default, false, 0, 0, 0);
+            for (int r = 0; r < 4; r++)
+                Assert.That(new[] { feed.StemCuts(r), feed.StemPieceLengthM(r), feed.StemCutRadiusM(r), feed.StemBladeAngle(r) }, Is.EqualTo(new float[4]), "rotor " + r + " before a flight");
+
+            var s = new SimSignals
+            {
+                StemCuts = new Corners { RearRight = 0.25, FrontLeft = 2.5 },
+                StemPieceLength = new Corners { FrontLeft = 0.31 },
+                StemCutRadius = new Corners { FrontLeft = 0.118 },
+                StemBladeAngle = new Corners { FrontLeft = 1.25 },
+            };
+            feed.Update(s, true, 1, 0, 2);
+            Assert.That((feed.StemCuts(3), feed.StemPieceLengthM(3), feed.StemCutRadiusM(3), feed.StemBladeAngle(3)), Is.EqualTo((2.5f, 0.31f, 0.118f, 1.25f)), "front left");
+            Assert.That((feed.StemCuts(0), feed.StemPieceLengthM(0)), Is.EqualTo((0.25f, 0f)), "rear right");
+            Assert.That((feed.StemCuts(1), feed.StemCuts(2)), Is.EqualTo((0f, 0f)), "the two that cut none");
+        }
+
         // D-087: R, like every new flight, ends whatever loss the feed was playing, so the new flight's first field is the
         // picture: a recovering dropout on Godot's timer (D-085), one held by the fiber's dip, and the staged loss of a break
         // to the terminal blue. Two feeds on one seed reach the same lost field; the new flight (its link whole, no dips)
@@ -257,7 +281,7 @@ namespace Fpv450.Tests.App
         }
 
         // The pilot's "it has lost its throttle because in noclip": the throttle element (D-080) in every OSD the app shows,
-        // the flight's (FlightOsd, on any world) and noclip's (Explore and the test range: the stand-in, NoclipFeedSignals),
+        // the flight's (FlightOsd, on any world) and noclip's (the farmland's noclip view and the test range: the stand-in, NoclipFeedSignals),
         // at the same cells (row 7, columns 24–27) and in the same text.
         [Test]
         public void EveryOsdModeShowsTheThrottle()
@@ -273,7 +297,7 @@ namespace Fpv450.Tests.App
                     osd.BuildOsd(1);
                     Assert.That(Cells((IFeedSignals)osd, 7, 24, 4), Is.EqualTo(FlightOsd.ThrottleText(0)), mode + ": the stick down");
                 }
-                noclip.Stub.Osd.ThrottlePercent = 47; // Explore's radio (ExploreThrottle)
+                noclip.Stub.Osd.ThrottlePercent = 47; // a stick's percent, as the element shows any
                 noclip.BuildOsd(2);
                 Assert.That(Cells(noclip, 7, 24, 4), Is.EqualTo(FlightOsd.ThrottleText(47)), "noclip: the stick's percent");
             }

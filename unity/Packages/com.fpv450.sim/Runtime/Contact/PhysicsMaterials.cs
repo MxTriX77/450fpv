@@ -83,6 +83,7 @@ namespace Fpv450.Sim.Contact
             }
             if (Array.IndexOf(BendingRows, name) >= 0 || m.Member("elastic_modulus_pa") != null)
                 row.ElasticModulus = r.Number(m, "elastic_modulus_pa", path, out _, 0, true);
+            if (m.Member("crown") != null) row.Crown = ReadCrown(m.Member("crown"), path + ".crown", r);
 
             JsonNode wet = m.Member("wet");
             if (wet == null) return;
@@ -104,6 +105,39 @@ namespace Fpv450.Sim.Contact
             row.WetAdhesion = r.Number(wet, "adhesion_pa", wp, out _);
             row.WetAdhesionRelease = r.Number(wet, "adhesion_release_m", wp, out _);
             if (row.WetAdhesion > 0 && !(row.WetAdhesionRelease > 0)) r.Fail(wp + ".adhesion_release_m", "must be above 0 where adhesion_pa is");
+        }
+
+        // A crown row's twigs and leaves (w9-village-physics 2.3): every value labelled; the leaf area densities by variant.
+        static CrownRow ReadCrown(JsonNode c, string path, LabelledReader r)
+        {
+            if (!r.IsObject(c, path)) return null;
+            r.Members(c, path, "about", "twig_length_per_volume_m_per_m3", "twig_diameter_m", "twig_free_length_m", "twig_rupture_stress_pa",
+                "twig_elastic_modulus_pa", "leaf_mass_per_area_kg_m2", "leaf_dry_matter_content", "leaf_work_to_shear_j_per_m", "leaf_critical_speed_m_s",
+                "leaf_cell_m", "leaf_area_density_m2_per_m3");
+            var crown = new CrownRow
+            {
+                TwigLength = r.Number(c, "twig_length_per_volume_m_per_m3", path, out _, 0, true),
+                TwigDiameter = r.Number(c, "twig_diameter_m", path, out _, 0, true),
+                TwigFreeLength = r.Number(c, "twig_free_length_m", path, out _, 0, true),
+                TwigRupture = r.Number(c, "twig_rupture_stress_pa", path, out _, 0, true),
+                TwigModulus = r.Number(c, "twig_elastic_modulus_pa", path, out _, 0, true),
+                LeafMassPerArea = r.Number(c, "leaf_mass_per_area_kg_m2", path, out _, 0, true),
+                LeafDryMatter = r.Number(c, "leaf_dry_matter_content", path, out _, 0, true, 1),
+                LeafWork = r.Number(c, "leaf_work_to_shear_j_per_m", path, out _, 0, true),
+                LeafCriticalSpeed = r.Number(c, "leaf_critical_speed_m_s", path, out _, 0, true),
+                LeafCell = r.Number(c, "leaf_cell_m", path, out _, 0, true),
+            };
+            JsonNode lad = c.Member("leaf_area_density_m2_per_m3");
+            string lp = path + ".leaf_area_density_m2_per_m3";
+            if (!r.IsObject(lad, lp)) return crown;
+            crown.Variants = new string[lad.Keys.Count];
+            crown.LeafAreaDensity = new double[lad.Keys.Count];
+            for (int i = 0; i < lad.Keys.Count; i++)
+            {
+                crown.Variants[i] = lad.Keys[i];
+                crown.LeafAreaDensity[i] = r.Number(lad, lad.Keys[i], lp, out _, 0, true);
+            }
+            return crown;
         }
 
         // edge_radius_m: required, a number above 0 or null (read as 0: round or homogenised members; p7d-tether 1.7).

@@ -851,8 +851,231 @@ namespace Fpv450.Sim.Log
         ///    cuts the twigs its disc's motion brings in at their cost (PropStrikes.Twigs), never a glance; without surfaces.json a
         ///    blade at rest passes the ground and the soil shapes as its passes glance through them, never bearing on a floor its rotor
         ///    sank into; and a prop lost in a step loads no shaft from its resting blades.
+        /// 86: the anchors' reach (w9-village-physics 2.4, on 85; unity/physics/physics-integration-2--w9-anchors, shared by
+        ///    the change's 2.6 and 2.7 until a pilot build ships it, D-072): a leg point's anchor stretch (the foot's move from the
+        ///    body's point to where the ground holds it) is held within what the leg reaches by turning its lever square
+        ///    (ContactSpec.LegLeverLength across the tube, LegFrameLeverLength along the skid's frame, by the square of the way's
+        ///    cosine to the frame), in a soil corner's trial and after the cone's slide of a soil foot or a leg point; past it the
+        ///    ground has let the foot go and the hold starts again where the foot is (the stretch 0). Before it a slide past a
+        ///    spent side give divided the trial's whole excess by the
+        ///    stretch's own stiffness (a lever's statics and dampers it cannot relieve) and ran the stretch, and the moment's
+        ///    lever with it, to 19–87 m in a few steps (1,455 N·m on 41.5 N at 9.98° weeds). ContactModel.AnchorReach off (unlogged, the suite's) is 85's
+        ///    slide, the known-wrong. A flight whose stretches stay within the reach steps as 85 did.
+        ///    Also under 86 (w9-village-physics 2.7): a resting blade's load radius is held to its tip, and no blade breaks at a
+        ///    station at or past its tip. The stems on the props (2.2, PropStems) flew on this line under 86 and 88 until model
+        ///    89 named them together with 2.12's stalks (87 was never used).
+        /// 88: the wind over the farmland's belts and ruins (w7-farmland-wind 1.2, on 86; built on
+        ///    unity/physics/physics-integration-2--w7-wind as 84 extended, merged onto the line by
+        ///    unity/physics/physics-integration-2--w9-wind; assigned by D-072, 87 is the stems' line): the wake grid's version 2
+        ///    (WakeGrid.Version, logged per flight in the wind entry as WakeLayout.Version; a log of version 1 replays its own
+        ///    grid). The farmland has no shelterbelt: its trees stand in groves and short rows, its bushes in hedges, its ruins are
+        ///    thin-walled shells, and version 1 read them wrong. Its cell rule diluted a 0.24 m wall or missed it between samples,
+        ///    multiplied a wall's stacked courses and a trunk under its crown as if in series, and the grid kept the nearest wake
+        ///    alone, so a hedge 14 m behind a tree row ended the row's shelter. Now an obstacle's porosity is its frontal porosity
+        ///    across each lane from its volumes' geometry (WakeObstacles.Transmission: solids opaque however thin, porous parts by
+        ///    Beer–Lambert over their chord, parts at different heights side by side; a cell is an obstacle where a volume's
+        ///    footprint overlaps it), each cell carries the overlying wake of the nearest taller obstacle upwind (speeds multiply,
+        ///    excess variances add), and the porous boost scales with the obstacle's deficit (1 − β). The range golden moved
+        ///    (re-pinned; with version 1 it is model 76's pin), and every kept audit of an older model flies version 1. A flight
+        ///    with no wind volumes, or one flown on version 1, steps as 86 did.
+        /// 89: the stems on the props (w9-village-physics 2.2 and 2.12, on 88; unity/physics/physics-integration-2--w9-cut and
+        ///    --w9-straw): a rotor's disc meets the map's stem field (IWorldQuery.StemsNear, QueryVersion 9) and the range's
+        ///    straw. Field stems are placed one by one by the world (each from its own hash: its place, its natural lean, its
+        ///    drawn length), sized by allometry from that length (d = d₁·L^(1/1.53)), and folded by the slipstream at their own
+        ///    pace (a vertical jet loads only the part that leans; a folded stalk is an arch). A blade cuts a stem only where its
+        ///    speed across the stem's axis reaches the stem's critical cutting speed, and each cut is a discrete hit: its edge work
+        ///    and fling from the rotor, its push on the blade and the arm (AirframeModes.Strike), a stem episode in the log (event
+        ///    39). A strike along a rotor's axis loads its arm's mode at the tip (2.2's G8). A flight that meets no stem and no
+        ///    axial strike steps as 88 did.
+        /// 90: each leg's own stiffness, and the anchors' reach in the header (w9-village-physics 2.9, on 89;
+        ///    unity/physics/physics-integration-2--w9-liftoff): a drawn build's four legs each take a stiffness factor 1 + δ
+        ///    from the stream leg.stiffness (σ 3 %, within ±10 %, assumed; D-086's hand-made legs), which scales the tube's axial
+        ///    and bending springs, the frame's give and the buckling cap in the contacts and in the legs' failure law. It is
+        ///    drawn only where the build asks (LegDamageSpec.DrawStiffness, as the placement and the motors' asymmetry are), so
+        ///    a flight that does not ask steps as 89 did. ContactSpec.AnchorReach replaces ContactModel's unlogged switch and is
+        ///    written in the header's ground entry (TagGround) with the spread's σ and bound; a log without the entry reads as
+        ///    its model flew.
+        /// 91: the crowns' twigs and leaves, and the reach on every hold (w9-village-physics 2.3, on 90;
+        ///    unity/physics/physics-integration-2--w9-crowns): a crown's twig shell holds a part only as its twigs can. A part
+        ///    meets L_V·p/4 twigs a metre of travel (stereology on its silhouette's perimeter), each breaking at its own bending
+        ///    strength, so a pair's stiffness is the twigs' mean work over their mean deflection, it has no damper, its plane
+        ///    yields with the part past that deflection, only a part's deepest crown pair carries, and a leg's push on twigs is
+        ///    capped at its half-skid's hold. A 4.7 kg drone falls through twigs and rests only on a branch or the ground; a
+        ///    resting blade is no longer held, so the props turn in a crown and PropStrikes.Twigs cuts what they meet. The
+        ///    crown's leaves are flung by the blades (cut only above their critical speed) and stay cleared where a disc has
+        ///    passed. A leg's anchor lets go past the leg's reach on every hold (the ground, a soil shape, a rigid shape, a crown),
+        ///    where 86 released the ground's only. The step's event buffer is sized from what a step can raise, so no event is
+        ///    refused. The crown block is written in the header's crown entry (TagCrown); a log without it reads as its model
+        ///    flew. A flight that touches no crown, no leaf and no object's hold past the reach steps as 90 did.
+        /// 92: the own wake's unsteadiness by flight state (p7b-airframe 1.10c, design 3f, on 91;
+        ///    unity/physics/physics-integration-2--w9-own-wake): a rotor's own-wake inflow wander no longer keeps the hover's
+        ///    level away from the hover. Its σ goes as (v_i/v_h)² of the hover's (the near wake's age off the disc, v_i/V_t, with
+        ///    Glauert's v_i·V_t = v_h²) and its corner as 0.2·V_t/R; in a descent it is held at Johnson's VzD, where the vortex
+        ///    ring's own unsteadiness starts, so nothing is counted twice; its bound is 3σ of the present state. The hover is
+        ///    unchanged; the cruise keeps ×0.236 of the hover's σ where 90 kept ×0.49. The powered, rain, contact, range and tether
+        ///    goldens moved and are re-pinned; Propulsion.HoverWakeLaw (unlogged, the suite's) flies 90's law for the kept audits.
+        /// 93: the fiber at the exit and in its contacts (p7d-tether 1.11, design 18, on 92;
+        ///    unity/physics/physics-integration-2--night-fiber-law): at the exit's edge the line touches at a point, its bend
+        ///    length being longer than the edge's radius plus the coating, so the lip turns it through two free arms with
+        ///    T₂/T₁ = sin²(φ₁/2)/sin²(φ₂/2), the bore's entry a second point in series; the capstan law is kept only for a lip the
+        ///    line really wraps. μ_l is 0.45 (the coating's published band 0.36–1.0), the pack's peel band reaches down to 0.01 g,
+        ///    and the edge's wear is a Hertz point contact. In the contacts a resting node whose kept slot's point jumps is held,
+        ///    not thrown (CableContact.Sunk); a crest node's split leaves no piece shorter than its straight length, the
+        ///    shortfall drawn from the pack; and after the slides the pack lets out what brings the exit segment back to the
+        ///    payout law (CableChain.SpoolAfterSlide). The tether golden moved and is re-pinned; FlightSetup.TetherBeforeDesign18
+        ///    (in the header's tether entry) with GoldenFlights.Model88Tether flies the line before design 18 for the kept
+        ///    audits. A flight without the line steps as 92 did.
+        /// 94: the rotors' own wake at its measured level (p7b-airframe 1.10d, design 3g, on 93;
+        ///    unity/physics/physics-integration-2--w9-wake-level): the hover's thrust σ is 1.7 % of the thrust
+        ///    (RotorWakeSpec.ThrustSigma 0.017, read point by point off Stack, Caradonna and Savaş 2004's Fig. 7; 92 read the
+        ///    record's peak to peak as 4.2σ, 0.029, and it is 7.3σ) and its bound 3.66σ, the record's own half range (92: 3σ),
+        ///    so the wake moves the hover's thrust at most ±6.2 %. The corner (0.2·v_h/R) and the law by flight state are
+        ///    92's. Both are spec values in the header's rotor-wake entry, so no switch flies the old level:
+        ///    GoldenFlights.Model92WakeLevel sets 0.029 and 3 for the kept audits. The powered, rain, contact, range and
+        ///    tether goldens moved and are re-pinned.
+        /// 95: the legs' failure law and the blades' thin shapes (w9-village-physics 2.6 and its addendum, on 94;
+        ///    unity/physics/physics-integration-2--w9-legs): a crack keeps the leg's stiffness (90 halved it at the jaw
+        ///    edge's first yield), the set starts at the section's yield, 3.19 N·m, and the tube kinks at 3.55 N·m, folds as
+        ///    a plastic hinge and tears at 0.27 rad; a hanging half stays in contact, gives no more than its overlap and
+        ///    tears at its hinge. A resting blade's stiffness is read at its own material point, not at the face's plane
+        ///    (a blade pushed deep into a limb read as a cantilever longer than itself and passed through unbroken), and
+        ///    a disc's slab meets a shape it crosses within one step (BladeCut.Crossing: a thin branch or wire met along
+        ///    the axis faster than its thickness and the slab's a step). No golden flight breaks a leg or crosses such a
+        ///    shape, so no pin moved; model 41's kept contact audit is re-pinned on the section's yield.
+        /// 96: the props' descent branch passes the inflow both ways (p7b-airframe 1.10e, design 3h, on 95;
+        ///    unity/physics/physics-integration-2--w9-descent-branch): only the freestream's advance ratio is held at
+        ///    DescentAdvanceRatioLimit; what the ring, the re-ingested wash and the own wake add moves the blades both
+        ///    ways about it (95 clipped it there again, so whatever lowered the inflow was cut: half a wave in every
+        ///    descent past the limit). Below J 0 the thrust and the torque follow their tables' first segment's slope
+        ///    with the first two segments' curvature, held at the thrust's vertex, the blade's stall (J −0.350, +16.8 %
+        ///    thrust; the class's measured static pitch sweep stops gaining at +15.8 %). The held mean falls 0.33 %. The
+        ///    powered, rain, contact, range and tether goldens moved and are re-pinned; Propulsion.ClippedDescentBranch
+        ///    (unlogged, the suite's) flies 95's branch for the kept audits.
+        /// 97: the wash below the rotors with distance (p7d-tether 1.11b, design 19, on 96;
+        ///    unity/physics/physics-integration-2--w9-rotor-wash): the air the rotors put on the line. To 96 a disc's column
+        ///    reached the ground only within 4 R (assumed), so a drone higher up put no air on the ground at all. Now the
+        ///    near wake holds to one motor distance below the rotors, the four jets are one round jet from 2.5 of them
+        ///    (Bauersfeld et al. 2024: its centreline's decay and its spread, measured on six quadrotors), blended between,
+        ///    and from any height the jet lands as a radial wall jet of its momentum flux (Poreh, Tsuei and Cermak 1967:
+        ///    the peak falling as r^-1.1; Verhoff's profile). Only the line feels it: the tether golden moved and is
+        ///    re-pinned; FlightSetup.TetherWakeReach4R (in the header's tether entry) flies 96's cut-off for the kept
+        ///    audits. A flight without the line steps as 96 did.
+        /// 98: the laid line in the rotors' wash (p7d-tether 1.11c, design 20, on 97;
+        ///    unity/physics/physics-integration-2--w9-laid-line): the frozen trail gives its line back where the air moves
+        ///    it. To 97 a frozen point took no air and only the trail's last point was ever tested. Now a point lying on
+        ///    the ground is held by the ground's static friction on its weight less the wall's lift, H = μs·max(0, w − L)
+        ///    (or by the push it froze with, if larger), against the drag across its laid run at the air of the line's own
+        ///    height; a point off the ground (a twig, a bush's top, a span) is held as before. Each step the trail's end
+        ///    and one deeper point, in turn over the window the chain's spacing allows (at most 31), are tested at
+        ///    RotorAir's field, and a point that would move thaws the trail down to it; the trail beyond the window stays
+        ///    frozen. The tether golden moved and is re-pinned; FlightSetup.TetherAirlessTrail (in the header's tether
+        ///    entry) flies 97's trail for the kept audits. A flight without the line steps as 96 did.
+        /// 99: a hanging skid half lies in the ground by its force (w9-village-physics 2.6b, on 98;
+        ///    unity/physics/physics-integration-2--w9-hanging-half): a broken leg's half hanging from its neighbour is a
+        ///    beam built in at the holder's T-joint, 3EI/r³ at its touching points' own levers, in series with its contact
+        ///    spring and the holder's tube. Its depth in the ground is its contact force over its contact spring, and the
+        ///    rest of its overlap is its give, split between the beam's turn and the bore's move by their compliances, so
+        ///    the split never jumps with the force. To 98 the give was rebuilt each step from the springs' push, the
+        ///    bore's give read the holder's foot chain (0 N/m on a soil's unload line) and the deepest pair could flip
+        ///    between two faces: a half lay 20–110 mm in the ground at 1–14 N and stepped by as much. A compliant row
+        ///    yields to a rigid one, the half follows its holder's set in the same step and is caught where it lay when
+        ///    it starts to hang. No golden flight breaks a leg, so no pin moved; ContactSpec.HangingDepth (a header
+        ///    entry of its own) off flies 98's placement for the kept audits.
+        /// 100: the wind field's turbulence by height (p7c-wind 1.5e, design 16, on 99;
+        ///    unity/physics/physics-integration-2--w9-field-scale): the field's gusts take the surface layer's own
+        ///    scales at each point's height. To 99 the field held one length scale at every height, the handbook's at
+        ///    35 m, so below 10 m its vertical gusts were too slow (1.2–2.4 times the published below 0.5 Hz, 0.53–0.81
+        ///    of it at 1–4 Hz). Now σ_u = σ_v = 2.4 u* and σ_w = 1.25 u* at every height, with von Kármán's scales that
+        ///    give Kaimal et al. (1972)'s inertial range, L_h = 3.132·(z − d) and L_w = 0.470·(z − d), held above the
+        ///    profile's top and floored in the cover's roughness sublayer. The modes are 99's (draws, wave vectors,
+        ///    polarizations, phases); each mode's amplitude is read off one table at the point's scale. The header's
+        ///    wind preset names height_scaled and its two coefficients. Every golden flown in a level's wind moved and
+        ///    is re-pinned; WindSetup.OneScale (WindPreset.OneScale(), restored by a replay) flies 99's field for the
+        ///    kept audits. A flight in still air steps as 99 did.
+        /// 101: parts no longer pass a wire's cable (w9-village-physics 2.6d, on 100;
+        ///    unity/physics/physics-integration-2--w9-cable-tunnel): three contact faults the wire band's flights showed.
+        ///    A latched pair on a round member (a sphere, a capsule, a wire chain, a cylinder's side) kept its tangent
+        ///    plane after the part's core had passed the member's axis and left its side, so an arm 34–98 mm clear of a
+        ///    9 mm conductor was pressed with 200–390 N and logged a tunnel, and a hanging half was dragged along the
+        ///    phantom plane: now the depth is the member's own surface along the latched normal, and a part off its side
+        ///    has rolled off (ContactSpec.RollOff, RoundMember). A sphere carries a capsule's touch only by its own depth,
+        ///    never by a hanging half's give (ContactSpec.SupportByDepth). A touch inside a leg's clamp jaws meets the
+        ///    clamp's mount (1.172 MN/m in the arm's plane, 67.6 kN/m out of it), never the free tube's 6.6 kN/m
+        ///    (ContactSpec.ClampedTube). The three switches are logged in the header's entry 33; a log without it flies
+        ///    all three off, 100's contacts. No golden pin moved; crash and tip rows of the contact and landing benches
+        ///    moved by a few per cent, each traced to its law. A flight that meets no round member, no hanging half and
+        ///    no clamp's jaws steps as 100 did.
+        /// 102: the line on a member (p7d-tether 1.11d, design 21, on 101;
+        ///    unity/physics/physics-integration-2--w9-twig-line): the faults that broke the pilot's line in 8 of their
+        ///    10 breaks on model 100 (D-114). A split put a node on a chord already inside a thin board or slab, and its
+        ///    fresh slot threw it out at full stiffness (2–54 N): now on a rigid world shape an overlap a split made, or
+        ///    a node already there a step before, is kept and let out at 10 mm/s. On an element twig or a conductor the
+        ///    node is held where its segments' tangents to the member meet, and a node is put at the tangent point. A
+        ///    piece inside a wrap on world members slides when it carries more than friction from either end can hold
+        ///    (a capstan run slid only on its two outer tensions). The wear reads the line's own press at the rubbed
+        ///    point, in 5 mm bins (it read the member's spring force over a 0.1 m section), and the severe abrasive band
+        ///    applies only where the counterface is at least 1.2 times harder than the coating (masonry, concrete,
+        ///    metals); timber, bark, twigs, fabric and sandbags wear mildly. FlightSetup.TetherBeforeDesign21 (appended
+        ///    at the end of the header's tether entry, read only if present) flies 101's line for the kept audits. No
+        ///    golden pin moved; the tether harness's tree snag no longer parts at the crown by wear or a pulled-apart
+        ///    span (the discs cut it). A flight without the line steps as 101 did.
+        /// 103: the ruins' walls with their depth (w9-village-physics 2.15, on 102;
+        ///    unity/physics/physics-integration-2--w9-thin-masonry): the farmland's ruins are rebuilt by their generator
+        ///    with walls solid between their two drawn faces (a 2 cm plaster lining on its timber core, or masonry all
+        ///    through), the plastered ceiling on its boards, the stove and chimney as half-brick shells, and the stove's
+        ///    and the chimney cap's material rows right. To 102 every wall the outside air reached between its faces was
+        ///    two free 2 cm sheets: 2,534 thin masonry boxes with nothing behind them (726 m²), which the fiber's contact
+        ///    fault met first in the pilot's flights. Plaster the mesh draws alone (above its boards' broken top, or with
+        ///    no other face) stays its 2 cm sheet, so the collision follows what is drawn. The map's content hash moves:
+        ///    a log of an older map does not replay on it. The farmland's world goldens are re-recorded, audited case by
+        ///    case (design 2.15); no flight golden moved. A flight that meets no ruin steps as 102 did.
+        /// 104: the spool's light pull, and a break only on what a step applied (p7d-tether 1.11e and 1.11g, designs
+        ///    22 and 23, on 103; unity/physics/physics-integration-2--w9-peel-band). The spool's peel energy is drawn
+        ///    uniformly over 0.01–2 g of peel on every flight (tether.json spool.peel_energy_j_m, from published packs:
+        ///    US 5,167,382's reduced-adhesive pack, US 12,703,518 B2's drone reel, and the hanging line's own weight).
+        ///    To 103 half the flights drew 2–10 g, a bonded high-speed pack's figure, which kept 40–60 m of line
+        ///    airborne at 0.15–0.25 N and put it into a prop after an ordinary turn-around. And a chain step that
+        ///    spends its 8 Newton solves unconverged is solved again from its start on the chain's safe models
+        ///    (design 2's path for a failed solve), so the cuts read only a tension the step applied: to 103 the check
+        ///    read the spring stretched at the end of such a step (1.59 N where the solve applied none).
+        ///    FlightSetup.TetherBeforeDesign23 (in the header's tether entry; a log without it reads it as set) and
+        ///    GoldenFlights.Model103Peel fly 103's line for the kept audits. The tether golden moved with the band and
+        ///    is re-pinned; with the old band it is 103's pin. A flight without the line steps as 103 did.
+        /// 105: the drone feels the plants it flies through (w16-plants-in-the-air 1.5, on 104;
+        ///    unity/physics/physics-integration-2--w16-drone-plants). The field's stems push the legs, the skids and
+        ///    the body they meet (Contact/PartStems): the props' own stems and the field's shorter ones by one lean
+        ///    law, each stem's spring the cantilever at its contact (3EI/s), its root yielding at barley straw's
+        ///    tested strain and lodging; a crown's leaves press every part in the crown's shell by Newton's impact
+        ///    law. A crown slows the drone 7.7 and 2.3 times more than skimming weeds at 2 and 5 m/s, computed.
+        ///    EventKind.PlantPush (40) logs each leg's and the body's mean force a field. ContactSpec.PartStems
+        ///    (header entry 34; a log without it flew 104's contacts) is the switch for the kept audits. A hanging
+        ///    half's give out of a compliant layer is bounded by every rigid face it closes (range #61's jump). No
+        ///    golden pin moved: a flight that meets no stem or leaf with a part steps as 104 did.
+        /// 106: four separate legs that dig into the soil (w17-four-legs 1.1 to 1.3 and 1.5, D-117, D-119, D-120, on 105;
+        ///    unity/physics/physics-integration-2--w17-four-legs; merged raw into the pilot's build). The skids, T-joints and
+        ///    hanging half leave; each leg is a 6 x 1 mm 6061-T6 aluminium tube in a printed PETG socket whose play is drawn
+        ///    per leg (stream leg.play, 0.006-0.024 rad) and which cracks across its layers. Each tip is a plugged disc in
+        ///    the surface's soil (surfaces.json tip_resistance_pa): it sinks on its loading line, unloads on Wong's line,
+        ///    holds on the way out by the shaft's grip and wet adhesion only (storing nothing), and holds across by Matlock's
+        ///    resistance while it is in. Each flight starts with each tip set down to its own leg.setdown draw (uniform
+        ///    1 to 1.5 of its share). Events TipFreed (41), TipPloughed (42). ContactSpec.LegTips (header tag 35; a log
+        ///    without it flew 105's skids) with assets-src/drone/drone_skids.json flies 105's pins for the kept audits.
+        ///    The goldens are re-recorded once. Open: four tip tests (the play's frictionless rattle, the rest time on sod,
+        ///    a push across in an 8 m/s side wind, one wet start settling 2 mm).
+        /// 107: the laid line stays where it lies (p7d-tether 1.11h, design 24, on 106; raw into the pilot's build).
+        ///    A contact node outranks a free one on the chain (64 nodes), so the line no longer lies through walls and
+        ///    beams (TetherFullChainRefuses); a line lying on a face reads that face's own air layer and wash, not free
+        ///    air over the terrain (TetherFreeAirOnFaces); a capstan slot holds the line only while its node presses
+        ///    (TetherHoldWithoutPress). flightbench --cuts prints the pilot's cut table (D-121). Open: corners on rubble
+        ///    over the capstan bound, nodes held inside members, the line's step on a ruin about 40 % dearer at p99.
+        /// 108: the fiber's cuts held to the pilot's table (p7d-tether 1.11i, designs 25 and 26, D-121, on 107; raw).
+        ///    The line breaks over the spool hole's edge by a Weibull law of the glass per 0.1 m (m 7, published; the
+        ///    scale the pilot's hole, 1.0-1.4 GPa a flight, assumed, streams spool.hole_edge and fiber.edge_strength);
+        ///    a liftoff's cut follows the pilot's empirical law (one draw a liftoff, stream fiber.liftoff, by its
+        ///    thrust and attitude: the safe launch 5 %, a very sharp one 87-95 %, nose up or rolled more). flightbench
+        ///    --cuts passes every row. Known-wrongs TetherEdgeIntact and TetherLiftoffPhysical fly 107's line.
         /// </summary>
-        public const int ModelVersion = 85;
+        public const int ModelVersion = 108;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

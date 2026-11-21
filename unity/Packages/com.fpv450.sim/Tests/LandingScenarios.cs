@@ -94,6 +94,10 @@ namespace Fpv450.Sim.Tests
             public bool Over;
             public int Tunnels;
 
+            /// <summary>The contacts' largest lever from the touch on (w9-village-physics 2.4): a step's contact moment about
+            /// the centre of mass over the size of its contact force, m.</summary>
+            public double Lever;
+
             /// <summary>The time from the first touch to Touch.ReachDeg of tilt, s (+∞ if never).</summary>
             public double Reached;
 
@@ -313,6 +317,8 @@ namespace Fpv450.Sim.Tests
                         flying = true;
                         o.TouchEnded = (s.Step - airborne - touch) * FlightCore.Dt;
                     }
+                    double cf = core.Trace.ContactForce.Length();
+                    if (cf > 0) o.Lever = Math.Max(o.Lever, core.Trace.ContactMoment.Length() / cf);
                     if (!ended) o.MaxTilt = Math.Max(o.MaxTilt, tilt);
                     else laterTilt = Math.Max(laterTilt, tilt);
                     if (_t.ReachDeg > 0 && tilt >= _t.ReachDeg && double.IsPositiveInfinity(o.Reached)) o.Reached = (s.Step - touch) * FlightCore.Dt;

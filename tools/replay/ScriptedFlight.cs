@@ -310,6 +310,7 @@ namespace Fpv450.Replay
             Loadout loadout = spec.Nominal;
             if (coilLeft >= 0) loadout.CoilPaidOut = spec.Coil.FiberLength - coilLeft; // --coil-left: the coil runs out, the line holds the drone (p7d-tether 1.8)
             ContactSpec contacts = spec.BuildContacts(loadout, materials, materialsHash, surfaces);
+            contacts.Legs?.DrawStiffness(); // a pilot's flight: the hand-made legs as this seed drew them (w9-village-physics 2.9, D-086)
             double stand = 0; // the body origin's height standing on the floor, the skids unloaded
             foreach (ContactShape s in contacts.Shapes)
                 if (s.Role == ContactRole.Support) stand = Math.Max(stand, s.Radius - s.A.Y);
@@ -337,7 +338,7 @@ namespace Fpv450.Replay
             {
                 world = OpenWorld(map, out string where) ?? throw new ArgumentException("--map " + map + ": " + where);
                 StartPoint start = Array.Find(((MapWorld)world.Query).StartPoints, p => p.LegsOn && !p.Stand);
-                if (start.Id == null) throw new ArgumentException("--map " + map + ": no legs-on start point off a stand");
+                if (start.Id == null && footAt == null) throw new ArgumentException("--map " + map + ": no legs-on start point off a stand (give --foot)");
                 foot = start.Position;
                 double headingDeg = start.HeadingDeg;
                 if (footAt != null)
@@ -380,6 +381,12 @@ namespace Fpv450.Replay
                 setup.Tether = TetherTable.Parse(File.ReadAllText(tetherPath));
                 setup.TetherCoilPart = spec.Coil.Part;
                 setup.TetherSpoolMass = spec.Coil.SpoolMass;
+            }
+            else
+            {
+                // Without the line the props' stems still read the rotors' air by tether.json's law (w9-village-physics 2.13).
+                string table = RepositoryTether();
+                if (table != null) setup.StemAir = TetherTable.Parse(File.ReadAllText(table));
             }
             var core = new FlightCore(setup);
             LogHeader header = LogHeader.For(setup, core);

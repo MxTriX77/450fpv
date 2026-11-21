@@ -30,6 +30,12 @@
 // token for token.
 // One addition, off by default (D-084, the pilot's X): the stick overlay (FeedSticks.cs), two small boxes and their
 // cursors in the OSD's ink and outline, inserted with the characters. With _StickBox.w = 0 the pass draws as before.
+// One departure, on by default (p4-feed 1.12, the pilot 2026-11-17: the OSD goes through the analog channel with the
+// picture): the luma path's OSD takes the channel's response after the insertion (OSD_KERNEL), and its levels are the
+// chip's as the receiver shows them, after the camera: white on the receiver's clip, Godot's black, neither vignetted
+// nor tinted by P7's highlight cast. Only the OSD's own insertion changes, so away from the glyphs the pass is the one
+// above, bit for bit.
+// _OsdChannel = 0 is Godot's OSD (the FEED-00 A/B).
 Shader "Hidden/Fpv450/Feed"
 {
     Properties
@@ -95,6 +101,8 @@ Shader "Hidden/Fpv450/Feed"
     float4 _StickBox;
     float4 _StickSize;
     float4 _StickCursor;
+    // p4-feed 1.12: 1 puts the OSD through the channel after its insertion (FeedSettings.osdChannel), 0 is Godot's OSD.
+    float _OsdChannel;
     static float4 g_tap[8];
     static int g_taps;
 
@@ -123,6 +131,21 @@ Shader "Hidden/Fpv450/Feed"
     static const float3 RX_TEXT_GREEN = float3(0.16, 0.85, 0.28);     // gd:100
     #define TEAR_PX 60.0                // gd:101
     #define ROM_CELL float2(14.0, 18.0) // FeedFont.CellW, CellH: the ROM's texels to a cell (D-084's stroke)
+
+    // p4-feed 1.12, the channel after the OSD's insertion (fiber, the receiver's decoder and scaler). Fitted to the
+    // footage's glyph edges through the frame-metrics measure (A-H, L, P: 10-90 % over 3.3-3.9 px on one-texel strokes
+    // and 3.2-5.3 on wide ones, thin strokes peaking at 0.75-0.87 of the flat ink, no overshoot): a Gaussian of
+    // sigma 2.0 px at 1920 columns, sampled every px over +-6 px, normalised. The recorder's codec leaves the edges
+    // alone (still and moving stretches within 0.07 px), so all of it is the analog chain's.
+    #define OSD_TAPS 13
+    #define OSD_TAP (1.0 / 1920.0)
+    static const float OSD_KERNEL[OSD_TAPS] = {
+        0.002218, 0.008773, 0.027023, 0.064825, 0.121109, 0.176213, 0.199676,
+        0.176213, 0.121109, 0.064825, 0.027023, 0.008773, 0.002218 };
+    // The OSD's white as the receiver shows it: the chip's white lands on the receiver's clip, so the clip takes the
+    // grain's upper half and leaves its lower. The footage's flat ink sits at 252-255 (B, C, D, F, G by day, L at
+    // night) and moves 0.39-0.63 of a level frame to frame; one level over the clip left the sim's 0.12, five none.
+    #define OSD_WHITE_OUT 1.0
 
     // GLSL's mod: x - y * floor(x / y). HLSL's fmod truncates, which differs for the -1 line of an odd field.
     float glsl_mod(float x, float y) { return x - y * floor(x / y); }
@@ -381,14 +404,52 @@ Shader "Hidden/Fpv450/Feed"
         // D-084, the stick overlay, with the characters: the same taps at the torn read `px`, before the encode. Only the
         // lines and columns its outline reaches; off (_StickBox.w = 0), none.
         float2 st = _OsdCell / ROM_CELL;
-        if (_StickBox.w > 0.5 && sy >= _StickBox.z - st.y && sy < _StickBox.z + _StickSize.y + st.y
-            && px + 6.0 / SC_SAMPLES >= _StickBox.x - st.x && px - 6.0 / SC_SAMPLES < _StickBox.y + _StickSize.x + st.x)
+        bool sticks_here = _StickBox.w > 0.5 && sy >= _StickBox.z - st.y && sy < _StickBox.z + _StickSize.y + st.y
+            && px + 6.0 / SC_SAMPLES >= _StickBox.x - st.x && px - 6.0 / SC_SAMPLES < _StickBox.y + _StickSize.x + st.x;
+        if (sticks_here)
         {
             [unroll] for (int ik = 0; ik < 13; ik++)
             {
                 float2 s = stick_ink(float2(px + float(ik - 6) / SC_SAMPLES, sy));
                 osd_ink[ik] = max(osd_ink[ik], s.x);
                 osd_out[ik] = max(osd_out[ik], s.y);
+            }
+        }
+
+        // p4-feed 1.12, the OSD through the channel after its insertion: ink_y and out_y are the ink and the outline the
+        // channel leaves at this column (OSD_KERNEL over the ROM and the stick overlay at 1 px, at the torn read), and
+        // osd_w and osd_b the levels to insert so that, after the composite look and O2 below, the ink comes out at
+        // OSD_WHITE_OUT and the outline at Godot's black at the picture's centre, wherever the glyph sits: the chip
+        // inserts its characters after the lens, so the vignette never reaches them. With _OsdChannel = 0, Godot's.
+        float ink_y = osd_ink[6], out_y = osd_out[6];
+        float osd_w = OSD_WHITE, osd_b = OSD_BLACK;
+        if (_OsdChannel > 0.5)
+        {
+            float2 dv = (float2(x, sy) - 0.5) * float2(2.0, 1.125);
+            float vig = 1.0 - 0.12 * dot(dv, dv);
+            osd_w = (OSD_WHITE_OUT / vig - LIFT) / CONTRAST;
+            osd_b = ((LIFT + CONTRAST * OSD_BLACK) / vig - LIFT) / CONTRAST;
+            if (has_osd || sticks_here)
+            {
+                ink_y = 0.0;
+                out_y = 0.0;
+                [unroll] for (int ij = 0; ij < OSD_TAPS; ij++)
+                {
+                    float xo = px + float(ij - OSD_TAPS / 2) * OSD_TAP;
+                    float cx = (xo - _OsdOrigin.x) / _OsdCell.x;
+                    float code = floor(cx) <= cx_lo ? code_lo : code_hi;
+                    float2 o = float2(0.0, 0.0);
+                    if (code > 0.5)
+                    {
+                        o = glyph_ink(code, cx, frac(cy_osd));
+                    }
+                    if (sticks_here)
+                    {
+                        o = max(o, stick_ink(float2(xo, sy)));
+                    }
+                    ink_y += OSD_KERNEL[ij] * o.x;
+                    out_y += OSD_KERNEL[ij] * o.y;
+                }
             }
         }
 
@@ -414,6 +475,18 @@ Shader "Hidden/Fpv450/Feed"
             c = lerp(c, (OSD_WHITE).xxx, osd_ink[ig]);
             float3 cc = lerp(scene, (OSD_BLACK).xxx, lerp(out_soft, osd_out[ig], OSD_COMB));
             cc = lerp(cc, (OSD_WHITE).xxx, lerp(ink_soft, osd_ink[ig], OSD_COMB));
+            if (_OsdChannel > 0.5)
+            {
+                // p4-feed 1.12: the luma path (only the centre tap's is read, gd:334) inserts the channel's ink and
+                // outline as one linear signal; the chroma path keeps Godot's delay-line masks, at the same levels.
+                // Where no glyph reaches, both masks are 0 and each is the scene as before, bit for bit.
+                if (ig == 6)
+                {
+                    c = scene + out_y * (osd_b - scene) + ink_y * (osd_w - scene);
+                }
+                cc = lerp(scene, osd_b.xxx, lerp(out_soft, osd_out[ig], OSD_COMB));
+                cc = lerp(cc, osd_w.xxx, lerp(ink_soft, osd_ink[ig], OSD_COMB));
+            }
 
             float yc = luma_of(cc);
             float u = 0.493 * (cc.b - yc);
@@ -501,8 +574,14 @@ Shader "Hidden/Fpv450/Feed"
         float2 d = (float2(x, sy) - 0.5) * float2(2.0, 1.125);
         rgb *= 1.0 - 0.12 * dot(d, d);
 
-        // P7, gd:378-379
-        rgb += float3(0.05, 0.0, 0.07) * smoothstep(0.86, 1.0, y_dec);
+        // P7, gd:378-379. p4-feed 1.12: the cast is the camera's highlight clip, so it takes the scene's share of the
+        // pixel only, never the characters' (1 where no glyph reaches, so the picture keeps its bits).
+        float cast = smoothstep(0.86, 1.0, y_dec);
+        if (_OsdChannel > 0.5)
+        {
+            cast *= 1.0 - saturate(ink_y + out_y);
+        }
+        rgb += float3(0.05, 0.0, 0.07) * cast;
         rgb = clamp(rgb, 0.0, 1.0);
 
         // the tear's wedge, gd:382-385, Godot's only (D-065)

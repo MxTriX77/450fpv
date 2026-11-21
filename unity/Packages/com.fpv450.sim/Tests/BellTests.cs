@@ -13,7 +13,8 @@ namespace Fpv450.Sim.Tests
     // asserted against its known-wrong.
     public sealed class BellTests
     {
-        static DroneSpec Spec => RepositoryDrone.Spec();
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
+        static DroneSpec Spec => SkidsDrone.Spec();
 
         // prop-motor-damage's "A scraped bell draws more current": the rear-right bell pressed at 5 and 20 N on masonry while the
         // drone holds that rotor's thrust. The rotor feels μ_k·F_n·R (1e-9), the drone is pushed along the wall against the bell's
@@ -359,11 +360,11 @@ namespace Fpv450.Sim.Tests
         {
             BellScenarios.Rig rig = BellScenarios.Dented(Spec, 0.0004);
             for (int k = 0; k < 100; k++) rig.Step(BellScenarios.Sky, default);
-            long start = GC.GetAllocatedBytesForCurrentThread();
+            long start = AllocProbe.Before();
             for (int k = 0; k < 500; k++) rig.Step(BellScenarios.Sky, default);
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - start;
+            long allocated = AllocProbe.After(start);
             TestContext.Out.WriteLine($"  {allocated} B over 500 rubbing steps");
-            Assert.That(allocated, Is.Zero);
+            Assert.That(allocated, Is.Zero, AllocProbe.Report());
         }
     }
 }

@@ -13,7 +13,7 @@
     "colours": {
       "plate": "#17191c",
       "edge": "#20252d",
-      "tube": "#464748"
+      "tube": "#a8a9a5"
     },
     "tint": [
       1.0,
@@ -23,7 +23,7 @@
     ],
     "smoothness": 0.45
   },
-  "inputs_sha256": "68ff23c9502b7c612c67fc717a6a6492bb02fdac689452e6aaaf473eef13bbb7",
+  "inputs_sha256": "faef50c7e89448f139bf6b2c14adab016e37e66c04c4baaf7626d95b1e380ce1",
   "size": [
     64,
     64

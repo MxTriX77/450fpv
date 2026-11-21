@@ -72,6 +72,20 @@ namespace Fpv450.Sim.Tests
 
     }
 
+    // Model 105's drone.json, the four legs on two skids (letter T's), kept as a fixture when w17-four-legs 1.2 stood the drone on four
+    // separate legs (assets-src/drone/drone_skids.json, byte for byte model 103's to 105's file), so every kept golden audit of models up
+    // to 105 flies the file it was recorded on; its contacts fly the half-skids' law (ContactSpec.LegTips off, DroneSpec.BuildContacts).
+    public static class SkidsDrone
+    {
+        public const string RelativePath = "assets-src/drone/drone_skids.json";
+
+        static DroneSpec _spec;
+
+        public static string Text() => File.ReadAllText(TestFiles.Find(RelativePath));
+
+        public static DroneSpec Spec() => _spec ?? (_spec = DroneSpec.Parse(Text()));
+    }
+
     // A repository file, found from this file's own path (the .NET tools compile it in place) or from Unity's project
     // folder (unity/, the editor's working directory).
     public static class TestFiles

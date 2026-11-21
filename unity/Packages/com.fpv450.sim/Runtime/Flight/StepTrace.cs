@@ -381,6 +381,54 @@ namespace Fpv450.Sim.Flight
         /// A: its load (the larger stress's share of its strength); B: the bend's root stress, Pa; C: the twist's, Pa.
         /// </summary>
         ArmBroken = 38,
+
+        /// <summary>
+        /// A rotor's stem episode (w9-village-physics 2.2, PropStems): its props began cutting stems, at the step its count of whole
+        /// stems first passes one (Index its corner), or stopped, 0.1 s after the last (Index its corner | 0x80). Part the rotor's
+        /// disc shape's part, Object the ground (−1), Material the cover kind it cut most of + 1 (Contact.CoverKind), Point the hub.
+        /// A: the episode's energy so far, J; B: its stems so far (the mean count); C: their mean diameter, m. Two events an
+        /// episode, never one a cut (LOG-01); each step's cuts are in BladeStrikes (StrikeKind.Stem).
+        /// </summary>
+        StemEpisode = 39,
+
+        /// <summary>
+        /// The plants' push on a group of the drone's parts over a field (FlightCore.FieldSteps), at its last step, for each group a
+        /// stem or a crown's leaves touched in it (w16-plants-in-the-air 1.5, PropStrikes' PartStems): Index the group (Corners order
+        /// 0–3: a corner's supports, skid half and leg tube; 4 the body, its resting blades among it), | 0x40 for the leaves (else
+        /// the stems); Part the corner's leg part (NoPart for the body); Object the ground (−1) for stems, the crown's object for
+        /// leaves; Material the cover kind most met + 1 (Contact.CoverKind) for stems, the crown's material for leaves; Shape the
+        /// stems' pushes over the field (a stem a step); Point the impulse-weighted contact point (world). A, B, C: the field's mean
+        /// force on the group, world N (x, y, z).
+        /// </summary>
+        PlantPush = 40,
+
+        /// <summary>
+        /// A leg's tip that the soil held on its way out let go (w17-four-legs 1.3, ContactModel's tips): the hold on its shaft and
+        /// face fell to nothing as it came out, or its corner left the soil while held. Index its corner | the hold's main part at
+        /// its peak &lt;&lt; 4 (1 the shaft's grip, 2 the wet face's suction, 3 the wet shaft's adhesion); Part its leg's part; Object,
+        /// Shape and Surface the soil; Point the tip as it let go. A: the hold's peak, N (the pull on the leg along the soil's
+        /// normal); B: the tip's embedment at that peak, m; C: the tip's speed out of the soil as it let go, m/s. A stuck leg
+        /// holds a few newtons over its depth and lets go slowly; a pilot's sharp liftoff tears it out fast.
+        /// </summary>
+        TipFreed = 41,
+
+        /// <summary>
+        /// A dug-in leg's tip started to plough through the soil in front of it (w17-four-legs 1.3): its anchor's hold across, the
+        /// friction, the wet face's adhesion and the soil before its embedded shaft (Matlock 1970), was passed. Index its corner;
+        /// Part its leg's part; Object, Shape and Surface the soil; Point the tip. A: the push across, N; B: the tip's embedment, m;
+        /// C: the soil's resistance before the shaft at that depth, N. Once a slide, at its start.
+        /// </summary>
+        TipPloughed = 42,
+
+        /// <summary>
+        /// A liftoff of the line's empirical cut law (p7d-tether design 26, LiftoffCuts: the pilot's account), as it begins and as
+        /// it ends. Object the drone; Part the coil; Shape the liftoff's number (its draw's index in stream fiber.liftoff). Begun
+        /// (Index 0x80): Point where the legs left; A: the draw u in [0, 1); B: the thrust over the weight as they left; C: the line
+        /// paid out then, m. Ended (Index its flags: 0x01 the pilot's safe launch, nose down; 0x02 the nose up or a roll past the
+        /// bound; 0x04 the line cut, TetherBreak with mechanism Liftoff follows in the step; 0x08 the drone resting again): Point
+        /// the drone; A: the chance reached; B: the window's mean thrust over weight; C: the most speed tail first, m/s.
+        /// </summary>
+        Liftoff = 43,
     }
 
     /// <summary>A blade pass's mode (BladeStrike's and BladeDamaged's Index, high 4 bits; p7f-damage design 5).</summary>
@@ -491,7 +539,18 @@ namespace Fpv450.Sim.Flight
     {
         readonly FlightEvent[] _items;
 
-        public StepEvents(int capacity = 64)
+        /// <summary>The events every producer but the contacts' pairs can raise in a step (the buffer's size before 2.3).</summary>
+        public const int Others = 64;
+
+        /// <summary>
+        /// A step's events for a flight of this many contact shapes (w9-village-physics 2.3): each pair slot (shapes ×
+        /// ContactModel.PairsPerShape) makes or breaks a contact at most once a step, and a slot freed by a break is made again in
+        /// the same step at most once more, so 2 a slot, plus Others. A crown's first step makes every pair in its shells at once:
+        /// the 64 of before refused 24 there (2.7), a hole in the crash forensics. Allocated once, with the core.
+        /// </summary>
+        public static int ForContacts(int shapes) => Others + 2 * shapes * Contact.ContactModel.PairsPerShape;
+
+        public StepEvents(int capacity = Others)
         {
             if (capacity < 1) throw new ArgumentOutOfRangeException(nameof(capacity));
             _items = new FlightEvent[capacity];

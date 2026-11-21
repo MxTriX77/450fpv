@@ -191,29 +191,48 @@ namespace Fpv450.Tests.Osd
             Assert.That(osd.Overlay, Is.EqualTo(default(FeedSticks)), "X again: off");
         }
 
-        // D-084: the overlay's path allocates nothing a frame: the sample in, the overlay out.
+        // D-084: the overlay's path allocates nothing a frame: the sample in, the overlay out. On .NET (tools/inputtests) the
+        // window is read by the sim's probe (AllocProbe: no background collection fools it there); on Unity's Mono, whose
+        // per-thread counter misses small allocations (the probe reads 0 B for a 24 B object there, AllocProbeTests'
+        // known-wrong), by the test framework's GC.Alloc recorder, itself seen to see one object first.
         [Test]
         public void TheStickOverlayAllocatesNothingPerFrame()
         {
             FlightOsd osd = Osd();
             osd.StickOverlay = true;
-            float sum = 0;
+            var sum = new float[1];
             for (int frame = 0; frame < 100; frame++)
             {
                 osd.Sticks(new StickSample { Throttle = 0.5, Yaw = 0.01 * frame });
-                sum += osd.Overlay.LeftX;
+                sum[0] += osd.Overlay.LeftX;
             }
-            long before = GC.GetAllocatedBytesForCurrentThread();
+#if UNITY_2017_1_OR_NEWER
+            Assert.That(() => { sink = new object(); }, new UnityEngine.TestTools.Constraints.AllocatingGCMemoryConstraint(), "the recorder sees one object");
+            Assert.That(() => Frames(osd, sum), new NUnit.Framework.Constraints.NotConstraint(new UnityEngine.TestTools.Constraints.AllocatingGCMemoryConstraint()),
+                "0 B over 10 000 frames");
+#else
+            long before = Fpv450.Sim.Tests.AllocProbe.Before();
+            Frames(osd, sum);
+            long bytes = Fpv450.Sim.Tests.AllocProbe.After(before);
+            TestContext.WriteLine($"{bytes} B over 10 000 frames");
+            Assert.That(bytes, Is.Zero, Fpv450.Sim.Tests.AllocProbe.Report());
+#endif
+            Assert.That(float.IsNaN(sum[0]), Is.False);
+        }
+
+#if UNITY_2017_1_OR_NEWER
+        internal static object sink; // the recorder's known-wrong's one object
+#endif
+
+        // 10 000 frames of the overlay's path, their overlays summed into sum[0].
+        static void Frames(FlightOsd osd, float[] sum)
+        {
             for (int frame = 0; frame < 10000; frame++)
             {
                 osd.Sticks(new StickSample { Throttle = frame % 100 / 100.0, Yaw = Math.Sin(frame), Pitch = 0.1, Roll = -0.2 });
                 FeedSticks o = osd.Overlay;
-                sum += o.LeftX + o.LeftY + o.RightX + o.RightY;
+                sum[0] += o.LeftX + o.LeftY + o.RightX + o.RightY;
             }
-            long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
-            TestContext.WriteLine($"{bytes} B over 10 000 frames");
-            Assert.That(bytes, Is.EqualTo(0));
-            Assert.That(float.IsNaN(sum), Is.False);
         }
 
         [Test]

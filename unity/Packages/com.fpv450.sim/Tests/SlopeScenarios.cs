@@ -153,9 +153,24 @@ namespace Fpv450.Sim.Tests
         /// The drone set down disarmed on the slope, its skids on it (its up the slope's normal, the skids 10 µm in) with the nose
         /// uphill (yaw 0: the skids along the fall line) or across it (yaw 90°), in rain's moisture, for seconds.
         /// </summary>
-        public static Rest Settle(DroneSpec spec, double deg, RainLevel rain, double yawDeg, double seconds = 3, SurfaceTable table = null)
+        public static Rest Settle(DroneSpec spec, double deg, RainLevel rain, double yawDeg, double seconds = 3, SurfaceTable table = null,
+            string surface = "meadow_sod")
         {
-            FlightWorld world = Site(deg, out Double3 foot, out Double3 n);
+            FlightWorld world = Site(deg, out Double3 foot, out Double3 n, surface);
+            return Settle(spec, world, foot, n, rain, yawDeg, seconds, table);
+        }
+
+        /// <summary>The same rest on the farmland at (x, z) (w9-village-physics 2.9), dry, its nose uphill (yaw 0) or yawDeg from it.</summary>
+        public static Rest SettleOnFarmland(DroneSpec spec, double x, double z, double yawDeg, double seconds = 3)
+        {
+            MapWorld w = Farmland();
+            GroundSample g = Ground(w, x, z);
+            double uphill = Math.Atan2(-g.Normal.X, -g.Normal.Z) * RadToDeg;
+            return Settle(spec, new FlightWorld(w), new Double3(x, g.Height, z), g.Normal, RainLevel.Sunny, uphill + yawDeg, seconds, null);
+        }
+
+        static Rest Settle(DroneSpec spec, FlightWorld world, Double3 foot, Double3 n, RainLevel rain, double yawDeg, double seconds, SurfaceTable table)
+        {
             double stand = SoilScenarios.Standing(spec);
             FlightSetup setup = SoilScenarios.Setup(spec, world, foot + n * (stand - 1e-5), rain, table: table);
             setup.StartAttitude = Aligned(n, yawDeg);
@@ -249,6 +264,13 @@ namespace Fpv450.Sim.Tests
             public double Facet, TouchSpeed, PeakAccel, PeakSink, Slide, EndSpeed, MaxTilt, EndTilt;
             public bool Over;
             public int Crashes, Tunnels;
+
+            /// <summary>The contacts' largest lever after the touch (w9-village-physics 2.4): the step's contact moment about the
+            /// centre of mass over the size of its contact force (m; the vector sum's size, never more than the sum of the
+            /// contacts' sizes, so a lever under the reach here is one under it by the spec's sum), its step after the touch and
+            /// the moment then (N·m); the largest moment of a step with no contact force (N·m).</summary>
+            public double Lever, LeverMoment, Unbacked;
+            public long LeverStep;
         }
 
         /// <summary>
@@ -257,14 +279,32 @@ namespace Fpv450.Sim.Tests
         /// stand, and the throttle is cut at the first touch on the ground), the drone level, its nose uphill (yaw 0) or across
         /// (yaw 90°); flown 3 s past the touch.
         /// </summary>
-        public static Touchdown Land(DroneSpec spec, double deg, RainLevel rain, double yawDeg, bool terrainAtZero = false)
+        public static Touchdown Land(DroneSpec spec, double deg, RainLevel rain, double yawDeg, bool terrainAtZero = false, string surface = "meadow_sod",
+            Action<FlightCore> prepare = null, Action<FlightCore> observe = null)
         {
-            FlightWorld world = Site(deg, out Double3 at, out Double3 n, terrainAtZero: terrainAtZero);
+            FlightWorld world = Site(deg, out Double3 at, out Double3 n, surface, terrainAtZero);
+            return Land(spec, world, at, n, rain, yawDeg, prepare, observe);
+        }
+
+        /// <summary>The same landing on the farmland at (x, z), its nose uphill (yaw 0, the fall line's way up) or yawDeg from it.</summary>
+        public static Touchdown LandOnFarmland(DroneSpec spec, double x, double z, double yawDeg, Action<FlightCore> prepare = null)
+        {
+            MapWorld w = Farmland();
+            GroundSample g = Ground(w, x, z);
+            double uphill = Math.Atan2(-g.Normal.X, -g.Normal.Z) * RadToDeg;
+            return Land(spec, new FlightWorld(w), new Double3(x, g.Height, z), g.Normal, RainLevel.Sunny, uphill + yawDeg, prepare);
+        }
+
+        // observe, if given, reads the core after each step of the landing (a trace; it must not change the core).
+        static Touchdown Land(DroneSpec spec, FlightWorld world, Double3 at, Double3 n, RainLevel rain, double yawDeg, Action<FlightCore> prepare,
+            Action<FlightCore> observe = null)
+        {
             double stand = SoilScenarios.Standing(spec);
             FlightSetup setup = SoilScenarios.Setup(spec, world, at + new Double3(0, stand + 1, 0), rain);
             double yaw = yawDeg / RadToDeg;
             setup.StartAttitude = new Quat(0, Math.Sin(yaw / 2), 0, Math.Cos(yaw / 2));
             var core = new FlightCore(setup);
+            prepare?.Invoke(core);
             CrosswindScenario.Arm(core);
             var pilot = new SimPilot(core.Controller, at + new Double3(0, stand + 1, 0)) { Heading = new Double3(Math.Sin(yaw), 0, Math.Cos(yaw)) };
             int k = 0;
@@ -294,6 +334,7 @@ namespace Fpv450.Sim.Tests
                 if (touch >= 0) stick.Throttle = 0;
                 stick.HostUs = s.Step * FlightCore.StepUs;
                 core.Advance(stick);
+                observe?.Invoke(core);
                 ref readonly FlightState now = ref core.State;
                 for (int i = 0; i < core.Events.Count; i++)
                 {
@@ -309,6 +350,17 @@ namespace Fpv450.Sim.Tests
                 }
                 if (touch >= 0)
                 {
+                    double cf = core.Trace.ContactForce.Length(), cm = core.Trace.ContactMoment.Length();
+                    if (cf > 0)
+                    {
+                        if (cm / cf > r.Lever)
+                        {
+                            r.Lever = cm / cf;
+                            r.LeverMoment = cm;
+                            r.LeverStep = now.Step - touch;
+                        }
+                    }
+                    else r.Unbacked = Math.Max(r.Unbacked, cm);
                     double acc = (now.Velocity - lastV).Length() / FlightCore.Dt;
                     r.PeakAccel = Math.Max(r.PeakAccel, acc);
                     double tilt = TiltTo(now, n);
@@ -335,8 +387,10 @@ namespace Fpv450.Sim.Tests
         {
             /// <summary>The facet (deg); the crash's step after the start (−1 for none), its part, speed (m/s) and peak acceleration
             /// (m/s², the event's); the deepest any part's surface reached past the slope's plane (m) and the shape that did;
-            /// tunnels.</summary>
-            public double Facet, Speed, PeakAccel, Depth;
+            /// tunnels. LegExcess (w9 2.6, the ledger's gap 14): the most a support or skid lay past the plane beyond its corner's
+            /// own give that step (its soil's sink, its leg's compression and lean: the sweep's Ground allowance), m, and by which.
+            public double Facet, Speed, PeakAccel, Depth, LegExcess;
+            public string LegExcessBy;
             public long CrashStep;
             public int Tunnels;
             public string DepthBy;
@@ -377,7 +431,7 @@ namespace Fpv450.Sim.Tests
             }
             var core = new FlightCore(setup);
             var r = new Impact { Facet = SlopeAngle(n), CrashStep = -1 };
-            ContactShape[] shapes = setup.Contacts.Shapes;
+            ContactModel model = core.Contacts;
             for (int k = 0; k < 1000; k++)
             {
                 core.Advance(new StickSample { HostUs = core.State.Step * FlightCore.StepUs });
@@ -394,15 +448,28 @@ namespace Fpv450.Sim.Tests
                     }
                 }
                 ref readonly FlightState s = ref core.State;
-                foreach (ContactShape sh in shapes)
+                // The shapes where the contact model has them now (a set or folded leg's turned, a hanging half's give), and only those
+                // still on the drone: a parted leg's piece has left it (w9 2.6; the build's shapes read a dropped leg as driven 17–19
+                // cm into the ground with the body's tumble, the ledger's gap 14).
+                for (int i = 0; i < model.ShapeCount; i++)
                 {
-                    if (sh.Role == ContactRole.Disc) continue;
+                    ContactShape sh = model.Shape(i);
+                    if (sh.Role == ContactRole.Disc || model.ShapeOff(i)) continue;
                     foreach (Double3 end in new[] { sh.A, sh.B })
                     {
                         Double3 x = s.Position + s.Attitude.Rotate(end);
                         double past = sh.Radius - Double3.Dot(n, x - foot);
                         if (past > r.Depth) r.DepthBy = sh.Name;
                         r.Depth = Math.Max(r.Depth, past);
+                        if (sh.Role != ContactRole.Support && sh.Role != ContactRole.Skid || sh.Corner < 0 || sh.Corner > 3) continue;
+                        ContactModel.SkidSoil soil = model.SoilOf(sh.Corner);
+                        double sink = soil.Engaged ? Math.Max(soil.Sink0, Math.Max(soil.Sink1, soil.Sink2)) : 0;
+                        double excess = past - sink - Math.Abs(core.Trace.LegCompression[sh.Corner]) - Math.Abs(core.Trace.LegLean[sh.Corner]);
+                        if (excess > r.LegExcess)
+                        {
+                            r.LegExcess = excess;
+                            r.LegExcessBy = $"{sh.Name} ({model.Corner(sh.Corner)})";
+                        }
                     }
                 }
             }
@@ -497,8 +564,10 @@ namespace Fpv450.Sim.Tests
             /// ground at a step's end (m, every 10th) and the deepest the chords between the spacing law's nodes (its crests' left
             /// out: the line before 2.5) would have (LawDeepest, m), the steps a crest's node lay on the lip (within CrestDepth of its
             /// edge), and the crests' nodes put in.</summary>
-            public double FastestNode, Behind, Paid, Deepest, LawDeepest;
+            public double FastestNode, FastestExit, Behind, Paid, Deepest, LawDeepest;
             public int OnLip;
+            /// <summary>The chain's TetherWedges, safe steps and clips over the flight (p7d-tether design 18).</summary>
+            public long Wedges, SafeSteps, Clips;
             public long Crests;
             public bool Broken;
             public string Break;
@@ -534,7 +603,8 @@ namespace Fpv450.Sim.Tests
                 bool onLip = false;
                 for (int i = 0; i < chain.Count; i++)
                 {
-                    r.FastestNode = Math.Max(r.FastestNode, chain[i].Velocity.Length());
+                    if (i + 1 < chain.Count) r.FastestNode = Math.Max(r.FastestNode, chain[i].Velocity.Length());
+                    else r.FastestExit = Math.Max(r.FastestExit, chain[i].Velocity.Length());
                     Double3 x = chain[i].Position;
                     if (x.X < LedgeX && x.X > LedgeX - 0.5) r.Behind = Math.Max(r.Behind, Ground(q, x.X, x.Z).Height - x.Y);
                     double dx = x.X - LedgeX, dy = x.Y - top;
@@ -548,6 +618,9 @@ namespace Fpv450.Sim.Tests
                 }
                 r.Crests = core.Tether.CrestsInserted;
                 r.Paid = core.Tether.PaidOut;
+                r.Wedges = chain.Wedges;
+                r.SafeSteps = chain.SafeSteps;
+                r.Clips = chain.Clips;
                 if (!r.Broken && core.Tether.Broken)
                 {
                     r.Broken = true;
@@ -624,6 +697,10 @@ namespace Fpv450.Sim.Tests
             var layout = new Double3[(int)(startZ - anchorZ)];
             for (int i = 0; i < layout.Length; i++) layout[i] = new Double3(0, 0, anchorZ + i);
             FlightSetup setup = TetherScenarios.Setup(spec, layout: layout, cuts: true);
+            // The claim's crest node is the chain's: on a lightly bonded pack (0.01–2 g, half the flights since p7d-tether design
+            // 18) the laid line over the crest rests and freezes into the trail before 10 s (traced: the nearest chain node then
+            // 44.8 m off the crest, the line still over it), so the flight keeps models 74–88's 2–10 g.
+            setup.Tether = FiberCutScenarios.WithBand(setup.Tether, "spool.peel_energy_j_m", 0.0196, 0.0981);
             double stand = TetherScenarios.Stand(setup);
             setup.World = new FlightWorld(map);
             setup.StartPosition = new Double3(0, Ground(map, 0, startZ).Height + stand, startZ);
@@ -651,9 +728,9 @@ namespace Fpv450.Sim.Tests
                     pilot.Target = new Double3(0, s0.Y + Math.Min(3, t), z);
                     stick = pilot.Sticks(core, k * FlightCore.StepUs);
                 }
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(stick);
-                if (k >= 1) r.Allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (k >= 1) r.Allocated += AllocProbe.After(before);
                 recorder.RecordStep(core.State, stick, core.Trace, core.Events);
                 if (k % 10 == 9 && !core.Tether.Broken) r.Deepest = Math.Max(r.Deepest, Deepest(map, core.Tether.Chain));
             }

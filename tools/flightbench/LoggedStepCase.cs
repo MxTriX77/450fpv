@@ -39,7 +39,7 @@ namespace Fpv450.FlightBench
             {
                 if (k == 0)
                 {
-                    allocated = GC.GetAllocatedBytesForCurrentThread();
+                    allocated = AllocProbe.Before();
                     processAllocated = GC.GetTotalAllocatedBytes(true);
                 }
                 StickSample stick = GoldenFlights.PoweredStick((k + warmup) % GoldenFlights.PoweredSteps);
@@ -57,7 +57,7 @@ namespace Fpv450.FlightBench
                     record[k] = t2 - t1;
                 }
             }
-            allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
+            allocated = AllocProbe.After(allocated);
             processAllocated = GC.GetTotalAllocatedBytes(true) - processAllocated;
             recorder.Close();
             long bytes = new FileInfo(path).Length;

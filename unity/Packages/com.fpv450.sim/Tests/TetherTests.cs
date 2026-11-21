@@ -12,7 +12,8 @@ namespace Fpv450.Sim.Tests
     // the stub's floor; the figures print for the as-built note.
     public sealed class TetherTests
     {
-        static DroneSpec Spec => RepositoryDrone.Spec();
+        // w17-four-legs 1.3: model 105's drone on its skids (the fixture), the file this was written on, until the four legs' tubes are refined (photo W).
+        static DroneSpec Spec => SkidsDrone.Spec();
 
         static void Print(string line) => TestContext.Progress.WriteLine(line);
 
@@ -60,15 +61,29 @@ namespace Fpv450.Sim.Tests
         public void AKnownWrongTwoWaySpoolFails()
         {
             TetherScenarios.OutBack r = TetherScenarios.OutThenBack(Spec, true);
-            Print($"two-way: most {r.Most:F2} m, at the turn {r.AtTurn:F2}, least after it {r.LeastAfterTurn:F2}, at the end {r.AtEnd:F2}, fell {r.Fell} steps, {r.TakenBack:F2} m taken back; "
-                + $"exit tension 0.5–2.5 s after the turn {r.SlackLeast:F5}–{r.SlackTension:F5} N against a hold of {r.Hold:F4}; line over chord {r.Slack:F3}");
+            Print($"two-way: most {r.Most:F2} m, at the turn {r.AtTurn:F2}, least after it {r.LeastAfterTurn:F2}, at the end {r.AtEnd:F2}, fell {r.Fell} steps, {r.TakenBack:F3} m taken back "
+                + $"({r.TakenAfterTurn:F3} after the turn); exit tension 0.5–2.5 s after the turn {r.SlackLeast:F5}–{r.SlackTension:F5} N against a hold of {r.Hold:F4}; "
+                + $"after the turn, paying nothing out, the exit at {r.AtHoldLeast:F6} of its hold at least ({r.SafeNotPaying} such steps solved safe); line over chord {r.Slack:F3}");
             Assert.That(r.Fell, Is.GreaterThan(0), "the line comes back");
-            // From its most (after the turn: since model 62's safe pass leaves free slots free, the slack first draws line out
-            // past the turn's length, 112.9 m against the turn's 95.9, then the reel takes 12.1 m of it back). Since model 65 (62's
-            // chain on the canister) by what the reel takes back in all: it takes 5.2 m back over 18 245 steps, but the hover's
-            // slack draws it out again (106.56 m at most, 106.40 at the end; with the 0-force hold, 64's chain, 17.1 m taken back,
-            // 107.34 → 94.00), where the one-way spool takes back nothing (LineNeverComesBack: it never falls).
-            Assert.That(r.TakenBack, Is.GreaterThan(1), "the reel takes line back on the return");
+            // Models 60–103 judged how much it took back: from its most to its end, then from model 65 in all (5.2 m on 65; 1.029 m
+            // on 1.11e's chain, design 23's known-wrong). Since design 23 (p7d-tether 1.11g) by the reel's own law instead: it takes
+            // line in whenever the line's pull at the exit falls under its hold e^(μθ)·P(0), so on every step after the turn that
+            // pays nothing out the exit carries that step's hold, and what it takes back is all the slack that reaches the exit,
+            // whatever the flight makes of it; on the same flight the one-way spool leaves its exit slack on 1769 steps (0 of its
+            // hold) and takes nothing back. How much is the flight's: 0.785 m (15 mm in the climb, 313 on the return, 457 in the
+            // hover). Design 23 solves 45 unconverged steps again, the first on the return at 18.645 s while paying out (5.01 mm at
+            // 0.157 N against a hold of 0.0135 N, where the kept solve paid 4.12 mm), and the slack's path parts there: the hover
+            // pays out 21.13 m against 19.56 and takes back 457 mm against 646, its hold from 5 s in 7.25 mN against 8.96 (the
+            // pack's section at the lip) over 6.9 mN of line hanging from the exit's 10.2 m. A reel within 0.3–2 mN of the hang
+            // trades line both ways on the hover's small loads; "more than 1 m" was a number of the old flight. The logged exit
+            // tension is the hold to 1.2e-5 here (a sub-millimetre exit segment's rest is the difference of two 150 m materials,
+            // ulp 2.8e-14 m, against a stretch of H/EA ≈ 7e-6 of it); allowed 1e-3, a rest down to 4 µm. A step solved again on the
+            // majorizing models (design 23) solves a segment paying nothing as the elastic one it is, which takes nothing in, so the
+            // law is judged on the others: since design 24 (the contact nodes' room) the hover's path parts, and 69 of its 83 safe
+            // steps paying nothing, at 24.05–24.2 s, leave the exit's 173 mm segment slack (the node behind it on the drone's parts);
+            // on every other the exit is at its hold (0.999991 of it at least), 1.409 m taken back.
+            Assert.That(r.TakenAfterTurn, Is.GreaterThan(0), "the reel takes line back on the return");
+            Assert.That(r.AtHoldLeast, Is.EqualTo(1).Within(1e-3), "by its law: paying nothing out, the exit carries the reel's hold (it takes in the slack that reaches it)");
             bool target = r.Fell == 0 && r.LeastAfterTurn >= r.AtTurn;
             Assert.That(target, Is.False, "the known-wrong model fails \"Line never comes back\"");
         }
@@ -281,11 +296,11 @@ namespace Fpv450.Sim.Tests
             }
             int coil = Spec.Coil.Part;
             double lighter = mass.Part(coil).Mass - 6.9e-4;
-            long allocated = GC.GetAllocatedBytesForCurrentThread();
+            long allocated = AllocProbe.Before();
             mass.SetPartMass(coil, lighter);
             modes.Rebuild(mass, ref q, ref rate);
-            allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
-            Assert.That(allocated, Is.EqualTo(0), "the rebuild allocates nothing");
+            allocated = AllocProbe.After(allocated);
+            Assert.That(allocated, Is.Zero, "the rebuild allocates nothing" + AllocProbe.Report());
             double highest = 0;
             for (int m = 0; m < modes.Count; m++) highest = DetMath.Max(highest, (modes.Frequency(m) - before[m]) / before[m]);
             Print($"the coil 0.69 g lighter: the modes' frequencies rise by up to {highest:E2} of themselves");
@@ -320,6 +335,91 @@ namespace Fpv450.Sim.Tests
             Assert.That(none.FiberNodeCount, Is.EqualTo(0), "no line, no nodes");
         }
 
+        // "What holds a lying line" (p7d-tether design 20, by hand): its weight, White's drag across it and the wall's lift, the
+        // threshold speed per surface's μs, the speed the wall lifts it at, and the margin at 2 m from the drone hovering with its
+        // rotors 1.5 m up, each as the design's hand calculation has it.
+        [Test]
+        public void ALyingLinesHoldIsTheHandCalculation()
+        {
+            FlightSetup setup = TetherScenarios.Setup(Spec);
+            var core = new FlightCore(setup);
+            FiberLine f = core.Tether;
+            double w = f.MassPerMetre * -FlightCore.Gravity.Y;
+            // By hand: 6.9e-5 kg/m × 9.80665; ½·1.225·2.5e-4·(1 + 10·Re^(−2/3))·u², Re = u·2.5e-4/1.461e-5.
+            Assert.That(w, Is.EqualTo(6.7666e-4).Within(1e-8), "the weight, N/m");
+            Assert.That(f.Drag.PerMetre(1), Is.EqualTo(3.837e-4).Within(0.1).Percent, "the drag across at 1 m/s (Re 17.1, C_d 2.51)");
+            Assert.That(f.Drag.PerMetre(2), Is.EqualTo(1.194e-3).Within(0.1).Percent, "at 2 m/s (Re 34.2, C_d 1.95)");
+            // The threshold: D(u*) = μs·(w − ½ρu*²·d·C_L).
+            foreach ((double mu, double hand) in new[] { (0.3, 0.6325), (0.5, 0.8383), (0.8, 1.0556) })
+            {
+                double lo = 0.01, hi = 5;
+                for (int i = 0; i < 100; i++)
+                {
+                    double u = 0.5 * (lo + hi);
+                    if (f.Drag.PerMetre(u) > f.Hold(u, 0, mu)) hi = u;
+                    else lo = u;
+                }
+                Print($"μs {mu}: a lying line slides from {lo:F4} m/s (by hand {hand})");
+                Assert.That(lo, Is.EqualTo(hand).Within(1e-3), "the threshold for μs " + mu);
+            }
+            // The wall lifts it off from √(w/(½ρ·d·C_L)) = 2.2159 m/s; half a diameter up it feels no lift.
+            Assert.That(f.Hold(2.21, 0, 0.5), Is.GreaterThan(0));
+            Assert.That(f.Hold(2.22, 0, 0.5), Is.EqualTo(0), "lifted: nothing holds it");
+            Assert.That(f.Hold(3, f.Diameter / 2, 0.5), Is.EqualTo(0.5 * w).Within(1e-15), "half a diameter up, its weight alone");
+            // The margin at 2 m from the drone hovering, its rotors 1.5 m up (design 20's worked cell): v_i 9.67, U_g 10.71 m/s,
+            // r_i 0.677 m, u_m(2 m) 3.25 m/s, Verhoff's f(5.9e-4) 0.512: 1.66 m/s at the line's height, D/H 5.9 on μs 0.5.
+            double mass = setup.Mass.Properties.Mass, thrust = mass * -FlightCore.Gravity.Y / 4;
+            var hubs = new Double3[4];
+            Double3 centre = default;
+            for (int i = 0; i < 4; i++) centre = centre + core.Propulsion.Hub(i) * 0.25;
+            for (int i = 0; i < 4; i++) hubs[i] = core.Propulsion.Hub(i) - centre + new Double3(0, 1.5, 0);
+            var air = new RotorAir(setup.Tether, setup.Propulsion.Props.Diameter / 2);
+            air.Begin(hubs, new Double3(0, 1, 0), new[] { thrust, thrust, thrust, thrust }, new Double3[4], new double[4]);
+            Double3 a = air.At(new Double3(0, f.Diameter / 2, -2), 0, out _);
+            double speed = DetMath.Sqrt(a.X * a.X + a.Z * a.Z), margin = f.Drag.PerMetre(speed) / f.Hold(speed, 0, 0.5);
+            Print($"{mass:F3} kg: v_i {air.Induced(0):F3} m/s, U_g {air.FarGroundSpeed:F3} m/s, r_i {air.FarStart:F4} m; at 2 m {speed:F4} m/s, "
+                + $"D {f.Drag.PerMetre(speed):E4} N/m against H {f.Hold(speed, 0, 0.5):E4}: {margin:F2} times what holds it");
+            Assert.That(air.Induced(0), Is.EqualTo(9.67).Within(0.01));
+            Assert.That(air.FarGroundSpeed, Is.EqualTo(10.71).Within(0.01));
+            Assert.That(air.FarStart, Is.EqualTo(0.677).Within(0.002));
+            Assert.That(speed, Is.EqualTo(1.664).Within(0.005));
+            Assert.That(margin, Is.EqualTo(5.9).Within(0.1));
+        }
+
+        // "A frozen line in the wash moves where its margin says" (design 20): a low pass back beside line laid before. Every
+        // frozen point the rotors' air would move comes back into the chain within the window's round and the line there moves;
+        // the line laid beyond the wash stays frozen where it lay, bit for bit; the trail gives back no point deeper than the
+        // deepest one the margin moves (judged on the known-wrong, where such a point stays frozen). The known-wrong airless trail
+        // leaves a point behind its end frozen over its margin for seconds. Both 0 B in the steps; the flight replays bit for bit.
+        [Test]
+        public void AFrozenLineInTheWashMovesWhereItsMarginSays()
+        {
+            TetherScenarios.WashedTrail r = TetherScenarios.WashTrail(Spec, false);
+            TetherScenarios.WashedTrail wrong = TetherScenarios.WashTrail(Spec, true);
+            foreach ((string name, TetherScenarios.WashedTrail x) in new[] { ("design 20", r), ("the airless trail", wrong) })
+                Print($"{name}: {x.Frozen} points frozen at the turn, down to {x.Fewest}; the deepest frozen point over its margin {x.DeepestOver} "
+                    + $"({x.DepthOver} behind the trail's end), the most D/max(H, D_f) {x.MostMargin:F2}, the longest over it {x.LongestOver:F3} s; "
+                    + $"the laid line moved {x.Moved:F3} m ({x.Lifted:F3} m of it lifted); the window's thaws {x.Thaws} ({x.Thawed} points); {x.Allocated} B, {x.Wedges} wedges");
+            Assert.That(r.Frozen, Is.GreaterThanOrEqualTo(5), "the outbound line froze into the trail");
+            Assert.That(wrong.DeepestOver, Is.GreaterThan(0), "the wash reaches line laid before");
+            Assert.That(wrong.DepthOver, Is.GreaterThanOrEqualTo(1), "behind the trail's end, where nothing tests it");
+            Assert.That(wrong.LongestOver, Is.GreaterThan(1), "the known-wrong leaves it frozen over its margin");
+            Assert.That(wrong.Moved, Is.LessThan(1e-3), "and the line laid there does not move");
+            Assert.That(r.LongestOver, Is.LessThanOrEqualTo(0.05), "a frozen point the wash would move comes back within the window's round");
+            Assert.That(r.Thaws, Is.GreaterThanOrEqualTo(1), "found behind the trail's end by the window");
+            Assert.That(r.Moved, Is.GreaterThan(0.1), "and the line there moves");
+            Assert.That(r.Fewest, Is.EqualTo(wrong.DeepestOver), "the trail gives back down to the deepest point the margin moves, and no deeper");
+            Assert.That(r.KeptExact, Is.True, "the line laid beyond the wash stays where it froze");
+            Assert.That(r.Allocated, Is.Zero, "0 B in the steps" + AllocProbe.Report());
+            Assert.That(wrong.Allocated, Is.Zero);
+            Assert.That(r.Wedges, Is.EqualTo(0));
+            ContactScenarios.RepositoryMaterials(out ulong materials);
+            ReplayResult replay = FlightReplay.Run(new System.IO.MemoryStream(r.Log), id => id == "floor" ? FlightWorld.Floor() : null, Spec.ContentHash,
+                tetherHash: TetherScenarios.Table().ContentHash, materialsHash: materials);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            Assert.That(replay.Steps, Is.EqualTo(27000));
+        }
+
         // The line's step allocates nothing, and a flight with it replays bit for bit from its log (the header's table, layout and
         // coil; the record's fiber block).
         [Test]
@@ -347,16 +447,16 @@ namespace Fpv450.Sim.Tests
                     plan(k * FlightCore.Dt, core, pilot);
                     stick = pilot.Sticks(core, k * FlightCore.StepUs);
                 }
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(stick);
-                if (k >= 2000) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (k >= 2000) allocated += AllocProbe.After(before);
                 recorder.RecordStep(core.State, stick, core.Trace, core.Events);
             }
             recorder.Close();
             Print($"paid {core.Tether.PaidOut:F2} m, {core.Tether.Chain.Count} nodes, trail {core.Tether.TrailCount}, the modes rebuilt with the coil; "
                 + $"{allocated} B allocated in the steps");
             Assert.That(core.Tether.PaidOut, Is.GreaterThan(20), "rebuilds happened");
-            Assert.That(allocated, Is.EqualTo(0), "0 B in steady state");
+            Assert.That(allocated, Is.Zero, "0 B in steady state" + AllocProbe.Report());
             ContactScenarios.RepositoryMaterials(out ulong materials); // the replay holds the flight's physics_materials.json (p7f-damage 1.1a)
             ReplayResult r = FlightReplay.Run(new System.IO.MemoryStream(log.ToArray()), id => id == "floor" ? FlightWorld.Floor() : null, Spec.ContentHash,
                 tetherHash: TetherScenarios.Table().ContentHash, materialsHash: materials);

@@ -67,7 +67,7 @@ The span SHALL be at most 32 active nodes from the exit to where the line comes 
 - **THEN** the airborne line's mass per metre and diameter follow the table's films, and it settles faster and trails lower in rain than dry
 
 ### Requirement: The rotors' air moves the line
-Each rotor's air SHALL act on fiber nodes near it from its own thrust: inflow toward the disc above it (the vortex cylinder's axial law inside its radius, a sink of the disc's flux outside), its wake below it, and a radial wall jet when the disc is near the ground. Where two rotors' wall jets meet, their momentum SHALL rise as a fountain up to the discs' plane, and a wake landing in a stream along the ground SHALL roll up a ground vortex ahead of it, each built from published measurements (D-075).
+Each rotor's air SHALL act on fiber nodes near it from its own thrust: inflow toward the disc above it (the vortex cylinder's axial law inside its radius, a sink of the disc's flux outside), its wake below it, merging with the other rotors' into one turbulent round jet with distance, and a radial wall jet where the wake lands on the ground from any height (design 19). Where two rotors' wall jets meet, their momentum SHALL rise as a fountain up to the discs' plane, and a wake landing in a stream along the ground SHALL roll up a ground vortex ahead of it, each built from published measurements (D-075).
 
 #### Scenario: A line under a punch is lifted and drawn
 - **WHEN** the drone sits legs-on on the field start with the line laid under it and goes to full throttle from rest, and again at hover thrust
@@ -80,6 +80,10 @@ Each rotor's air SHALL act on fiber nodes near it from its own thrust: inflow to
 #### Scenario: The fountain and the ground vortex follow their measurements
 - **WHEN** the field is built for the measured rotors: two rotors one diameter apart tip to tip at H/R 4 and 2, twin rotors at h/R 1 with tip gaps of 2.2, 0.95 and 0.45 R, and a full-scale rotor at h/R 1 at μ* 0.55 and 0.80
 - **THEN** the fountain reaches 3R at H/R 4 and the discs' plane at H/R 2, the wall jets meet where measured within 0.05 R and move toward the weaker rotor, and the ground vortex stands where measured with the speed under it within 10 %, under the disc ahead of the hub for μ* 0.7–0.9, ahead of the disc up to 0.55, and gone at hover and from μ* 1.19
+
+#### Scenario: The wake decays and lands as measured
+- **WHEN** the field is built for a hovering quadrotor: the Matrice 300 of the merged-jet measurements 100 m up, and the session's drone at 1.5, 3, 6 and 10 m, and again with the 4 R cut-off of the wash (the known-wrong)
+- **THEN** from 2.5 motor distances down the jet's centreline and half-width are the published law's, the wall jet carries the landing jet's momentum flux, its peak falls as r^−1.1 and stays within 25 % at 2 m from every height, a line lying on the ground feels it, and below one motor distance the field is the cut-off's to the bit; the cut-off misses the measured centreline by more than half and puts no outwash on the ground from 1.5 m
 
 #### Scenario: A known-wrong still air near the props
 - **WHEN** the very-sharp-liftoff set of "The pilot's accounts" is flown with the rotors' air removed from the line

@@ -237,14 +237,17 @@ namespace Fpv450.Sim.Flight
         public double FootRadius;
 
         /// <summary>What the legs are built of (p7g-legs 1.1): the tube, the clamp under each arm and the T-joint on each skid;
-        /// null for a file without them (the fixtures).</summary>
+        /// null for a file without them (the fixtures). Four separate legs (w17-four-legs) have no T-joint: TJoint null.</summary>
         public LegTube Tube;
         public LegClamp Clamp;
         public LegTJoint TJoint;
 
         /// <summary>A leg's give along its tube, N/m, in series: the tube's own EA/L, the arm bending under the clamp (the tube's top
-        /// bears on the arm's underside, so a push never loads the clamp's grip) and the skid's ring squeezed in the T-joint.</summary>
-        public double VerticalStiffness => 1 / (1 / Tube.AxialStiffness + 1 / Clamp.MountStiffness + 1 / Tube.RingStiffness(TJoint.SkidGrip));
+        /// bears on the arm's underside, so a push never loads the clamp's grip) and, on skids, the skid's ring squeezed in the
+        /// T-joint.</summary>
+        public double VerticalStiffness => TJoint == null
+            ? 1 / (1 / Tube.AxialStiffness + 1 / Clamp.MountStiffness)
+            : 1 / (1 / Tube.AxialStiffness + 1 / Clamp.MountStiffness + 1 / Tube.RingStiffness(TJoint.SkidGrip));
 
         /// <summary>A leg's give across its tube at the foot, N/m, in series: the tube bending from the clamp, 3EI/L³, and the
         /// clamp's jaws letting the tube turn, its foot moving L² over their rotational stiffness.</summary>
@@ -417,6 +420,11 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The bolt's preload, N.</summary>
         public double Preload => Torque.Value / (NutFactor.Value * BoltDiameter);
+
+        /// <summary>The printed socket (w17-four-legs, photo W's): the tube's free play in it (rad, the whole clearance), its outer diameter
+        /// (m) and its print's strength across its layers (Pa); default for a clamp without them (model 105's wing-nut clamps).</summary>
+        public LegBound Play, Interlayer;
+        public double SocketDiameter;
 
         /// <summary>The pull the two jaws hold before the tube slides, 2μP, N.</summary>
         public double SlipForce => 2 * Friction.Value * Preload;
@@ -805,12 +813,28 @@ namespace Fpv450.Sim.Flight
                 c.LegTubeAxialStiffness = Legs.Tube.AxialStiffness;
                 // p7g-legs 1.4: the leg across its tube as a lever, γL = π²L/12 (derived from the two above).
                 c.LegLeverLength = c.LegSwayLoad / c.LegTubeSideStiffness;
-                // p7g-legs (model 54): the skid's frame fore and aft, its own lever the frame's sway load over its give.
-                LegFrame frame = BuildLegFrame();
-                c.LegFrameSideStiffness = frame.SideStiffness;
-                c.LegFrameSwayLoad = frame.SwayLoad;
-                c.LegFrameLeverLength = frame.SwayLoad / frame.SideStiffness;
+                // p7g-legs (model 54): the skid's frame fore and aft, its own lever the frame's sway load over its give. Four
+                // separate legs have no frame (w17-four-legs design 5): each a cantilever both ways, 0 (one value both ways).
+                if (Legs.TJoint != null)
+                {
+                    LegFrame frame = BuildLegFrame();
+                    c.LegFrameSideStiffness = frame.SideStiffness;
+                    c.LegFrameSwayLoad = frame.SwayLoad;
+                    c.LegFrameLeverLength = frame.SwayLoad / frame.SideStiffness;
+                }
                 if (loadout.Legs) c.Legs = BuildLegDamage();
+            }
+            // w17-four-legs: a drone on four separate legs (the legs' build without T-joints) stands on their tips in the soil; a
+            // drone on skids (drone_skids.json, model 105's, the kept audits' fixture) flies the half-skids' law (ContactSpec.LegTips).
+            c.LegTips = Legs.Tube != null && Legs.TJoint == null;
+            foreach (Contact.ContactShape s in c.Shapes)
+                if (s.Role == Contact.ContactRole.Skid) c.LegTips = false;
+            if (c.LegTips)
+            {
+                // The tip (design 1): each support is its leg's tip, a disc of the support's radius (legs.foot_radius_m) plugged by
+                // the soil (assumed); the shaft above it the tube's outer diameter.
+                c.TipRadius = Legs.FootRadius;
+                c.ShaftDiameter = Legs.Tube.OuterDiameter;
             }
             c.Materials = (Contact.MaterialRow[])materials.Clone();
             c.MaterialsHash = materialsHash;
@@ -871,11 +895,13 @@ namespace Fpv450.Sim.Flight
         /// <summary>
         /// The legs' failure data (p7g-legs 1.2) from the legs block: each leg's part and T-joint ("tjoint_rr", …), its clamp's
         /// bottom edge ("clamp_rr"'s underside) and its foot (its T-joint's underside, the skid's) on the leg's axis, the tube,
-        /// the clamp and the T-joint with their labelled strengths and bounds (1.1). Null for a file without the build.
+        /// the clamp and the T-joint with their labelled strengths and bounds (1.1). Null for a file without the build. Four
+        /// separate legs (w17-four-legs, no legs.tjoint): no T-joint, skid or sibling (−1), each foot its leg's tip.
         /// </summary>
         public Contact.LegDamageSpec BuildLegDamage()
         {
             if (Legs.Tube == null) return null;
+            if (Legs.TJoint == null) return BuildTipLegDamage();
             string[] corners = { "rr", "fr", "rl", "fl" };
             var d = new Contact.LegDamageSpec
             {
@@ -913,6 +939,34 @@ namespace Fpv450.Sim.Flight
             d.FrameTopShare = frame.TopShare;
             d.FrameJointShare = frame.JointShare;
             d.FrameSelfStiffness = frame.SelfStiffness;
+            return d;
+        }
+
+        // Four separate legs (w17-four-legs design 5): each leg's part, its clamp's bottom edge and its foot, the tube's lower end (its
+        // tip), on its axis; no T-joint, skid or sibling (−1), so nothing hangs and no frame; the T-joint's strengths unread.
+        Contact.LegDamageSpec BuildTipLegDamage()
+        {
+            string[] corners = { "rr", "fr", "rl", "fl" };
+            var d = new Contact.LegDamageSpec
+            {
+                FreeLength = Legs.Tube.FreeLength, OuterDiameter = Legs.Tube.OuterDiameter, InnerDiameter = Legs.Tube.InnerDiameter,
+                Modulus = Legs.Tube.Modulus.Value, CrackedFactor = Legs.Tube.CrackedStiffness,
+                BoltDiameter = Legs.Clamp.BoltDiameter, GripLength = Legs.Clamp.GripLength,
+                YieldStress = Legs.Tube.YieldStress, Elongation = Legs.Tube.Elongation, EdgeFactor = Legs.Clamp.EdgeFactor,
+                ClampTorque = Legs.Clamp.Torque, NutFactor = Legs.Clamp.NutFactor, Friction = Legs.Clamp.Friction,
+                StubStiffness = Legs.Clamp.MountSideStiffness, StubStiffnessUp = Legs.Clamp.MountStiffness,
+                SocketDiameter = Legs.Clamp.SocketDiameter, Interlayer = Legs.Clamp.Interlayer, Play = Legs.Clamp.Play,
+            };
+            for (int c = 0; c < 4; c++)
+            {
+                DronePart leg = Parts[Legs.Parts[c]], clamp = Parts[PartIndex("clamp_" + corners[c])];
+                Double3 half = leg.Axis * (leg.Length / 2), tip = half.Y > 0 ? leg.Position - half : leg.Position + half;
+                d.Parts[c] = Legs.Parts[c];
+                d.TJointParts[c] = d.SkidParts[c] = d.Sibling[c] = -1;
+                d.Clamp[c] = new Double3(leg.Position.X, clamp.Position.Y - clamp.Size.Y / 2, leg.Position.Z);
+                d.Foot[c] = d.Bore[c] = new Double3(leg.Position.X, tip.Y, leg.Position.Z);
+            }
+            d.AirDensity = Aero != null ? Aero.AirDensity : 0;
             return d;
         }
 
@@ -1064,6 +1118,14 @@ namespace Fpv450.Sim.Flight
                 if ((n = Required(root, "stand", top)) != null) spec.Stand = ReadStand(n);
                 if ((n = Required(root, "aero", top)) != null) ReadAero(n, spec);
                 if ((n = root.Member("contacts")) != null) spec.Contacts = ReadContacts(n, spec);
+                // A built drone on skids holds them in its T-joints (p7g-legs 1.1); four separate legs have none (w17-four-legs).
+                if (spec.Legs.Tube != null && spec.Legs.TJoint == null && spec.Contacts != null)
+                    foreach (Contact.ContactShape s in spec.Contacts.Shapes)
+                        if (s.Role == Contact.ContactRole.Skid)
+                        {
+                            Fail("legs.tjoint", "missing (a drone on skids holds them in its T-joints)");
+                            break;
+                        }
                 return spec;
             }
 
@@ -1495,13 +1557,14 @@ namespace Fpv450.Sim.Flight
                     JsonNode n;
                     if ((n = Required(p, "tube", "legs")) != null) legs.Tube = ReadLegTube(n, "legs.tube");
                     if ((n = Required(p, "clamp", "legs")) != null) legs.Clamp = ReadLegClamp(n, "legs.clamp");
-                    if ((n = Required(p, "tjoint", "legs")) != null) legs.TJoint = ReadLegTJoint(n, "legs.tjoint");
+                    // The T-joints hold the skids (model 103's drone, drone_skids.json); four separate legs have none (w17-four-legs).
+                    if ((n = p.Member("tjoint")) != null) legs.TJoint = ReadLegTJoint(n, "legs.tjoint");
                 }
                 _notes = false;
             }
 
             // The legs' build (p7g-legs 1.1): the materials a closed list, physics signing off additions.
-            static readonly string[] TubeMaterials = { "pvc_u" }, PrintMaterials = { "petg_printed" };
+            static readonly string[] TubeMaterials = { "pvc_u", "aluminium_6061_t6" }, PrintMaterials = { "petg_printed" };
 
             LegTube ReadLegTube(JsonNode p, string at)
             {
@@ -1532,7 +1595,8 @@ namespace Fpv450.Sim.Flight
                 var c = new LegClamp();
                 if (!IsObject(p, at)) return c;
                 Members(p, at, "material", "modulus_pa", "grip_length_m", "bolt_diameter_m", "mount_stiffness_n_per_m", "mount_side_stiffness_n_per_m",
-                    "torque_n_m", "torque_bounds_n_m", "nut_factor", "nut_factor_bounds", "friction", "friction_bounds", "edge_stress_factor", "edge_stress_factor_bounds");
+                    "torque_n_m", "torque_bounds_n_m", "nut_factor", "nut_factor_bounds", "friction", "friction_bounds", "edge_stress_factor", "edge_stress_factor_bounds",
+                    "play_rad", "play_bounds_rad", "socket_outer_diameter_m", "interlayer_strength_pa", "interlayer_strength_bounds_pa");
                 c.Material = Text(p, "material", at, PrintMaterials);
                 c.Modulus = Positive(p, "modulus_pa", at);
                 c.GripLength = Positive(p, "grip_length_m", at);
@@ -1544,6 +1608,10 @@ namespace Fpv450.Sim.Flight
                 c.Friction = Bounded(p, "friction", "friction_bounds", at);
                 c.EdgeFactor = Bounded(p, "edge_stress_factor", "edge_stress_factor_bounds", at);
                 if (c.EdgeFactor.Min < 1) Fail(at + ".edge_stress_factor_bounds", "a stress raiser never lowers the stress: at least 1");
+                // A printed socket (w17-four-legs): its play and its print's strength, each with its bounds.
+                if (p.Member("play_rad") != null) c.Play = Bounded(p, "play_rad", "play_bounds_rad", at);
+                if (p.Member("socket_outer_diameter_m") != null) c.SocketDiameter = Positive(p, "socket_outer_diameter_m", at);
+                if (p.Member("interlayer_strength_pa") != null) c.Interlayer = Bounded(p, "interlayer_strength_pa", "interlayer_strength_bounds_pa", at);
                 return c;
             }
 
@@ -1674,15 +1742,61 @@ namespace Fpv450.Sim.Flight
                 AeroSpec aero = spec.Aero;
                 aero.CoilPart = spec.Coil.Housing >= 0 ? spec.Coil.Housing : spec.Coil.Part;
                 if (!IsObject(p, "aero")) return;
-                Members(p, "aero", "air_density_kg_m3", "body_area_m2", "body_center_of_pressure_m", "drag_coefficient");
+                Members(p, "aero", "air_density_kg_m3", "body_area_m2", "body_center_of_pressure_m", "drag_coefficient", "hull");
                 aero.AirDensity = Positive(p, "air_density_kg_m3", "aero");
                 if (Vector(p, "body_area_m2", "aero", out aero.BodyArea)
                     && !(aero.BodyArea.X > 0 && aero.BodyArea.Y > 0 && aero.BodyArea.Z > 0))
                     Fail("aero.body_area_m2", "every silhouette must be above 0");
                 Vector(p, "body_center_of_pressure_m", "aero", out aero.BodyCenterOfPressure);
                 aero.DragCoefficient = Positive(p, "drag_coefficient", "aero");
+                if (p.Member("hull") != null) ReadHull(p.Member("hull"), aero);
                 if (aero.CoilPart >= 0 && spec.Parts[aero.CoilPart].Kind != PartKind.Cylinder)
                     Fail(spec.Coil.Housing >= 0 ? "coil.housing" : "coil.part", "the coil's drag needs its part to be a cylinder");
+            }
+
+            // The hull's moment (p7c-wind design 12), optional: none, no moment.
+            void ReadHull(JsonNode h, AeroSpec aero)
+            {
+                const string path = "aero.hull";
+                if (!IsObject(h, path)) return;
+                Members(h, path, "frontal_area_m2", "size_m", "added_volume_m3", "moment_curves");
+                aero.HullFrontalArea = Positive(h, "frontal_area_m2", path);
+                if (Vector(h, "size_m", path, out aero.HullSize) && !(aero.HullSize.X > 0 && aero.HullSize.Y > 0 && aero.HullSize.Z > 0))
+                    Fail(path + ".size_m", "every size must be above 0");
+                double[] a = Numbers(h, "added_volume_m3", path, 6);
+                if (a.Length == 6) aero.HullAddedVolume = new Sym3(a[0], a[1], a[2], a[3], a[4], a[5]);
+                else if (a.Length != 0) Fail(path + ".added_volume_m3", "must be [xx, yy, zz, xy, xz, yz]");
+                JsonNode curves = Labelled(h, "moment_curves", path);
+                if (curves == null || !IsArray(curves, path + ".moment_curves.value", 1)) return;
+                int n = curves.Items.Count;
+                aero.HullRatios = new double[n];
+                aero.HullAngles = new double[n][];
+                aero.HullMoments = new double[n][];
+                for (int i = 0; i < n; i++)
+                {
+                    string at = path + ".moment_curves.value[" + i + "]";
+                    JsonNode c = curves.Items[i];
+                    if (!IsObject(c, at)) return;
+                    Members(c, at, "length_over_diameter", "alpha_deg", "cm");
+                    JsonNode r = Required(c, "length_over_diameter", at), xs = Required(c, "alpha_deg", at), ys = Required(c, "cm", at);
+                    if (r == null || xs == null || ys == null) return;
+                    aero.HullRatios[i] = r.Kind == JsonKind.Number ? r.Number : double.NaN;
+                    if (!(aero.HullRatios[i] > (i > 0 ? aero.HullRatios[i - 1] : 0))) Fail(at + ".length_over_diameter", "must be above 0 and rise from curve to curve");
+                    if (!IsArray(xs, at + ".alpha_deg", 2) || !IsArray(ys, at + ".cm", 2)) return;
+                    if (xs.Items.Count != ys.Items.Count) { Fail(at, "alpha_deg and cm must be as long"); return; }
+                    var x = new double[xs.Items.Count];
+                    var y = new double[x.Length];
+                    for (int k = 0; k < x.Length; k++)
+                    {
+                        x[k] = xs.Items[k].Kind == JsonKind.Number ? xs.Items[k].Number : double.NaN;
+                        y[k] = ys.Items[k].Kind == JsonKind.Number ? ys.Items[k].Number : double.NaN;
+                        if (!(x[k] > (k > 0 ? x[k - 1] : -1)) || double.IsNaN(y[k])) Fail(at + "[" + k + "]", "the angles must rise and every value be a number");
+                    }
+                    if (x[0] != 0 || x[x.Length - 1] != 90 || y[0] != 0 || y[y.Length - 1] != 0)
+                        Fail(at, "must run from 0° to 90°, with no moment at either");
+                    aero.HullAngles[i] = x;
+                    aero.HullMoments[i] = y;
+                }
             }
 
             // ---- the building blocks ----

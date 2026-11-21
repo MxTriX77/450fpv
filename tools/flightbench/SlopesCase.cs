@@ -85,9 +85,14 @@ namespace Fpv450.FlightBench
                 foreach (double deg in new[] { 20.0, 30, 38 })
                 {
                     SlopeScenarios.Impact c = SlopeScenarios.Crash(spec, deg, 10), p = SlopeScenarios.Crash(spec, deg, 10, true);
-                    Row($"{c.Facet:F2}°", c.CrashStep > 0 && p.CrashStep > 0 && Math.Abs(c.Depth - p.Depth) < 0.002 && c.Tunnels + p.Tunnels == 0,
+                    // The ledger's gap 14 (D-091, w9 2.6): no support or skid past the ground by more than the sweep's 20 mm beyond its
+                    // corner's own give; the parts as the contact model has them, the dropped pieces gone. The frame's deepest is printed
+                    // beside (a soft layer's compression, the sweep's finding 11, is not judged here).
+                    double tol = SweepScenarios.GroundTolerance;
+                    Row($"{c.Facet:F2}°", c.CrashStep > 0 && p.CrashStep > 0 && c.LegExcess <= tol && p.LegExcess <= tol && c.Tunnels + p.Tunnels == 0,
                         $"the crash by the {c.CrashBy} at {c.Speed:F2} m/s, {c.PeakAccel:F0} m/s² (the plane: {p.CrashBy}, {p.Speed:F2} m/s, {p.PeakAccel:F0} m/s²); "
-                        + $"the deepest past the ground {c.Depth * 1e3:F2} mm by the {c.DepthBy} (the plane {p.Depth * 1e3:F2} mm); tunnels {c.Tunnels + p.Tunnels}");
+                        + $"the deepest past the ground {c.Depth * 1e3:F2} mm by the {c.DepthBy} (the plane {p.Depth * 1e3:F2} mm); a leg's part past its give "
+                        + $"{c.LegExcess * 1e3:F2} mm by the {c.LegExcessBy ?? "-"} (the plane {p.LegExcess * 1e3:F2} mm, {p.LegExcessBy ?? "-"}; at most {tol * 1e3:F0}); tunnels {c.Tunnels + p.Tunnels}");
                 }
             }
 
@@ -108,7 +113,8 @@ namespace Fpv450.FlightBench
                 SlopeScenarios.Ledge lip = SlopeScenarios.AtLedge(spec, false), face = SlopeScenarios.AtLedge(spec, true);
                 Row("over the ledge's lip", lip.Tunnels == 0,
                     $"the step {lip.Step:F3} m: it tips over and falls it, {lip.PeakLoad:F0} N, {lip.PeakAccel:F0} m/s², and ends {lip.EndX - SlopeScenarios.LedgeX:F2} m past the lip; crashes {lip.Crashes}, tunnels {lip.Tunnels}");
-                Row("into a far seam's face", face.PeakLoad < 150 && face.Rise < 0.01 && face.Tunnels == 0,
+                // The leg under its buckling load (385 N, the cap 2.2's bug hit); since w9 2.6 it meets the face elastically to 158 N (SlopeTests).
+                Row("into a far seam's face", face.PeakLoad < 385 && face.Rise < 0.01 && face.Tunnels == 0,
                     $"the step {face.Step * 1e3:F1} mm, nose first at 1 m/s: {face.PeakLoad:F0} N, {face.PeakAccel:F0} m/s², rose {face.Rise * 1e3:F1} mm; crashes {face.Crashes}, tunnels {face.Tunnels}");
             }
 

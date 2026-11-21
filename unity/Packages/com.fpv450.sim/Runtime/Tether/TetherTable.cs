@@ -23,6 +23,10 @@ namespace Fpv450.Sim.Tether
         /// <summary>[[p, value], …]: a piecewise-linear quantile table, p rising from 0 to 1, values above 0 and never
         /// falling, so a draw u in [0, 1] maps to a value by + − × ÷ only.</summary>
         Quantiles = 4,
+
+        /// <summary>[[x, chance], …]: a piecewise-linear chance table (p7d-tether design 26), x rising, each chance in [0, 1] and
+        /// never falling; held beyond its ends.</summary>
+        Chances = 5,
     }
 
     /// <summary>One value of tether.json: "block.field", its label (an index into DroneSpec.Labels), its kind and its
@@ -99,7 +103,7 @@ namespace Fpv450.Sim.Tether
             ("strength.flaw_pa", TetherValueKind.Quantiles),
             ("strength.intact_pa", TetherValueKind.Quantiles),
             ("strength.abraded_pa", TetherValueKind.Quantiles),
-            ("spool.peel_energy_j_m", TetherValueKind.Band),
+            ("spool.peel_energy_j_m", TetherValueKind.Quantiles),
             ("spool.peel_rate_exponent", TetherValueKind.Positive),
             ("spool.peel_reference_rate_m_s", TetherValueKind.Positive),
             ("spool.irregularity", TetherValueKind.Band),
@@ -161,6 +165,15 @@ namespace Fpv450.Sim.Tether
             ("rotor_air.ground_vortex_core_over_height", TetherValueKind.Positive),
             ("rotor_air.ground_vortex_circulation", TetherValueKind.Positive),
             ("rotor_air.ground_vortex_half_span_over_radius", TetherValueKind.Positive),
+            ("rotor_air.wake_merge_over_motor_distance", TetherValueKind.Band),
+            ("rotor_air.far_jet_decay", TetherValueKind.Positive),
+            ("rotor_air.far_jet_spreading_rate", TetherValueKind.Positive),
+            ("rotor_air.far_jet_virtual_origin_over_motor_distance", TetherValueKind.Signed),
+            ("rotor_air.wall_jet_half_height_ratio", TetherValueKind.Positive),
+            ("rotor_air.wall_jet_half_height_exponent", TetherValueKind.Signed),
+            ("rotor_air.wall_jet_decay_exponent", TetherValueKind.Positive),
+            ("rotor_air.wall_jet_profile", TetherValueKind.Band),
+            ("rotor_air.wall_jet_profile_square_integral", TetherValueKind.Positive),
             ("contact.clearance_margin_m", TetherValueKind.Positive),
             ("contact.drone_cache_radius_m", TetherValueKind.Positive),
             ("contact.drone_cache_refresh_m", TetherValueKind.Positive),
@@ -174,6 +187,21 @@ namespace Fpv450.Sim.Tether
             ("contact.hook_reach_m", TetherValueKind.Positive),
             ("contact.aluminium_static_friction", TetherValueKind.Positive),
             ("contact.aluminium_kinetic_friction", TetherValueKind.Positive),
+            ("contact.face_roughness_m", TetherValueKind.Band),
+            ("contact.face_layer_height_m", TetherValueKind.Positive),
+            ("strength.edge_weibull_modulus", TetherValueKind.Positive),
+            ("spool.hole_edge_strength_pa", TetherValueKind.Quantiles),
+            ("launch.liftoff_window_s", TetherValueKind.Positive),
+            ("launch.liftoff_window_payout_m", TetherValueKind.Positive),
+            ("launch.liftoff_window_height_m", TetherValueKind.Positive),
+            ("launch.liftoff_rest_s", TetherValueKind.Positive),
+            ("launch.liftoff_standing_share", TetherValueKind.Positive),
+            ("launch.liftoff_lean_deg", TetherValueKind.Positive),
+            ("launch.liftoff_cut_by_thrust", TetherValueKind.Chances),
+            ("launch.liftoff_lean_extra", TetherValueKind.Positive),
+            ("launch.liftoff_safe_chance", TetherValueKind.Positive),
+            ("launch.liftoff_cut_by_back_speed", TetherValueKind.Chances),
+            ("launch.liftoff_cut_cap", TetherValueKind.Positive),
         };
 
         const double DerivedTolerance = 1e-3;
@@ -312,6 +340,17 @@ namespace Fpv450.Sim.Tether
                     for (int i = 1; shape && i < n; i++)
                         shape = xs[2 * i] > xs[2 * i - 2] && xs[2 * i + 1] >= xs[2 * i - 1];
                     if (!shape) { problems.Add(path + ": p must rise from 0 to 1 and the values, above 0, never fall"); xs.Clear(); }
+                    break;
+                case TetherValueKind.Chances:
+                    bool listed = v.Kind == JsonKind.Array && v.Items.Count >= 2;
+                    for (int i = 0; listed && i < v.Items.Count; i++)
+                        listed = NumberList(v.Items[i], 2, xs);
+                    if (!listed) { problems.Add(path + ": must be a chance table [[x, chance], …] of at least two pairs"); xs.Clear(); break; }
+                    int m = xs.Count / 2;
+                    bool chances = xs[1] >= 0 && xs[2 * m - 1] <= 1;
+                    for (int i = 1; chances && i < m; i++)
+                        chances = xs[2 * i] > xs[2 * i - 2] && xs[2 * i + 1] >= xs[2 * i - 1];
+                    if (!chances) { problems.Add(path + ": x must rise and each chance, in [0, 1], never fall"); xs.Clear(); }
                     break;
             }
             return xs.ToArray();

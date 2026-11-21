@@ -286,40 +286,49 @@ namespace Fpv450.Sim.Tests
         /// rail on model 59 and on model 60; a crushed edge on 9 and 13 of 20).</summary>
         public const int RackSeeds = 20;
 
-        /// <summary>The rack over its seeds: on how many the drone rests on the blade disarmed (over 1 N), armed the blade
-        /// strikes, chips (a damage event and material lost) and crushes its leading edge (a notch), the drone moves (over 1 mm,
-        /// no crash or tunnel), and it rests over the known-wrong's height (over 3 mm); the first strike on the rail's steel;
+        /// <summary>The rack over its seeds: on how many the drone rests on the blade disarmed (the blade carries more than its own
+        /// weight, BladeWeight), armed the blade strikes, chips (a damage event and material lost) and crushes its leading edge (a
+        /// notch), the drone moves (over 1 mm, no crash or tunnel), and its hub rests over the known-wrong's by more than the
+        /// blade's own deflection at rest (the blade holds the corner up, it is not just bent); the first strike on the rail's steel;
         /// on how many the known-wrong bears nothing; and the crashes (a drone the strikes drive off the roof falls 1.5 m) and
-        /// the tunnels on all.</summary>
+        /// the tunnels on all. Until w9-village-physics 2.6's addendum the thresholds were 1 N and 3 mm, both assumed: on the
+        /// corrected legs (no crack softening) the rolled drone's rear-left leg keeps its stiffness and carries 84 % of that
+        /// corner, so the blade bears 0.8–0.9 N where the old crack's half-stiff leg left it 1.6–2.4 N.</summary>
         public struct RackSweep
         {
             public int N, Rests, Strikes, Chips, Notches, Moves, Over, OnTheRail, WrongBearsNothing, Crashes, Tunnels;
-            /// <summary>Of the seeds whose blade bears (over 1 N, Rests): those it strikes armed, chips, moves (over 1 mm) and rests over
-            /// the known-wrong (over 3 mm) on: the pilot's case is a blade resting on the rail.</summary>
+            /// <summary>Of the seeds whose blade bears (Rests): those it strikes armed, chips, moves (over 1 mm) and rests over the
+            /// known-wrong on: the pilot's case is a blade resting on the rail.</summary>
             public int BearingStrikes, BearingChips, BearingMoves, BearingOver;
         }
+
+        /// <summary>A blade's own weight, N: its prop's mass (the hub's included, an upper bound) over its blades, times g. A blade
+        /// that carries more than this carries some of the drone.</summary>
+        public static double BladeWeight(DroneSpec spec) => spec.Parts[spec.PartIndex("prop_rl")].Mass / spec.Props.Blades * 9.80665;
 
         public static RackSweep Racks(DroneSpec spec, Action<FlightSetup> edit = null, Action<ulong, Result, Result> each = null)
         {
             var w = new RackSweep();
+            double weight = BladeWeight(spec);
             for (ulong seed = 1; seed <= RackSeeds; seed++)
             {
                 Result r = Rack(spec, seed: seed, edit: edit), wrong = Rack(spec, rest: false, arm: false, seed: seed, edit: edit);
                 each?.Invoke(seed, r, wrong);
                 w.N++;
-                if (r.Load > 1)
+                bool over = r.HubAtArming - wrong.HubHeight > r.Bend;
+                if (r.Load > weight)
                 {
                     w.Rests++;
                     if (r.Strikes > 0) w.BearingStrikes++;
                     if (r.Damaged > 0 && r.Lost > 0) w.BearingChips++;
                     if (r.Travel > 0.001) w.BearingMoves++;
-                    if (r.HubAtArming - wrong.HubHeight > 0.003) w.BearingOver++;
+                    if (over) w.BearingOver++;
                 }
                 if (r.Strikes > 0) w.Strikes++;
                 if (r.Damaged > 0 && r.Lost > 0) w.Chips++;
                 if (r.Notches > 0) w.Notches++;
                 if (r.Travel > 0.001) w.Moves++;
-                if (r.HubAtArming - wrong.HubHeight > 0.003) w.Over++;
+                if (over) w.Over++;
                 if (r.FirstStrikeOn == "R01_A (steel)") w.OnTheRail++;
                 if (wrong.Load == 0) w.WrongBearsNothing++;
                 w.Crashes += r.Crashes + wrong.Crashes;

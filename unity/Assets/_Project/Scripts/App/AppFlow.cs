@@ -23,12 +23,13 @@ using StartPoint = Fpv450.App.Session.StartPoint;
 namespace Fpv450.App
 {
     /// <summary>
-    /// The app (design 6, APP-02…05): the menu (Play, Calibrate, Exit; Explore in a review build), Play's carousel of the
+    /// The app (design 6, APP-02…05): the menu (Play, Calibrate, Exit, in every build: w18-menu-cleanup), Play's carousel of the
     /// maps (PlayScreen, D-100: House, the test range, and Village, the farmland), the setup, the Calibrate screen, and the
     /// flight over the chosen map (FlightScene). It lives across scenes: Boot holds the menu, the map's scene (TestRange or
     /// FarmLand) the world. Play → a map → the setup → Fly saves the setup and loads the map, and the flight starts at its
     /// start once the radio is in, so arming the switch is the only step left. The summary's Fly again and Setup, and R,
-    /// stay on that map. Explore opens the farmland in noclip (FarmlandExplore).
+    /// stay on that map. No menu item opens the farmland in noclip (w18-menu-cleanup): only tooling does, in a review build,
+    /// through Load (FarmlandExplore): <c>-farmbench</c> (Bench) and the smoke test's world checks.
     /// </summary>
     /// <remarks>
     /// Options: <c>-windowed</c> (a 1920 × 1080 window), <c>-vsync &lt;n&gt;</c> (as the range's boot), <c>-quality &lt;name&gt;</c>
@@ -45,7 +46,7 @@ namespace Fpv450.App
     /// <c>-terrainab</c> its cruise also times the near terrain rule against the scene's own errors, on and off by turns
     /// (TerrainCost, 3.2; with <c>-vsync 0</c> in a development build).
     /// </remarks>
-    public sealed class AppFlow : MonoBehaviour
+    public sealed partial class AppFlow : MonoBehaviour
     {
         public const string BootScene = "Boot";
 
@@ -87,13 +88,15 @@ namespace Fpv450.App
             Application.logMessageReceivedThreaded += OnLog;
             _setup.Starts = FlightWorlds.FarmlandStarts;
             ReadProfile();
-            Debug.Log("[App] menu: Play, Calibrate, " + (AppData.Review ? "Explore, " : "") + "Exit (" + (AppData.Review ? "a review build" : "the pilot's build")
+            Debug.Log("[App] menu: Play, Calibrate, Exit (" + (AppData.Review ? "a review build" : "the pilot's build")
                       + "); data under " + AppData.Root + "; profile folder " + Application.persistentDataPath);
             if (Array.IndexOf(Environment.GetCommandLineArgs(), "-smoketest") >= 0) StartCoroutine(Smoke());
             else if (AppData.Review && Array.IndexOf(Environment.GetCommandLineArgs(), "-farmbench") >= 0) StartCoroutine(Bench());
+            else if (AppData.Review && Array.IndexOf(Environment.GetCommandLineArgs(), "-plantbench") is int plants && plants >= 0 && plants + 1 < Environment.GetCommandLineArgs().Length)
+                StartCoroutine(PlantBench(Environment.GetCommandLineArgs()[plants + 1])); // w16-plants-in-the-air 1.3
         }
 
-        // w6-farmland-look 1.2: the farmland's benchmark (FarmlandBench), from Explore pressed as the menu does.
+        // w6-farmland-look 1.2: the farmland's benchmark (FarmlandBench), in the farmland's noclip view (Load).
         IEnumerator Bench()
         {
             yield return null; // the menu's first frame
@@ -170,7 +173,8 @@ namespace Fpv450.App
             Load(explore: false);
         }
 
-        // The chosen map's scene for a flight (D-100), or the farmland in noclip (Explore, w1-farmland-world 2.1).
+        // The chosen map's scene for a flight (D-100), or the farmland in noclip (w1-farmland-world 2.1) for tooling alone:
+        // -farmbench and the smoke test (w18-menu-cleanup).
         void Load(bool explore)
         {
             _explore = explore;
@@ -180,15 +184,15 @@ namespace Fpv450.App
             SceneManager.LoadSceneAsync(explore ? FarmlandExplore.Scene : _map.Scene, LoadSceneMode.Single);
         }
 
-        float _exploreAsked, _exploreFirstFrame = -1f; // realtime s: Explore's press, and its first noclip frame after it
+        float _exploreAsked, _exploreFirstFrame = -1f; // realtime s: the noclip view's request, and its first frame after it
         Transform _exploreStand;
 
-        // PLT-06: the seconds from the menu's Explore to the farmland's first noclip frame on screen.
+        // PLT-06: the seconds from the request to the farmland's first noclip frame on screen.
         IEnumerator FirstExploreFrame()
         {
             yield return new WaitForEndOfFrame();
             _exploreFirstFrame = Time.realtimeSinceStartup - _exploreAsked;
-            Debug.Log("[App] explore: the farmland's first noclip frame " + _exploreFirstFrame.ToString("0.00") + " s after the menu's Explore (PLT-06: 20 s)");
+            Debug.Log("[App] explore: the farmland's first noclip frame " + _exploreFirstFrame.ToString("0.00") + " s after the request (PLT-06: 20 s)");
         }
 
         void Menu()
@@ -219,7 +223,7 @@ namespace Fpv450.App
                 _exploreStand = FarmlandExplore.Open(scene);
                 _view = View.Explore;
                 Debug.Log("[App] explore: the farmland in noclip with the feed (V, O), from the village's start '" + FlightWorlds.FarmlandStart.Name +
-                          "' with the launch stand" + (_exploreStand != null ? " at " + _exploreStand.position.ToString("0.00") : " MISSING") + "; Esc for the menu");
+                          "' with the launch stand" + (_exploreStand != null ? " at " + _exploreStand.position.ToString("0.00") : " MISSING"));
                 StartCoroutine(FirstExploreFrame());
             }
             else if (scene.name == _map.Scene)
@@ -266,8 +270,7 @@ namespace Fpv450.App
             if (_view == View.Play && _play.Update()) Choose(_play.Selected);
             Keyboard k = Keyboard.current;
             if (k == null || !k.escapeKey.wasPressedThisFrame) return;
-            if (_view == View.Explore) Menu();
-            else if (_view == View.Play) _view = View.Menu;
+            if (_view == View.Play) _view = View.Menu;
             else if (_view == View.Setup) Back();
             else if (_view == View.Flight && _flight != null) _flight.Escape();
         }
@@ -306,11 +309,10 @@ namespace Fpv450.App
             switch (_view)
             {
                 case View.Menu:
-                    switch (MenuScreen.Draw(AppData.Review, RadioLine(), "build " + Application.version + (AppData.Review ? "  ·  review" : "")))
+                    switch (MenuScreen.Draw(RadioLine(), "build " + Application.version + (AppData.Review ? "  ·  review" : "")))
                     {
                         case MenuChoice.Play: Play(); break;
                         case MenuChoice.Calibrate: Calibrate(); break;
-                        case MenuChoice.Explore: Load(explore: true); break;
                         case MenuChoice.Exit: Application.Quit(); break;
                     }
                     break;
@@ -331,10 +333,13 @@ namespace Fpv450.App
                 case View.Loading:
                     AppStyle.Begin();
                     AppStyle.DrawGround();
-                    GUI.Label(new Rect(AppStyle.S(150), Screen.height * 0.45f, Screen.width, AppStyle.S(40)), _explore ? "Loading " + PlayMaps.Village.Name + "…  noclip" : "Loading " + _map.Name + "…  arm once the drone is in", AppStyle.Label);
+                    GUI.Label(new Rect(AppStyle.S(150), Screen.height * 0.45f, Screen.width, AppStyle.S(40)), LoadingLine(_explore ? PlayMaps.Village.Name : _map.Name), AppStyle.Label);
                     break;
             }
         }
+
+        /// <summary>The loading screen's line: the map's name alone (w18-menu-cleanup).</summary>
+        public static string LoadingLine(string map) => "Loading " + map + "…";
 
         // ---- The smoke test ----
 
@@ -382,8 +387,9 @@ namespace Fpv450.App
         }
 
         /// <summary>
-        /// The player's smoke test, through the screens' own calls: the menu, Play's carousel (moved and chosen by its keys,
-        /// D-100) and Village's setup drawn; Explore in a review build;
+        /// The player's smoke test, through the screens' own calls: the menu, the Calibrate screen's two tabs and its Back,
+        /// Play's carousel (moved and chosen by its keys, D-100) and Village's setup drawn; in a review build the farmland's
+        /// noclip view, opened as -farmbench opens it (no menu item does: w18-menu-cleanup);
         /// then two flights over the farmland from the village's start, the one the setup offers (D-092, w3-farmland-ground
         /// 3.1; on the test range until then, from its houses' start): on the legs, then from the launch
         /// stand (legs off) in Rain, the second set from the first's summary through Setup. Each flight carries
@@ -906,6 +912,15 @@ namespace Fpv450.App
                     Debug.Log("[Smoke] the D3D12 pipeline library was dropped this run, not read empty: its log line is the next run's check");
             }
             yield return Shot("menu");
+            // w18-menu-cleanup 1.2: the Calibrate screen from the menu, its radio's tab and its rates' shot, and Back.
+            Calibrate();
+            yield return null;
+            yield return Shot("calibrate_radio");
+            _calibrate.Tab = 1;
+            yield return Shot("calibrate_rates");
+            _calibrate.Back();
+            yield return null;
+            Check(_view == View.Menu && _calibrate == null, "Calibrate opens from the menu, and its Back returns to the menu");
             yield return Pick(PlayMaps.Village);
             Check(_view == View.Setup && _setup.Starts.Length == 1 && _setup.Starts[0].Name == FlightWorlds.FarmlandStart.Name,
                   "Play → Village opens its setup, from the village's start only (D-092): " + _setup.Starts.Length + " start point(s)");
@@ -913,8 +928,9 @@ namespace Fpv450.App
 
             if (AppData.Review)
             {
-                // w1-farmland-world 2.1: Explore opens the farmland in noclip with the feed, the stand at the village's start
-                // on the terrain, its first frame within PLT-06's 20 s of the press.
+                // w1-farmland-world 2.1: the farmland's noclip view, opened as -farmbench opens it (no menu item does,
+                // w18-menu-cleanup), with the feed, the stand at the village's start on the terrain, its first frame within
+                // PLT-06's 20 s of the request.
                 Load(explore: true);
                 yield return Until(() => _view == View.Explore && _exploreFirstFrame >= 0, 60);
                 Camera eye = Camera.main;
@@ -926,12 +942,11 @@ namespace Fpv450.App
                                 Mathf.Abs(_exploreStand.position.y - terrain) < 1e-3f;
                 Check(_view == View.Explore && SceneManager.GetActiveScene().name == FarmlandExplore.Scene && noclip != null && noclip.enabled && feed != null && feed.Running && onGround &&
                       _exploreFirstFrame <= 20f,
-                      "Explore opens the farmland in noclip, the feed " + (feed != null && feed.Running ? "on" : "OFF") + ", the stand " +
+                      "the noclip view opens the farmland, the feed " + (feed != null && feed.Running ? "on" : "OFF") + ", the stand " +
                       (_exploreStand != null ? "at " + _exploreStand.position.ToString("0.000") + (onGround ? " on the terrain" : " OFF the start or the ground") : "MISSING") +
-                      ", its first frame " + _exploreFirstFrame.ToString("0.00") + " s after the press (PLT-06: 20 s)");
+                      ", its first frame " + _exploreFirstFrame.ToString("0.00") + " s after the request (PLT-06: 20 s)");
                 yield return new WaitForSecondsRealtime(2);
                 yield return Shot("explore_farmland_stand");
-                yield return PressM(eye != null ? eye.GetComponent<MapPanel>() : null, eye != null ? eye.transform : null, "in Explore");
                 // w3-farmland-ground 3.2: the drawn terrain against the sim's from noclip's start, the stand 3 m ahead, through
                 // the feed and without it (V), at the scene's errors and at the flight's near the drone: what noclip shows
                 // of the ground the drone stands on. Noclip keeps the scene's errors; within 10 m they must hold WLD-11's 1 mm.
@@ -963,7 +978,7 @@ namespace Fpv450.App
                 }
                 Menu();
                 yield return Until(() => _view == View.Menu, 30);
-                Check(_view == View.Menu, "Esc's route back to the menu");
+                Check(_view == View.Menu, "the menu again after the noclip view");
                 yield return Pick(PlayMaps.Village);
             }
 
@@ -992,6 +1007,7 @@ namespace Fpv450.App
                 bool barred = n == 1 && _flight != null && _flight.Host.Inputs != null && _flight.Host.Inputs.KeyboardAllowed;
                 if (barred) _flight.Host.Inputs.KeyboardAllowed = false;
                 Fly();
+                if (_view == View.Loading) yield return Shot("loading_" + tag); // w18-menu-cleanup 1.2
                 string where = "'" + start.Name + "' (legs " + (c.Legs ? "on" : "off, the stand") + ")";
                 yield return Until(() => _view == View.Flight && _flight != null && _flight.Host.Session != null, 60);
                 Check(_flight != null && _flight.Host.Session != null, "Fly loads the flight over the farmland at " + where);

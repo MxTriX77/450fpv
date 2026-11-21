@@ -147,7 +147,7 @@ namespace Fpv450.Sim.Contact
     /// (Restructure); and a skid half whose leg let go hangs from the other T-joint on its skid, its cantilever's give a turn
     /// of its shapes about that bore (Hang), folding past the skid's first yield there.
     /// </summary>
-    public sealed class ContactModel
+    public sealed partial class ContactModel
     {
         /// <summary>A corner's half-skid in soil (ContactModel.SoilOf): its leg's deflection, each node's sink below the
         /// soil's surface (middle, T-joint, outer end) and deepest sink, the soil's static force, the force with its damping,
@@ -198,6 +198,7 @@ namespace Fpv450.Sim.Contact
             public byte Surface;
             public Double3 P, N, Entry; // the plane, and the normal the part came in by
             public bool Latched, Flipped, Seen, Touching, Suppressed;
+            public bool Beside;         // its part's core left a round member's side this step (RollOff): not pressed, its latch let go
             public double Depth;        // at the pose Sense last saw, m
             public double Slack;        // a blade's overlap its spring does not read: what it came back to rest in, as it shrinks since, m
             public Double3 Point;       // the contact point on the plane under the core there, world
@@ -218,6 +219,7 @@ namespace Fpv450.Sim.Contact
             public double Adhesion, AdhesionRelease; // a wet layer's cling σ_a (Pa) and its release δ_a (m), 1.13; 0 when dry
             public AreaLaw Law;                      // a layer's area law and its reference depth (m), 1.12; None for any other row
             public double LawDepth;
+            public CrownRow Crown;                   // a crown's twig shell (w9-village-physics 2.3): its twigs' law; null for any other row
         }
 
         /// <summary>The footprint ring's grooves (design 3, assumed: two a corner).</summary>
@@ -264,6 +266,8 @@ namespace Fpv450.Sim.Contact
         readonly int[] _supports;       // the support shapes, in shape order
         readonly Pair[] _pairs;         // shape i's pairs at i·PairsPerShape
         readonly int[] _count;
+        readonly int[] _crownPair;      // shape i's crown pair carrying it after the last Sense (its deepest touching one), −1 none
+        bool _inCrown;                  // some shape's is
         readonly Pair[] _ground;        // a support's ground (index: shape)
         readonly bool _terrain;         // the ground is a terrain, not one plane (Geometry(Ground, 0) false: w3-farmland-ground 2.2)
         readonly Row[] _byMaterial;     // world material id → its row
@@ -283,6 +287,9 @@ namespace Fpv450.Sim.Contact
         readonly Row[] _surfaceRow;     // world surface id → its friction as a rigid ground
         readonly Print[] _prints;
         int _printNext;
+
+        // The legs' tips in the soil (w17-four-legs, ContactSpec.LegTips): each corner's tip, or null on skids or without the table.
+        readonly Tip[] _tips;
 
         // Wet ground (1.13): each corner's footprint clinging to a wet layer (a material row's cling, straw's) since it last
         // let go, m² (null when nothing clings); the cover kinds' sets at the flight's moisture, for the elements (1.14, 1.15).
@@ -310,6 +317,7 @@ namespace Fpv450.Sim.Contact
         // before (its side give's softening), and a hanging half's force and couple onto the leg that holds it.
         readonly ContactShape[] _base;
         readonly Double3[] _wasA, _wasB;
+        readonly Double3[] _discFrom; // each disc's hub at the step's start (world), for a slab crossing within the step (Disc, PropStrikes)
         readonly bool[] _off;
         readonly CornerState[] _corner = new CornerState[4];
         readonly Double3[] _fold = new Double3[4], _setApplied = new Double3[4], _foldApplied = new Double3[4];
@@ -337,6 +345,11 @@ namespace Fpv450.Sim.Contact
         // A hanging half's elastic move along its deepest point's normal past what its turn gives (body m, ContactSpec.HangingGive):
         // the rest of its chain's give, the holding leg's across its tube and the stick anchor's in series with them.
         readonly Double3[] _hangShift = new Double3[4], _shiftApplied = new Double3[4];
+        // A hanging half's chain this step (ContactSpec.HangingDepth, w9 2.6b): its cantilever's stiffness at its points' levers
+        // (N/m), the deepest point its chain reads (shape, pair; −1 the support's ground) and the share of that point's overlap a
+        // compliant row's own compression takes (m: a layer's series share, or its stroke once solid).
+        readonly double[] _hangBend = new double[4], _hangLayer = new double[4];
+        readonly int[] _hangDeepShape = new int[4], _hangDeepPair = new int[4];
 
         // Props are parts at rest (p7f-damage 1.3b): the rotors and their blades (null until AttachRotors), each blade shape's
         // slot (corner × blades + blade; −1 for any other shape), segment and edge; the hubs (body) and spin signs; the
@@ -402,6 +415,7 @@ namespace Fpv450.Sim.Contact
             if (n > 255) throw new ArgumentException("the contact spec holds more than 255 shapes", nameof(spec));
             _pairs = new Pair[n * PairsPerShape];
             _count = new int[n];
+            _crownPair = new int[n];
             _ground = new Pair[n];
             _order = new int[n];
             int at = 0, supports = 0;
@@ -420,8 +434,18 @@ namespace Fpv450.Sim.Contact
                 if (_shapes[i].Role == ContactRole.Support) _supports[k++] = i;
             for (int i = 0; i < n; i++)
                 if (_shapes[i].Role == ContactRole.Skid && _shapes[i].Corner >= 0 && _shapes[i].Corner < 4) _halfSkid[_shapes[i].Corner] = i;
+            for (int c = 0; _spec.LegTips && c < 4; c++)
+                if (_halfSkid[c] >= 0)
+                    throw new ArgumentException("the legs' tips (ContactSpec.LegTips) stand each corner on its leg's tip; a drone on skids flies them off", nameof(spec));
             SurfaceTable table = _spec.Surfaces;
-            if (table != null) _skids = Skids();
+            if (table != null)
+            {
+                // Four legs stand on their tips (w17-four-legs, ContactSpec.LegTips); a drone on skids on its half-skids.
+                // The tips stand on the legs' side give: a scenario's legs rigid across (model 37's, LandingScenarios.RigidAcross) put the
+                // supports on the ground's surface alone.
+                if (_spec.LegTips) { if (_spec.LegSideStiffness > 0) _tips = Tips(random); }
+                else _skids = Skids();
+            }
             int middles = _skids != null ? 4 : 0; // the supports' samples, then the skids' middles
             _at = new XZ[supports + middles];
             _samples = new GroundSample[supports + middles];
@@ -452,6 +476,7 @@ namespace Fpv450.Sim.Contact
                         Damping = r.Rigid ? 0 : 2 * r.DampingRatio * DetMath.Sqrt(k * _massShare),
                         Adhesion = r.Rigid ? 0 : r.WetAdhesion, AdhesionRelease = r.Rigid ? 0 : r.WetAdhesionRelease,
                         Law = r.Rigid ? AreaLaw.None : r.AreaLaw, LawDepth = r.Rigid ? 0 : r.AreaReferenceDepth,
+                        Crown = r.Rigid ? null : r.Crown,
                     };
                     clings |= _byMaterial[id].Adhesion > 0;
                     continue;
@@ -461,9 +486,10 @@ namespace Fpv450.Sim.Contact
                     Known = true, Rigid = r.Rigid, StaticFriction = r.StaticFriction, KineticFriction = r.KineticFriction, Stiffness = r.Stiffness,
                     Damping = r.Rigid ? 0 : 2 * r.DampingRatio * DetMath.Sqrt(r.Stiffness * _massShare),
                     Law = r.Rigid ? AreaLaw.None : r.AreaLaw, LawDepth = r.Rigid ? 0 : r.AreaReferenceDepth,
+                    Crown = r.Rigid ? null : r.Crown,
                 };
             }
-            if (clings && _skids != null) _cling = new double[4];
+            if (clings && (_skids != null || _tips != null)) _cling = new double[4];
             _groundRow = new Row { Known = true, Rigid = true, StaticFriction = _spec.GroundStaticFriction, KineticFriction = _spec.GroundKineticFriction };
 
             // The world's surfaces by id, from the table by name at the flight's moisture; one the table lacks is refused.
@@ -484,7 +510,7 @@ namespace Fpv450.Sim.Contact
                     _soil[id] = set;
                     _surfaceRow[id] = new Row { Known = true, Rigid = true, StaticFriction = set.StaticFriction, KineticFriction = set.KineticFriction };
                     // The cohesive pull's rise on the soil's unload line ends at σ_a, which must come before δ_a (1.13).
-                    for (int c = 0; set.Adhesion > 0 && c < 4; c++)
+                    for (int c = 0; _skids != null && set.Adhesion > 0 && c < 4; c++)
                     {
                         if (!_skids[c].Known) continue;
                         double ku = set.UnloadRatio * Soil.Modulus(set, Soil.Width(SoilPart.Tube, _skids[c].Radius));
@@ -492,11 +518,14 @@ namespace Fpv450.Sim.Contact
                             throw new ArgumentException("surfaces.json's " + name + " at " + moisture + ": σ_a over the unload modulus, " + set.Adhesion / ku
                                 + " m, is not below adhesion_release_m " + set.AdhesionRelease, nameof(spec));
                     }
+                    // A tip's wet face's suction rises on its unloading line, at least the loading line's k_t per area (w17-four-legs).
+                    if (_tips != null && set.Adhesion > 0 && set.TipResistance > 0 && !(set.Adhesion / (set.TipResistance / _spec.TipReferenceDepth) < set.AdhesionRelease))
+                        throw new ArgumentException("surfaces.json's " + name + " at " + moisture + ": σ_a over the tip's k_t is not below adhesion_release_m", nameof(spec));
                 }
                 _cover = new CoverSet[table.Cover.Length];
                 for (int i = 0; i < _cover.Length; i++) _cover[i] = table.Cover[i].Set(moisture);
             }
-            for (int c = 0; _cling != null && c < 4; c++)
+            for (int c = 0; _cling != null && _skids != null && c < 4; c++)
             {
                 if (!_skids[c].Known) continue;
                 for (int id = 1; id < _byMaterial.Length; id++)
@@ -531,6 +560,7 @@ namespace Fpv450.Sim.Contact
 
             _base = (ContactShape[])_shapes.Clone();
             _wasA = new Double3[n];
+            _discFrom = new Double3[n];
             _wasB = new Double3[n];
             _off = new bool[n];
             for (int i = 0; i < n; i++) _off[i] = _shapes[i].Role == ContactRole.Blade; // until AttachRotors places them
@@ -555,8 +585,8 @@ namespace Fpv450.Sim.Contact
                         }
                 LegDamageSpec l = _spec.Legs;
                 _skidBending = l.Modulus * l.SecondMoment;
-                Double3 span = l.Bore[0] - l.Bore[l.Sibling[0]];
-                _skidLever = span.Length();
+                // Four separate legs (w17-four-legs) have no skid to hang from: no sibling, no lever.
+                _skidLever = l.Sibling[0] >= 0 ? (l.Bore[0] - l.Bore[l.Sibling[0]]).Length() : 0;
                 _skidContact = _legTube[0] >= 0 ? _shapes[_legTube[0]].Stiffness : 0;
             }
         }
@@ -688,6 +718,10 @@ namespace Fpv450.Sim.Contact
         /// <summary>A prop disc's pairs now (0 for any other shape): the shapes its slab cuts or its ring touched, in the order
         /// they came (PropStrikes reads them after each Sense).</summary>
         public int DiscPairs(int shape) => _shapes[shape].Role == ContactRole.Disc ? _count[shape] : 0;
+
+        /// <summary>Disc shape's hub at the last Sense's start pose (world): its slab swept from there to the hub now is the step's
+        /// (BladeCut.Crossing).</summary>
+        public Double3 DiscFrom(int shape) => _discFrom[shape];
 
         /// <summary>A disc's pair k: the world object and its shape, their material and surface.</summary>
         public void DiscPair(int shape, int k, out int obj, out int objShape, out ushort material, out byte surface)
@@ -835,6 +869,40 @@ namespace Fpv450.Sim.Contact
             return false;
         }
 
+        /// <summary>The pairs touching a world material now, not held by another (forensics: what a drone at rest in a crown rests
+        /// on, w9-village-physics 2.3).</summary>
+        public int TouchingOn(ushort material)
+        {
+            int n = 0;
+            for (int i = 0; i < _shapes.Length; i++)
+                for (int k = 0; k < _count[i]; k++)
+                {
+                    ref Pair p = ref _pairs[i * PairsPerShape + k];
+                    if (p.Touching && !p.Suppressed && p.Surface == WorldIds.NoSurface && p.Material == material) n++;
+                }
+            return n;
+        }
+
+        /// <summary>Some part touched a crown's twig shell at the last Sense (w16-plants-in-the-air 1.5: its leaves, PartStems).</summary>
+        public bool InCrown => _inCrown;
+
+        /// <summary>The crown shape i is in at the last Sense: the object and material of its deepest touching crown pair, the one
+        /// that carries it (2.3's one crown a part); false for none.</summary>
+        public bool CrownOf(int i, out int obj, out ushort material)
+        {
+            int k = _off[i] ? -1 : _crownPair[i];
+            if (k < 0 || k >= _count[i])
+            {
+                obj = 0;
+                material = 0;
+                return false;
+            }
+            ref Pair p = ref _pairs[i * PairsPerShape + k];
+            obj = p.Object;
+            material = p.Material;
+            return true;
+        }
+
         /// <summary>A blade's load in the last Forces (slot corner × blades + blade).</summary>
         public RestLoad RestLoadOf(int slot) => _restLoads != null ? _restLoads[slot] : default;
 
@@ -942,12 +1010,14 @@ namespace Fpv450.Sim.Contact
         // the hub, bent at the contact's radius r across its section at the station there (flatwise across the chord, edgewise
         // along it, the section's principal axes at its pitch; axially along the span), in series with its mount, the motor's
         // can (its shape's Stiffness across body y, StiffnessUp along it, as a body shape's). Also the contact's radius, the
-        // blade's direction of motion there and the section's axes (body).
+        // blade's direction of motion there and the section's axes (body). The radius is the blade's own material point nearest the
+        // face, its core's: the pair's point lies on the face's plane, its depth off the blade, and on a blade pushed deep into a
+        // branch it ran past the tip, reading the cantilever beyond the blade's length (w9-village-physics 2.6's addendum).
         double BladeStiffness(int i, in Pair p, in FlightState s, out double share, out double r, out Double3 motion, out Double3 flat, out Double3 along)
         {
             int slot = _bladeSlot[i], c = slot / _bladesPer, b = slot % _bladesPer;
             ContactShape shape = _shapes[i];
-            Double3 at = s.Attitude.InverseRotate(p.Point - s.Position) - _hub[c];
+            Double3 at = s.Attitude.InverseRotate(p.Point + p.N * (shape.Radius - p.Depth) - s.Position) - _hub[c];
             var plane = new Double3(at.X, 0, at.Z);
             r = plane.Length();
             Double3 radial = r > 0 ? plane * (1 / r) : new Double3(1, 0, 0);
@@ -1163,12 +1233,14 @@ namespace Fpv450.Sim.Contact
                     Row row = RowOf(p);
                     double ks, bladeShare = 0, r = 0;
                     Double3 motion = default, flat = default, along = default;
+                    bool jaws = !blade && InJaws(i, p, s, axis);
                     if (blade) ks = BladeStiffness(i, p, s, out bladeShare, out r, out motion, out flat, out along);
                     else
                     {
                         Double3 nb = s.Attitude.InverseRotate(p.N);
                         double up = nb.Y * nb.Y;
-                        ks = 1 / (up / shape.StiffnessUp + (1 - up) / shape.Stiffness);
+                        ks = jaws ? 1 / (up / _spec.Legs.StubStiffnessUp + (1 - up) / _spec.Legs.StubStiffness)
+                            : 1 / (up / shape.StiffnessUp + (1 - up) / shape.Stiffness);
                     }
                     double cs = 2 * shape.DampingRatio * DetMath.Sqrt(ks * _massShare);
                     // A layer by this part's footprint, solid past its stroke: then the part's own spring alone (1.12, P7). The
@@ -1238,8 +1310,9 @@ namespace Fpv450.Sim.Contact
                     Double3 fw = Apply(ref p, i, k, fn, kn, cn, p.Depth, row, s, com, ref f, ref m, ref touching, ref strongest, ref strongestPair, ref strongestForce);
                     int leg = _legOf[i];
                     if (leg < 0 || !(p.Depth > 0) || (_corner[leg] & (CornerState.Stub | CornerState.TubeGone)) != 0) continue;
-                    // A leg tube's touch loads its leg: along it, and at the clamp's edge by its height under it.
-                    double height = Double3.Dot(axis, World(s, _spec.Legs.Clamp[leg]) - p.Point);
+                    // A leg tube's touch loads its leg: along it, and at the clamp's edge by its height under it (in the jaws none:
+                    // the clamp carries it, ClampedTube).
+                    double height = jaws ? 0 : Double3.Dot(axis, World(s, _spec.Legs.Clamp[leg]) - p.Point);
                     _tubeForce[leg] = _tubeForce[leg] + fw;
                     _tubeMoment[leg] = _tubeMoment[leg] + (fw - axis * Double3.Dot(axis, fw)) * height;
                     double size = fw.Length();
@@ -1291,6 +1364,19 @@ namespace Fpv450.Sim.Contact
             }
         }
 
+        // A touch on an intact leg's tube in its clamp's jaws (w9-village-physics 2.6d, ContactSpec.ClampedTube): the tube's core
+        // point there lies above the clamp's bottom edge along the legs' axis, where the jaws hold it, so the touch meets the clamp's
+        // mount, as a broken leg's stub in the same jaws does (StubStiffness, p7g-legs model 51), and bends no free tube. On the tube's
+        // own penetration spring (6.6 kN/m, assumed) L03's conductor, met in leg_fl's jaws at 10.3 m/s, went 123 mm through it.
+        bool InJaws(int i, in Pair p, in FlightState s, Double3 up)
+        {
+            int leg = _legOf[i];
+            if (!_spec.ClampedTube || leg < 0 || _spec.Legs == null || !(_spec.Legs.StubStiffness > 0)
+                || (_corner[leg] & (CornerState.Stub | CornerState.TubeGone)) != 0) return false;
+            Double3 core = p.Point - p.N * (p.Depth - _shapes[i].Radius);
+            return Double3.Dot(up, core - World(s, _spec.Legs.Clamp[leg])) > 0;
+        }
+
         // One touching point of a leg: its depth into the corner's deepest and sum, and its closing speed weighted by depth.
         void Gather(ref Pair p, int shape, int pair, in FlightState s, ref double deepest, ref double sum, ref double closing, ref int deepShape, ref int deepPair)
         {
@@ -1308,16 +1394,52 @@ namespace Fpv450.Sim.Contact
 
         // A hanging half's point's move along its normal by the half's elastic turn about the holding leg's bore (body), and by its
         // elastic move past the turn (HangingGive), m: what its overlap without them adds to its depth.
-        double Unturned(int c, in Pair p, in FlightState s)
+        double Unturned(int c, in Pair p, in FlightState s) => Unturned(c, p, s, _elastic[c]);
+
+        // The same with the half's shapes standing by the elastic turn elastic (Hang's, before it sets the step's).
+        double Unturned(int c, in Pair p, in FlightState s, Double3 elastic)
         {
-            if (Same(_elastic[c], default) && Same(_shiftApplied[c], default)) return 0;
+            if (Same(elastic, default) && Same(_shiftApplied[c], default)) return 0;
             int h = _spec.Legs.Sibling[c];
             Double3 bore = Rotated(_spec.Legs.Bore[h], h), at = s.Attitude.InverseRotate(p.Point - s.Position) - bore;
-            if (!_spec.HangingGive) return Double3.Dot(p.N, s.Attitude.Rotate(at - Turn(_elastic[c]).Conjugate().Rotate(at)));
+            if (!_spec.HangingGive) return Double3.Dot(p.N, s.Attitude.Rotate(at - Turn(elastic).Conjugate().Rotate(at)));
             at = at - _shiftApplied[c];
-            Double3 moved = at - Turn(_elastic[c]).Conjugate().Rotate(at) + _shiftApplied[c];
+            Double3 moved = at - Turn(elastic).Conjugate().Rotate(at) + _shiftApplied[c];
             return Double3.Dot(p.N, s.Attitude.Rotate(moved));
         }
+
+        // A hanging half's cantilever at its touching points (w9 2.6b, N/m): the skid built in at its holder's bore, a load at a
+        // point r from it bends it by r³/(3EI) there (a tip-loaded cantilever, derived), each point's compliance by its share of
+        // the corner's overlap (Trial's), so a point's entry or exit moves it continuously. The bores' distance's (HangingStiffness)
+        // with none: at the half's outer end (r 0.3225 m) the tube is 3.9 times softer than there (r 0.205 m).
+        double HangBend(int c, in FlightState s, double sum)
+        {
+            if (!(sum > 0) || !(_skidBending > 0)) return HangingStiffness;
+            Double3 bore = HangBore(c);
+            double compliance = 0;
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                ContactRole role = _shapes[i].Role;
+                if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                for (int k = -1; k < _count[i]; k++)
+                {
+                    ref Pair p = ref k < 0 ? ref _ground[i] : ref _pairs[i * PairsPerShape + k];
+                    if (k < 0 ? role != ContactRole.Support || !p.Touching : !p.Touching || p.Suppressed) continue;
+                    if (!(p.Overlap > 0)) continue;
+                    // The part's own core point there: the contact's point on its plane, back along the normal to the core.
+                    Double3 r = s.Attitude.InverseRotate(p.Point + p.N * (_shapes[i].Radius - p.Depth) - s.Position) - bore;
+                    double r2 = Double3.Dot(r, r);
+                    compliance += p.Overlap / sum * (r2 * DetMath.Sqrt(r2));
+                }
+            }
+            return compliance > 0 ? 3 * _skidBending / compliance : HangingStiffness;
+        }
+
+        // The bore's give across its holding leg h (w9 2.6b, N/m): that leg's tube bent at its foot, 3EI/L³ by its drawn modulus and
+        // its state (LegGive's, the frame aside: a leg whose sibling let go is a cantilever both ways), its axial load's P·Δ left out
+        // (assumed: a hanging half's 1–16 N against the 47 N sway load).
+        double HolderGive(int h) =>
+            _spec.LegTubeSideStiffness > 0 ? (_legs != null ? _legs.StiffnessFactor(h) : 1) * _spec.LegTubeSideStiffness : _spec.LegSideStiffness;
 
         // ---- The legs' side give (p7g-legs 1.2, design 3) -------------------------------------------------------------------
 
@@ -1369,6 +1491,26 @@ namespace Fpv450.Sim.Contact
                     }
                     _soilPoint[c].On = false;
                 }
+                if (_tips != null && _tips[c].Known)
+                {
+                    // A leg's tip in soil (w17-four-legs): its one point the soil's; the corner's other points read their depth.
+                    for (int i = 0; i < _shapes.Length; i++)
+                    {
+                        if (_shapes[i].Corner != c || _shapes[i].Role != ContactRole.Support) continue;
+                        _ground[i].Overlap = 0;
+                        for (int k = 0; k < _count[i]; k++)
+                        {
+                            ref Pair p = ref _pairs[i * PairsPerShape + k];
+                            p.Overlap = p.Surface == WorldIds.NoSurface ? p.Depth : 0;
+                        }
+                    }
+                    if (TipCorner(c, s, ref compression))
+                    {
+                        if (_cling != null) _cling[c] = 0;
+                        continue;
+                    }
+                    _soilPoint[c].On = false;
+                }
                 double deepest = 0, sum = 0, closing = 0;
                 int deepShape = -1, deepPair = -1;
                 for (int i = 0; i < _shapes.Length; i++)
@@ -1390,10 +1532,16 @@ namespace Fpv450.Sim.Contact
                     // with the tube stock's own contact spring (its shapes' penetration spring), on each point's overlap of
                     // the half without its elastic turn: the massless half turns by its cantilever's give (Hang), so its
                     // shapes stand out of what it touches by the contact spring's share; damped at the tube's own ζ;
-                    // across it, in series with the holding leg's side give.
-                    k0 = Series(_skidContact, HangingStiffness);
+                    // across it, in series with the holding leg's side give. With the depth law (w9 2.6b) the cantilever is the
+                    // tube's at its points' own levers (HangBend) and the bore gives as the holding leg's tube (HolderGive): the
+                    // holding leg's foot chain, its anchor to what its own foot touches in series, is not the bore's path (its foot
+                    // 0.02 mm into tilled soil on the soil's unload line read 0, and the half's chain lost its give across: farmland
+                    // #329).
+                    bool depth = _spec.HangingGive && _spec.HangingDepth;
+                    _hangBend[c] = depth ? HangBend(c, s, sum) : HangingStiffness;
+                    k0 = Series(_skidContact, _hangBend[c]);
                     c0 = 2 * _spec.LegSideDampingRatio * DetMath.Sqrt(k0 * _massShare);
-                    ks = Series(k0, _side[_spec.Legs.Sibling[c]]);
+                    ks = Series(k0, depth ? HolderGive(_spec.Legs.Sibling[c]) : _side[_spec.Legs.Sibling[c]]);
                     cs = c0;
                 }
                 else
@@ -1408,6 +1556,33 @@ namespace Fpv450.Sim.Contact
                     if (_frame[c]) _sideF[c] = Series(_frameGive[c], ratio * k0);
                     if (!hanging && _cling != null && _cling[c] > 0) Cling(c, s, com, ref f, ref m, ref load, ref compression, ref touching);
                     continue;
+                }
+                // A hanging half that lies deepest in a crown's twig shell while it also meets something solid (a branch's bark, the
+                // ground) is held by the solid (w9 2.6): the corner's one chain takes that point's row and overlap. On the twigs' row
+                // the chain was the twigs' near-nothing in series, every point of the half carried nothing, and the half passed the
+                // branch inside the shell (Pine002_M, 151 mm through its bark at 7.5 m/s). With the depth law (w9 2.6b) any compliant
+                // row yields so to a rigid one: the half pushed sideways into S04's straw tile, 48 mm past its side face, bears on the
+                // soil box under it, 16 mm in, and its give lifts it out of the soil, not along the tile's side (range #61).
+                bool yields = hanging && _spec.HangingGive && _spec.HangingDepth;
+                Row first = RowOf(deepPair < 0 ? _ground[deepShape] : _pairs[deepShape * PairsPerShape + deepPair]);
+                if (hanging && first.Crown != null || yields && !first.Rigid)
+                {
+                    double held = 0;
+                    for (int i = 0; i < _shapes.Length; i++)
+                    {
+                        ContactRole role = _shapes[i].Role;
+                        if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                        for (int k = -1; k < _count[i]; k++)
+                        {
+                            ref Pair p = ref k < 0 ? ref _ground[i] : ref _pairs[i * PairsPerShape + k];
+                            if (k < 0 ? role != ContactRole.Support || !p.Touching : !p.Touching || p.Suppressed) continue;
+                            if (!(p.Overlap > held) || (yields ? !RowOf(p).Rigid : RowOf(p).Crown != null)) continue;
+                            held = p.Overlap;
+                            deepShape = i;
+                            deepPair = k;
+                        }
+                    }
+                    if (held > 0) deepest = held;
                 }
                 compression[c] = deepest;
                 ref Pair deep = ref deepPair < 0 ? ref _ground[deepShape] : ref _pairs[deepShape * PairsPerShape + deepPair];
@@ -1424,12 +1599,21 @@ namespace Fpv450.Sim.Contact
                     ca = c0;
                     push = deepest - stroke;
                 }
+                if (hanging)
+                {
+                    // The point the hanging half's chain reads, and what of its overlap the row it touches takes itself (a layer
+                    // its series share k0/(k0 + k_r), its stroke once solid; nothing on a rigid row): the depth law's (Hang).
+                    _hangDeepShape[c] = deepShape;
+                    _hangDeepPair[c] = deepPair;
+                    _hangLayer[c] = solid ? stroke : row.Rigid ? 0 : deepest * (k0 / (k0 + kr));
+                }
                 if (!hanging && _cling != null)
                 {
                     // A wet layer's footprint (1.13): the half-skid along it at the layer's own compression; the widest since it
                     // last let go.
                     double area = 0;
-                    if (row.Adhesion > 0)
+                    if (row.Adhesion > 0 && _tips != null) area = _tipArea; // a tip's face (w17-four-legs)
+                    else if (row.Adhesion > 0)
                     {
                         Soil.Displaced(SoilPart.Tube, _skids[c].Radius, solid ? stroke : ka * deepest / kr, out _, out double chord);
                         area = chord * _skids[c].Length;
@@ -1463,7 +1647,7 @@ namespace Fpv450.Sim.Contact
                 if (!hanging && _spec.LegLeverLength > 0 && ks > 0)
                 {
                     // The lever (1.4): each point's force by the leg's statics at its own push; the leg's give its points' shares.
-                    double anchor = ratio * ka, cap = BowOverSway * _spec.LegSwayLoad, tube = 0, side = 0, lean = 0, tubeF = 0, sideF = 0;
+                    double anchor = ratio * ka, cap = SwayCap(c), tube = 0, side = 0, lean = 0, tubeF = 0, sideF = 0;
                     Double3 axis = LeverAxis(c, s, up);
                     if (frame) _frameAxis[c] = FrameAxis(s, axis, up);
                     for (int i = 0; i < _shapes.Length; i++)
@@ -1479,7 +1663,7 @@ namespace Fpv450.Sim.Contact
                                     cap, anchor, cl, clf, moved, along, across, _dt, ref tube, ref side, ref tubeF, ref sideF, ref lean);
                             else
                                 LeverTrial(ref p, s, axis, sum, push, ka, ca, ks, _spec.LegLeverLength, cap, anchor, cl, moved, along, across, _dt,
-                                    ref tube, ref side, ref lean);
+                                    ref tube, ref side, ref lean, _tips != null ? PlayRadius(c) : 0);
                         }
                     }
                     _side[c] = side;
@@ -1490,6 +1674,7 @@ namespace Fpv450.Sim.Contact
                         _sideF[c] = sideF;
                         _tubeSideF[c] = tubeF;
                     }
+                    CapCrown(c, s);
                     continue;
                 }
                 if (frame) _frameAxis[c] = FrameAxis(s, up, up);
@@ -1504,6 +1689,46 @@ namespace Fpv450.Sim.Contact
                         ref Pair p = ref _pairs[i * PairsPerShape + k];
                         if (p.Touching && !p.Suppressed) Trial(ref p, s, up, sum, push, ka, ca, kl, cl, moved, along, across, _dt, frame, klf, clf, _frameAxis[c]);
                     }
+                }
+                CapCrown(c, s);
+            }
+        }
+
+        // A leg on a crown's twigs (2.3): what its points push on them is at most what the twigs it bears on carry, the leg one part
+        // (its half-skid's silhouette) at the twigs' reach. The lever's statics (p7g-legs 1.4) turn a held foot's sideways stretch
+        // into an axial force no twig carries (45 N a point, measured, a foot held 0.16 m off as the body fell through): past the
+        // twigs' hold, or with its anchor past their reach, the twigs under it have broken, so its force is scaled to the hold and
+        // its anchor lets go.
+        void CapCrown(int c, in FlightState s)
+        {
+            double sum = 0, hold = 0;
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                ContactRole role = _shapes[i].Role;
+                if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                for (int k = 0; k < _count[i]; k++)
+                {
+                    ref Pair p = ref _pairs[i * PairsPerShape + k];
+                    CrownRow crown = RowOf(p).Crown;
+                    if (!p.Touching || p.Suppressed || crown == null) continue;
+                    double fn = Double3.Dot(p.N, p.Force);
+                    if (fn > 0) sum += fn;
+                    hold = DetMath.Max(hold, CrownStiffness(crown, _halfSkid[c] >= 0 ? _halfSkid[c] : i, p.N, s) * crown.TwigReach);
+                    if (Double3.Dot(p.Stretch, p.Stretch) > crown.TwigReach * crown.TwigReach) p.Stretch = default;
+                }
+            }
+            if (!(sum > hold)) return;
+            double scale = hold / sum;
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                ContactRole role = _shapes[i].Role;
+                if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                for (int k = 0; k < _count[i]; k++)
+                {
+                    ref Pair p = ref _pairs[i * PairsPerShape + k];
+                    if (!p.Touching || p.Suppressed || RowOf(p).Crown == null) continue;
+                    p.Force = p.Force * scale;
+                    p.Stretch = default;
                 }
             }
         }
@@ -1520,7 +1745,8 @@ namespace Fpv450.Sim.Contact
         // at it (the foot's rise taken off, the axial force along the leaned link), across it the lever's secant in series with
         // the stick anchor, the dampers as Trial's; its shares of the leg's secant, its give with the anchor and its lean summed.
         static void LeverTrial(ref Pair p, in FlightState s, Double3 up, double sum, double deepest, double ka, double ca, double kt, double l0,
-            double cap, double anchor, double cl, bool moved, double along, Double3 across, double dt, ref double tube, ref double side, ref double lean)
+            double cap, double anchor, double cl, bool moved, double along, Double3 across, double dt, ref double tube, ref double side, ref double lean,
+            double play = 0)
         {
             if (!(p.Overlap > 0)) return;
             double w = p.Overlap / sum;
@@ -1545,6 +1771,7 @@ namespace Fpv450.Sim.Contact
                 a -= along;
                 lat = lat - across;
             }
+            if (play > 0) lat = Played(lat, play); // four legs' sockets' play (w17-four-legs)
             double va = Double3.Dot(up, v), delta = lat.Length();
             double force = Lever(a, delta, ka, -ca * va, kt, l0, cap, out double secant, out _);
             double kl = OnAnchor(secant, anchor);
@@ -1560,6 +1787,10 @@ namespace Fpv450.Sim.Contact
         // crack's factor, the damper with it at the same ζ), and across it at the foot, ks with its damper cs: the tube's
         // 3EI/L³ by the crack's factor less the axial load's geometric stiffness, k_t·P/P_sway, never below 0; the jaws held
         // (their bed turns by their friction, LegDamage). Without the parts (1.2's chain), LegSideStiffness as it was.
+        // The lever's buckling cap at leg c (p7g-legs 1.4): its bow factor on the sway load π²EI/(4L²), which the leg's drawn
+        // modulus scales (leg.stiffness, w9-village-physics 2.9; 1 without the legs' law).
+        double SwayCap(int c) => BowOverSway * _spec.LegSwayLoad * (_legs != null ? _legs.Modulus(c) : 1);
+
         void LegGive(int c, out double k0, out double c0, out double ks, out double cs)
         {
             k0 = _spec.LegStiffness;
@@ -1766,7 +1997,9 @@ namespace Fpv450.Sim.Contact
                                 axial += Final(ref p, i, k, up, c, s, com, ref f, ref m, ref touching, ref strongest, ref strongestPair, ref strongestForce);
                         }
                     }
-                    if (_soilPoint[c].On) axial += SoilFinal(c, up, s, com, ref f, ref m, ref touching, ref strongest, ref strongestPair, ref strongestForce);
+                    if (_soilPoint[c].On)
+                        axial += _tips != null ? TipFinal(c, up, s, com, ref f, ref m, ref touching, ref strongest, ref strongestPair, ref strongestForce, events)
+                            : SoilFinal(c, up, s, com, ref f, ref m, ref touching, ref strongest, ref strongestPair, ref strongestForce);
                     load[c] = axial;
                 }
                 _lastAxial[c] = _legTouching[c] ? load[c] : 0;
@@ -1774,6 +2007,7 @@ namespace Fpv450.Sim.Contact
                 _tubeMoment[c] = default;
                 _tubeStrongest[c] = 0;
             }
+            if (_tips != null) TipEvents(events);
             if (_legs == null) return;
             MoveShapes(s);
             for (int c = 0; c < 4; c++)
@@ -1782,8 +2016,8 @@ namespace Fpv450.Sim.Contact
         }
 
         // A hanging skid half (p7g-legs 1.3): its points' forces within their cones, the moment they make about the holding
-        // leg's bore, and past the skid's first yield there (the holding leg's drawn σ_y·I/(c·K_t), its edge factor on the
-        // bore's edge) the fold, perfectly plastic: the excess over the cap, (|F| − M_y/a)/k along F, turns the half about
+        // leg's bore, and past the skid's first yield there (the holding leg's drawn σ_y·I/c; w9 2.6: the bore edge's K_t lowers
+        // only its local yield) the fold, perfectly plastic: the excess over the cap, (|F| − M_y/a)/k along F, turns the half about
         // the bore (from the next step its shapes, and its held points' anchors with them), and this step's force is relieved
         // by it. Its force and its couple about the bore load the holding leg (Judge).
         void Hang(int c, in FlightState s, Double3 up, StepEvents events)
@@ -1794,6 +2028,7 @@ namespace Fpv450.Sim.Contact
             Double3 couple = default, deepAt = default, deepN = default;
             int causeShape = -1, causePair = -1;
             double strong = 0, deepest = 0;
+            bool deepCrown = false;
             if (_legTouching[c])
             {
                 for (int i = 0; i < _shapes.Length; i++)
@@ -1810,6 +2045,7 @@ namespace Fpv450.Sim.Contact
                             deepest = p.Overlap;
                             deepAt = p.Point;
                             deepN = p.N;
+                            deepCrown = RowOf(p).Crown != null;
                         }
                         Double3 fp = Coned(p, RowOf(p));
                         law = law + fp;
@@ -1825,7 +2061,7 @@ namespace Fpv450.Sim.Contact
                 }
             }
             _hangTouching[c] = _legTouching[c];
-            double cap = _legs.CrackMoment(holder) / _skidLever, size2 = law.Length();
+            double cap = _legs.YieldMoment(holder) / _skidLever, size2 = law.Length();
             if (_legTouching[c] && size2 > cap && _axial[c] > 0)
             {
                 Double3 e = law * (1 / size2);
@@ -1864,12 +2100,28 @@ namespace Fpv450.Sim.Contact
                     events.Add(ev);
                 }
             }
+            // Folded past its hinge's tear at the bore (w9 2.6), the skid tears there and its holder lets it go: the half cannot
+            // fold on through what it meets (the sweep's and the crowns' tunnels through a hanging half at a crash's speed).
+            double tear = _legs.TearRotation(holder);
+            if (Double3.Dot(_fold[c], _fold[c]) > tear * tear && (_legs.Flags(holder) & LegFlags.SkidLoose) == 0)
+            {
+                FlightEvent cause = causeShape >= 0
+                    ? Of(EventKind.SkidLoose, causeShape, causePair < 0 ? _ground[causeShape] : _pairs[causeShape * PairsPerShape + causePair])
+                    : FlightEvent.Of(EventKind.SkidLoose);
+                _legs.TearSkid(holder, events, cause, _fold[c].Length(), tear, cause.C);
+                _restructure = true;
+            }
             // The elastic turn: the massless half gives |F|/k_cantilever, its deepest point moved that far out along its normal
             // by the least turn about the bore, φ = (r × n)·δ/|r × n|² (none untouched).
+            Double3 placed = _elastic[c]; // the turn the half's shapes stand by now (the depth law's Unturned)
             _elastic[c] = default;
             _hangShift[c] = default;
             double carried = law.Length(), kc = HangingStiffness;
-            if (deepest > 0 && carried > 0 && kc > 0)
+            if (_spec.HangingGive && _spec.HangingDepth)
+            {
+                if (_legTouching[c]) HangDepth(c, s, up, law, bore, placed);
+            }
+            else if (deepest > 0 && carried > 0 && kc > 0)
             {
                 Double3 r = s.Attitude.InverseRotate(deepAt - bore), n = s.Attitude.InverseRotate(deepN), axis = Double3.Cross(r, n);
                 double a2 = Double3.Dot(axis, axis);
@@ -1891,14 +2143,28 @@ namespace Fpv450.Sim.Contact
                     Double3 push = deepN * deepest;
                     double a = Double3.Dot(up, push);
                     Double3 lat = push - up * a;
-                    double give = Double3.Dot(up * (ka * a) + lat * kl, deepN) / kc;
-                    double r2 = Double3.Dot(r, r), rn = Double3.Dot(r, n), along = 0;
+                    // In a crown's twig shell the chain gives by the force its points carry (w9 2.6): the twigs give way first
+                    // (CapCrown), so they carry less than the springs' push on the overlap, and read from the push alone the half
+                    // gave by the whole overlap, which the next step read back as overlap (Unturned): the give ran away (0.43 m in
+                    // 50 ms in Pine002_M) and the half's shapes passed a branch inside the shell. And no give moves the deepest point
+                    // past its overlap.
+                    Double3 spring = up * (ka * a) + lat * kl;
+                    double size = spring.Length(), share = deepCrown && size > carried ? carried / size : 1;
+                    double give = Double3.Dot(spring, deepN) / kc * share;
+                    double r2 = Double3.Dot(r, r), rn = Double3.Dot(r, n), along = 0, turned = 0;
                     if (r2 > 0 && give > 0)
                     {
                         _elastic[c] = axis * (give / r2);
                         along = give * (rn * rn / r2);
+                        turned = give * (a2 / r2);
                     }
-                    if (kl > 0 && kl < k0) along += Double3.Dot(lat, deepN) * kl * (1 / kl - 1 / k0);
+                    if (kl > 0 && kl < k0) along += Double3.Dot(lat, deepN) * kl * (1 / kl - 1 / k0) * share;
+                    double moved = turned + along;
+                    if (moved > deepest)
+                    {
+                        _elastic[c] = _elastic[c] * (deepest / moved);
+                        along *= deepest / moved;
+                    }
                     _hangShift[c] = n * along;
                 }
             }
@@ -1907,6 +2173,111 @@ namespace Fpv450.Sim.Contact
             _hangShape[c] = causeShape;
             _hangPair[c] = causePair;
         }
+
+        // The hanging half's depth law (w9 2.6b, ContactSpec.HangingDepth). The massless half bears on what it touches at the point
+        // its chain reads (LegTrials'), overlap g (its depth without its elastic give) along that point's normal n. Its contact
+        // carries F_n = F·n, the corner's carried force, and lies in by its own compression alone: F_n over the tube stock's contact
+        // spring, and on a compliant row that row's share (_hangLayer). The rest of g is the chain's give, which moves the half's
+        // shapes out along n: the cantilever's by the least turn about the bore, the rest (the bore's give across the holding leg,
+        // the stick anchor's in series with it, and the share along r that no turn about the bore gives) by a move along n. The two
+        // are split by their compliances along n in the chain Trial flies (1/k_c across r; (1 − (u·n)²)·(1/k_l − 1/k_0) across the
+        // legs' axis u), never by the force, so the split does not jump with it. The half's depth is then what its force and
+        // stiffness give, and its placement follows g, which the body's motion moves continuously. Model 98's give was its springs'
+        // push on g without the anchor's stretch, the bore's share lost where the holding leg's foot chain read 0.
+        //
+        // And no give moves the half into a solid it meets from the other side: each of the corner's pairs on a rigid row (the
+        // ground, a soil, a rigid shape) whose face faces the move (its normal more than 120° from n) and that the move closes
+        // across a gap, its overlap without the give −gap, bounds the move to the gap over the closing a unit move gives there. On S04 the straw's
+        // pairs latched to a tile's underside (n down) moved the half down through the soil box under it, the next step the box's
+        // pair the other way: range #61's one-step limit cycle (1.4 / 96.8 / −5.8 / 96.3 mm at 2–7 N). A compliant row (a layer,
+        // a crown) yields to the half, as it does to the part.
+        void HangDepth(int c, in FlightState s, Double3 up, Double3 law, Double3 bore, Double3 placed)
+        {
+            int shape = _hangDeepShape[c], pair = _hangDeepPair[c];
+            if (shape < 0) return;
+            ref Pair d = ref pair < 0 ? ref _ground[shape] : ref _pairs[shape * PairsPerShape + pair];
+            double g = d.Overlap, fn = Double3.Dot(law, d.N);
+            double move = g - (fn > 0 ? fn / _skidContact : 0) - _hangLayer[c];
+            if (!(move > 0)) return;
+            // The levers from the bore as the half lies without its give (the turn acts on them, as Unturned reads them back).
+            Quat back = Turn(placed).Conjugate();
+            Double3 r = back.Rotate(s.Attitude.InverseRotate(d.Point - bore)), n = s.Attitude.InverseRotate(d.N), axis = Double3.Cross(r, n);
+            double r2 = Double3.Dot(r, r), a2 = Double3.Dot(axis, axis), rn = Double3.Dot(r, n), un = Double3.Dot(up, d.N);
+            double kc = _hangBend[c], k0 = Series(_skidContact, kc), kl = _side[c], share = 0;
+            if (r2 > 0 && a2 > 0 && kc > 0 && kl > 0)
+            {
+                double turn = a2 / (r2 * kc), rest = rn * rn / (r2 * kc) + (1 - un * un) * (1 / kl - 1 / k0);
+                if (rest < 0) rest = 0;
+                share = turn / (turn + rest); // the turn's share of a unit move at the deepest point along n
+            }
+            // A give out of a compliant row (the half deepest in a layer past its stroke, or in a crown's twigs, with no rigid pair
+            // pressed) is bounded by every rigid face it closes, its turn's share too: the row yields before the half is driven into
+            // the solid beside it, as LegTrials' rule has it once that solid is pressed. Without it the give out of S04's straw tile's
+            // side (108 mm in, latched to the side) turned the half's end 9 mm into the soil box under it, and once the box's own
+            // overlap passed 0 the corner read the box and that give went in one step (range #61 Slide, steps 6895–6897: 93 mm → 0.3
+            // mm, the end 7.9 → 1.9 mm in the box).
+            bool yielding = !RowOf(d).Rigid;
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                ContactRole role = _shapes[i].Role;
+                if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                for (int k = -1; k < _count[i]; k++)
+                {
+                    ref Pair p = ref k < 0 ? ref _ground[i] : ref _pairs[i * PairsPerShape + k];
+                    if (k < 0 ? role != ContactRole.Support : p.Suppressed) continue;
+                    if (!RowOf(p).Rigid) continue;
+                    Double3 nj = s.Attitude.InverseRotate(p.N), rj = back.Rotate(s.Attitude.InverseRotate(p.Point - bore));
+                    // Out of a rigid row, only a face that faces the move (FacingAway, more than 120° from n): a side face the half moves
+                    // along is no stop (range #429 Slide: a soil box's side 88° from the top it lies in, met by the turn's sideways share,
+                    // held the half 57 mm in the top).
+                    if (!yielding && Double3.Dot(n, nj) > FacingAway) continue;
+                    double closing = -(1 - share) * Double3.Dot(n, nj) - (share > 0 ? share / a2 * Double3.Dot(Double3.Cross(axis, rj), nj) : 0);
+                    double gap = -(p.Depth + Unturned(c, p, s, placed));
+                    if (!(closing > 0) || !(gap >= 0)) continue; // a pressed pair bears in the chain itself (its share of Trial's push)
+                    if (gap / closing < move) move = gap / closing;
+                }
+            }
+            if (!(move > 0)) return;
+            // A second face: the corner's other pressed rigid pair with the most of its overlap left by that move, its face more
+            // than 30° from n and not facing it (a re-entrant corner of two faces, E01's soil boxes), is left by a move square to n
+            // as well, so the first stays as deep as its force says (range #447 Slide: two box faces 89° apart, each 33 mm deep,
+            // took turns being the deepest and the half stood 28 mm in the other).
+            Double3 second = default;
+            double left = 0;
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                ContactRole role = _shapes[i].Role;
+                if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                for (int k = -1; k < _count[i]; k++)
+                {
+                    ref Pair p = ref k < 0 ? ref _ground[i] : ref _pairs[i * PairsPerShape + k];
+                    if (k < 0 ? role != ContactRole.Support || !p.Touching : !p.Touching || p.Suppressed) continue;
+                    if (!(p.Overlap > 0) || !RowOf(p).Rigid) continue;
+                    Double3 nj = s.Attitude.InverseRotate(p.N);
+                    double cos = Double3.Dot(n, nj), rest = p.Overlap - move * cos;
+                    if (!(cos < SecondFace) || !(cos > FacingAway) || !(rest > left)) continue;
+                    left = rest;
+                    second = (nj - n * cos) * (rest / (1 - cos * cos));
+                }
+            }
+            double turned = move * share;
+            if (share > 0)
+            {
+                // The turn whose finite rotation takes the deepest point that far along n: the least turn's linear guess and one
+                // Newton step on a·sin θ − r_n·(1 − cos θ) = turned (a = |r × n|); without it a 0.2 rad turn with the point 0.1 m off
+                // the normal's line through the bore misses by θ²·r_n/2, 2 mm.
+                double a = DetMath.Sqrt(a2), theta = turned / a;
+                DetMath.SinCos(theta, out double sin, out double cos);
+                double slope = a * cos - rn * sin;
+                if (slope > 0) theta += (turned - (a * sin - rn * (1 - cos))) / slope;
+                _elastic[c] = axis * (theta / a);
+            }
+            _hangShift[c] = n * (move - turned) + second;
+        }
+
+        // A second face of a hanging half's chain is one more than 30° from its first (cos 30°, assumed: within it the first's move
+        // leaves it too, to the cosine's 13 %).
+        const double SecondFace = 0.8660254037844386;
 
         // A corner's support under its leg (the skid's sphere at the T-joint): the hanging half's lever point.
         readonly int[] _jointSupport = { -2, -2, -2, -2 };
@@ -1974,7 +2345,7 @@ namespace Fpv450.Sim.Contact
                 {
                     ref SoilPoint sp = ref _soilPoint[c];
                     ref Pair q = ref sp.Foot;
-                    Double3 fp = SoilConed(c), r = q.Point - q.Stretch - foot;
+                    Double3 fp = _tips != null ? TipConed(c) : SoilConed(c), r = q.Point - q.Stretch - foot;
                     law = law + fp + sp.Pull;
                     drift = drift + q.Drift * q.Share;
                     trial = trial + q.Force + sp.Pull;
@@ -2000,7 +2371,7 @@ namespace Fpv450.Sim.Contact
             // The other half of the skid hanging from this T-joint: its force through the foot and its couple about the bore.
             Double3 footCouple = default;
             int hung = _spec.Legs.Sibling[c];
-            if ((_corner[hung] & CornerState.Hanging) != 0 && _hangTouching[hung])
+            if (hung >= 0 && (_corner[hung] & CornerState.Hanging) != 0 && _hangTouching[hung])
             {
                 law = law + _hangForce[hung];
                 along += Double3.Dot(_hangForce[hung], skid);
@@ -2027,7 +2398,7 @@ namespace Fpv450.Sim.Contact
                     deflection = deflection + e * (onSkid * (anchor / (_tubeSideF[c] + anchor) - anchor / (ks + anchor)));
                 }
                 Double3 mine = lateral;
-                if ((_corner[hung] & CornerState.Hanging) != 0 && _hangTouching[hung])
+                if (hung >= 0 && (_corner[hung] & CornerState.Hanging) != 0 && _hangTouching[hung])
                     mine = mine - (_hangForce[hung] - up * Double3.Dot(up, _hangForce[hung]));
                 Double3 tried = trial - up * Double3.Dot(up, trial);
                 double t2 = Double3.Dot(tried, tried), o2 = Double3.Dot(mine, mine);
@@ -2108,6 +2479,30 @@ namespace Fpv450.Sim.Contact
         // share), the foot then the moment's lever (207,766 m/s²).
         static bool Holds(double ktt, double axialShare) => ktt > NilStiffness * axialShare;
 
+        // The anchor's stretch within what the leg can reach (w9-village-physics 2.4): the stretch is the foot's move from its
+        // rest, the body's point, to where the ground holds it, and the leg reaches it only by turning its lever (p7g-legs 1.4,
+        // the link of γL about its characteristic pivot): turned square, its foot is γL across, the most any turn of it moves
+        // the foot across the leg. So the reach is γL (LegLeverLength), and along the skid's frame the frame's own lever
+        // (LegFrameLeverLength), by the square of the stretch's way's cosine to the frame as the slide's stiffness is. A stretch
+        // past it is a foot the leg no longer reaches: the ground has let it go, the leg springs back, and the hold starts
+        // again where the foot is (the stretch 0). True when it let one go.
+        // A held foot within its reach is ContactSpec.AnchorReach's (2.4, logged since 2.9).
+        bool Reached(int c, ref Double3 stretch, double hold = double.PositiveInfinity)
+        {
+            double l0 = _spec.LegLeverLength, s2 = Double3.Dot(stretch, stretch);
+            if (!_spec.AnchorReach || !(l0 > 0) || !(s2 > 0)) return false;
+            double reach = l0;
+            if (_frame[c])
+            {
+                double sf = Double3.Dot(stretch, _frameAxis[c]);
+                reach += (_spec.LegFrameLeverLength - l0) * (sf * sf / s2);
+            }
+            if (hold < reach) reach = hold; // a crown's twig bent sideways past its reach has broken (2.3)
+            if (!(s2 > reach * reach)) return false;
+            stretch = default;
+            return true;
+        }
+
         /// <summary>A leg's stiffness along a slip below this share of its axial spring's is none, numerically (assumed: six orders
         /// under the axial; the legs' gives across their tubes are 2 to 3 orders under it, and a direction cosine of 1e-3 to the
         /// tube, 1e-6 of the axial, is past any slip the law resolves).</summary>
@@ -2147,6 +2542,10 @@ namespace Fpv450.Sim.Contact
                     {
                         Double3 st = p.Stretch + t * ((size - kinetic) / ktt);
                         p.Stretch = st - n * Double3.Dot(n, st);
+                        // Every hold lets the foot go where the leg no longer reaches it (2.4's reach, the leg's geometry, whatever
+                        // holds it): the ground, a soil shape (its groove's give is millimetres, left out as 2.4 left it), a rigid
+                        // shape; a crown's twigs sooner, at their own reach δ̄, past which the twig bent sideways has broken (2.3).
+                        Reached(c, ref p.Stretch, row.Crown != null ? row.Crown.TwigReach : double.PositiveInfinity);
                     }
                     p.Sliding = true;
                 }
@@ -2239,6 +2638,7 @@ namespace Fpv450.Sim.Contact
         // carried with it so a held foot stays where the ground holds it.
         void MoveShapes(in FlightState s)
         {
+            if (_spec.HangingGive && _spec.HangingDepth) FollowSets(s);
             for (int c = 0; c < 4; c++)
             {
                 Double3 set = _legs.Set(c);
@@ -2270,6 +2670,28 @@ namespace Fpv450.Sim.Contact
                 for (int i = 0; i < _shapes.Length; i++)
                     if (!_off[i] && _legOf[i] < 0 && _base[i].Corner == c && (_base[i].Role == ContactRole.Support || _base[i].Role == ContactRole.Skid))
                         Place(i, Placed(i, _base[i].A), Placed(i, _base[i].B), s);
+            }
+        }
+
+        // A hanging half follows its holder's set in the step it sets (w9 2.6b, the depth law): the set turns the holder's bore and the
+        // half with it about the holder's clamp, and the massless half's give takes at once what that moves its bearing point into what
+        // it touches, along that point's normal, as the holder's foot moves (its move, never below none). Without it the half stood for
+        // a step where the set put it (range #413 Slide: leg rr sets 0.077 rad and the half's end is 22.3 mm in the soil box for a step,
+        // then 2.2 mm). Before the sets are applied (MoveShapes): _setTurn is still the set the shapes stand by.
+        void FollowSets(in FlightState s)
+        {
+            for (int c = 0; c < 4; c++)
+            {
+                int shape = _hangDeepShape[c], pair = _hangDeepPair[c];
+                if ((_corner[c] & CornerState.Hanging) == 0 || !_legTouching[c] || shape < 0) continue;
+                int h = _spec.Legs.Sibling[c];
+                if (Same(_legs.Set(h), _setApplied[h])) continue;
+                ref Pair d = ref pair < 0 ? ref _ground[shape] : ref _pairs[shape * PairsPerShape + pair];
+                if (!(d.Overlap > 0)) continue;
+                Double3 clamp = _spec.Legs.Clamp[h], x = s.Attitude.InverseRotate(d.Point - s.Position) - clamp, n = s.Attitude.InverseRotate(d.N);
+                Double3 moved = Turn(_legs.SetRotation(h) - _setIgnored[h]).Rotate(_setTurn[h].Conjugate().Rotate(x)) - x;
+                double was = Double3.Dot(_hangShift[c], n), along = was - Double3.Dot(moved, n);
+                _hangShift[c] = _hangShift[c] + n * ((along > 0 ? along : 0) - was);
             }
         }
 
@@ -2326,6 +2748,7 @@ namespace Fpv450.Sim.Contact
             _restructure = false;
             if (_legs == null) return ch;
             LegDamageSpec l = _spec.Legs;
+            if (l.Sibling[0] < 0) return RestructureTips(s, events);
             for (int side = 0; side < 2; side++)
             {
                 // The side's two corners: a (its lower index) and b.
@@ -2403,6 +2826,7 @@ namespace Fpv450.Sim.Contact
                         if (Holds(c) || (_corner[c] & CornerState.Hanging) != 0) continue;
                         // Its half now hangs from the other T-joint: placed by that leg's set from here.
                         _corner[c] |= CornerState.Hanging;
+                        if (_spec.HangingGive && _spec.HangingDepth) Catch(c, s);
                         for (int i = 0; i < _shapes.Length; i++)
                             if (!_off[i] && _legOf[i] < 0 && _base[i].Corner == c && (_base[i].Role == ContactRole.Support || _base[i].Role == ContactRole.Skid))
                                 Place(i, Placed(i, _base[i].A), Placed(i, _base[i].B), s);
@@ -2411,6 +2835,85 @@ namespace Fpv450.Sim.Contact
             }
             for (int c = 0; c < 4; c++) _followed[c] = _legs.Flags(c);
             return ch;
+        }
+
+        // Four separate legs (w17-four-legs design 6): a leg that parts leaves as its tube below the clamp's edge with its tip, its
+        // stub staying in the clamp; one that slides out leaves whole with its tip. No skid, no T-joint, nothing hangs: the corner
+        // keeps no support (its record's skid states read 0).
+        LegChange RestructureTips(in FlightState s, StepEvents events)
+        {
+            LegChange ch = _change;
+            LegDamageSpec l = _spec.Legs;
+            for (int c = 0; c < 4; c++)
+            {
+                LegFlags now = _legs.Flags(c);
+                bool tubeWas = (_corner[c] & (CornerState.Stub | CornerState.TubeGone)) == 0;
+                bool tubeOn = (now & (LegFlags.Broken | LegFlags.Detached)) == 0;
+                if (!tubeWas || tubeOn) continue;
+                int piece = ch.Pieces++;
+                bool off = (now & LegFlags.Detached) != 0;
+                ch.Parts[piece] = off ? 1 << c : 1 << (4 + c);
+                int tube = _legTube[c];
+                if (tube >= 0)
+                {
+                    Leave(tube, ch, piece, s, events);
+                    if (!off)
+                    {
+                        ch.Geometry[piece][ch.ShapeCount[piece] - 1].A = l.Clamp[c];
+                        _off[tube] = false;
+                        ref ContactShape t = ref _shapes[tube];
+                        t.A = _wasA[tube] = _base[tube].A;
+                        t.B = _wasB[tube] = l.Clamp[c];
+                        if (l.StubStiffness > 0)
+                        {
+                            t.Stiffness = l.StubStiffness;
+                            t.StiffnessUp = l.StubStiffnessUp;
+                        }
+                        ch.Stubs |= 1 << c;
+                    }
+                }
+                if (_tips != null && _tips[c].Engaged) LeaveTip(c, World(s, _shapes[_tips[c].Support].A), false);
+                for (int i = 0; i < _shapes.Length; i++)
+                    if (!_off[i] && _legOf[i] < 0 && _base[i].Corner == c && _base[i].Role == ContactRole.Support) Leave(i, ch, piece, s, events);
+                _corner[c] |= off ? CornerState.TubeGone : CornerState.Stub;
+            }
+            for (int c = 0; c < 4; c++) _followed[c] = _legs.Flags(c);
+            return ch;
+        }
+
+        // A half that starts to hang is caught where it lay (w9 2.6b, the depth law): placed by its holder's set it would jump from
+        // where its own leg held it (that leg's set, its compression and lean the leg's give) into what it touches, so its first
+        // give is what that jump takes its deepest touching point into it, along that point's normal, and the half's points stay
+        // as deep as its leg left them; its depth law takes it from the next step. Without it the half stood a step 25 mm in S04's
+        // soil box (range #61 Land, step 6168, its leg's give 0.5 mm). Before its shapes are placed by the holder: _shiftApplied is
+        // still none.
+        void Catch(int c, in FlightState s)
+        {
+            double best = 0, deeper = 0;
+            Double3 n = default;
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                if (_off[i] || _legOf[i] >= 0 || _base[i].Corner != c || _base[i].Role != ContactRole.Support && _base[i].Role != ContactRole.Skid) continue;
+                Double3 a0 = _shapes[i].A, ab0 = _shapes[i].B - a0, a = Placed(i, _base[i].A), b = Placed(i, _base[i].B);
+                double len = Double3.Dot(ab0, ab0);
+                for (int k = -1; k < _count[i]; k++)
+                {
+                    if (k < 0 && _shapes[i].Role != ContactRole.Support) continue;
+                    ref Pair p = ref k < 0 ? ref _ground[i] : ref _pairs[i * PairsPerShape + k];
+                    if (!p.Touching || k >= 0 && p.Suppressed) continue;
+                    Double3 at = s.Attitude.InverseRotate(p.Point - s.Position);
+                    double t = len > 0 ? Double3.Dot(at - a0, ab0) / len : 0;
+                    t = t < 0 ? 0 : t > 1 ? 1 : t;
+                    double deepening = -Double3.Dot(p.N, s.Attitude.Rotate(a + (b - a) * t - (a0 + ab0 * t)));
+                    if (!(deepening > 0) || !(p.Depth + deepening > best)) continue;
+                    best = p.Depth + deepening;
+                    deeper = deepening;
+                    n = p.N;
+                }
+            }
+            if (!(deeper > 0)) return;
+            _hangShift[c] = s.Attitude.InverseRotate(n) * deeper;
+            _shiftApplied[c] = _hangShift[c];
         }
 
         // A hanging half that leaves with its skid is unloaded: its elastic give springs back (its fold stays), so the piece
@@ -2539,7 +3042,8 @@ namespace Fpv450.Sim.Contact
             ref Pair q = ref _pairs[shape * PairsPerShape + pair];
             // The layer's own stiffness under the clinging footprint, the half-skid's whole length (its area's, 1.12): at
             // least the row's in every law, so the constructor's check at the row's holds.
-            double kl = row.Law != AreaLaw.None ? row.Stiffness * Footprint(q, row, false, _skids[c].Length, 2 * _skids[c].Radius) : row.Stiffness;
+            // A tip's (w17-four-legs) at the row's own, its reference foot's.
+            double kl = row.Law != AreaLaw.None && _skids != null ? row.Stiffness * Footprint(q, row, false, _skids[c].Length, 2 * _skids[c].Radius) : row.Stiffness;
             double k0 = _spec.LegStiffness, kn = Series(k0, kl), peak = row.Adhesion * _cling[c], fn;
             if (kn * depth >= -peak) fn = kn * depth;
             else
@@ -2572,6 +3076,15 @@ namespace Fpv450.Sim.Contact
             k = row.Stiffness;
             c = row.Damping;
             stroke = double.PositiveInfinity;
+            if (row.Crown != null)
+            {
+                // No damper: the twigs' resistance is their bending and breaking (W̄ a twig), not a viscous one; the row's ζ on k_e
+                // gave 0.3–1 N·s/m a part, 30 times the yield at 2 m/s. Their inertia, ½·m_e·v² a twig met, is left out (design
+                // 2.3: 4 % of W̄ at 2 m/s, half at 7 m/s, of a hold that is itself 1.6 % of the drone's weight).
+                k = CrownStiffness(row.Crown, part, p.N, s);
+                c = 0;
+                return;
+            }
             if (row.Law == AreaLaw.None) return;
             ContactShape sh = _shapes[part];
             bool disc = Same(sh.A, sh.B);
@@ -2580,6 +3093,36 @@ namespace Fpv450.Sim.Contact
             k = row.Stiffness * scale;
             c = row.Damping * DetMath.Sqrt(scale);
             stroke = _stroke * thickness;
+        }
+
+        // ---- A crown's twigs (w9-village-physics 2.3, design.md 2.3) -------------------------------------------------------
+
+        // A part pushed along n into a crown's twigs (L_V of them a m³, random directions) meets L_V·p/4 of them a metre, p the
+        // perimeter of its silhouette along n (a capsule's 2·l⊥ + π·w, a sphere's π·w: the lines hitting a convex body, L_V·S/4),
+        // and each takes W̄ to break, so past the twigs' mean reach δ̄ it carries F_y = (L_V·p/4)·W̄ steadily; its stiffness is
+        // that hold over δ̄ (the secant; CrownRow's W̄ and δ̄). In series with the part's own, as every compliant row's.
+        double CrownStiffness(CrownRow k, int part, Double3 n, in FlightState s)
+        {
+            ContactShape sh = _shapes[part];
+            double perimeter = 3.141592653589793 * 2 * sh.Radius;
+            if (!Same(sh.A, sh.B))
+            {
+                Double3 ab = s.Attitude.Rotate(sh.B - sh.A), across = ab - n * Double3.Dot(n, ab);
+                perimeter += 2 * across.Length();
+            }
+            return k.TwigLength * perimeter / 4 * k.TwigWork / k.TwigReach;
+        }
+
+        // A crown pair's yield: the depth its spring reads is at most the twigs' mean reach δ̄. Pushed deeper, the twigs it bent
+        // past it have broken and it meets fresh ones: its plane moves in with it. Backing out, the plane stays (the twigs
+        // behind it are broken; it meets nothing until it is past where it was).
+        static void Yield(ref Pair p, double reach)
+        {
+            double x = p.Depth - reach;
+            if (!(x > 0)) return;
+            p.P = p.P - p.N * x;
+            p.Point = p.Point - p.N * x;
+            p.Depth = reach;
         }
 
         // A layer row's factor for a footprint on pair p's shape (Layer.Scale at the layer's depth), and the shape's thickness
@@ -2770,12 +3313,12 @@ namespace Fpv450.Sim.Contact
                     double a = Double3.Dot(legUp, d) - along;
                     Double3 lat = d - legUp * Double3.Dot(legUp, d) - across;
                     double delta = lat.Length();
-                    Lever(a, delta, k0, 0, legSide, _spec.LegLeverLength, BowOverSway * _spec.LegSwayLoad, out double secant, out rise);
+                    Lever(a, delta, k0, 0, legSide, _spec.LegLeverLength, SwayCap(c), out double secant, out rise);
                     kq0 = OnAnchor(secant, _spec.FrictionStiffnessRatio * k0);
                     if (frame)
                     {
                         // The frame's plane on its own lever (model 54): the rise blended by the lean's share along the skid.
-                        Lever(a, delta, k0, 0, _frameGive[c], _spec.LegFrameLeverLength, BowOverSway * _spec.LegSwayLoad, out double secantF, out double riseF);
+                        Lever(a, delta, k0, 0, _frameGive[c], _spec.LegFrameLeverLength, SwayCap(c), out double secantF, out double riseF);
                         double lf = Double3.Dot(lat, _frameAxis[c]), share = delta > 0 ? lf * lf / (delta * delta) : 0;
                         rise += (riseF - rise) * share;
                         kq0f = OnAnchor(secantF, _spec.FrictionStiffnessRatio * k0);
@@ -2989,7 +3532,7 @@ namespace Fpv450.Sim.Contact
             double ratio = _spec.FrictionStiffnessRatio;
             double kq = legSide > 0 && kn > 0 ? Series(legSide, ratio * kn) : 0;
             bool lever = _spec.LegLeverLength > 0 && legSide > 0;
-            double secant = legSide, cap = BowOverSway * _spec.LegSwayLoad;
+            double secant = legSide, cap = SwayCap(c);
             double cq = legSideDamp > 0 && cn > 0 ? Series(legSideDamp, DetMath.Sqrt(ratio) * cn) : 0;
             // The skid's frame along the skid (p7g-legs, model 54): its give and damper in series with the groove's anchor.
             bool frame = _frame[c];
@@ -3043,6 +3586,7 @@ namespace Fpv450.Sim.Contact
                 }
                 Double3 held = World(s, k.AnchorBody), dt = held - k.Anchor;
                 dt = dt - n * Double3.Dot(n, dt);
+                if (Reached(c, ref dt)) k.Anchor = held - dt;
                 Double3 v = PointVelocity(s, held);
                 Double3 d = n * x - dt;
                 double a = Double3.Dot(up, d) - along, va = Double3.Dot(up, v);
@@ -3176,6 +3720,7 @@ namespace Fpv450.Sim.Contact
                         {
                             Double3 st = q.Stretch + t * ((size - kinetic) / ktt);
                             q.Stretch = st - n * Double3.Dot(n, st);
+                            Reached(c, ref q.Stretch);
                             k.Anchor = World(s, k.AnchorBody) - q.Stretch;
                         }
                         k.Sliding = true;
@@ -3483,6 +4028,8 @@ namespace Fpv450.Sim.Contact
         public void Sense(in FlightState was, ref FlightState now, StepEvents events)
         {
             if (_rotors != null) PlaceBlades(was, now, events);
+            _inCrown = false;
+            for (int i = 0; i < _crownPair.Length; i++) _crownPair[i] = -1;
 
             // The supports' ground, in one batch.
             for (int k = 0; k < _supports.Length; k++)
@@ -3527,6 +4074,7 @@ namespace Fpv450.Sim.Contact
                 if (!_terrain) Transition(ref g, i, now, events, false); // on a terrain its own sweep finishes it (TerrainGround)
             }
 
+            bool clear = Clear(was, now);
             for (int o = 0; o < _order.Length; o++)
             {
                 int i = _order[o];
@@ -3543,13 +4091,50 @@ namespace Fpv450.Sim.Contact
                 _wasA[i] = shape.A;
                 _wasB[i] = shape.B;
                 // A skid's ground is its nodes' (the samples and the supports'): on a terrain its sweep leaves the ground out, which
-                // Update would only drop; a support takes its ground from its own sweep (TerrainGround).
-                int found = _world.StaticContacts(before, after, _spec.Margin, _buf,
-                    _terrain && shape.Role == ContactRole.Skid ? QueryFilter.NoGround : QueryFilter.None);
+                // Update would only drop; a support takes its ground from its own sweep (TerrainGround). Clear of the world's
+                // shapes (Clear), a sweep's contacts are its ground's alone.
+                QueryFilter filter = _terrain && shape.Role == ContactRole.Skid ? QueryFilter.NoGround : QueryFilter.None;
+                int found = !clear ? _world.StaticContacts(before, after, _spec.Margin, _buf, filter)
+                    : filter == QueryFilter.NoGround ? 0 : _world.StaticContacts(before, after, _spec.Margin, _buf, QueryFilter.GroundOnly);
                 if (found > Buffer) Lost(events, i, found - Buffer);
                 if (_terrain && shape.Role == ContactRole.Support) TerrainGround(i, found < Buffer ? found : Buffer, after, now, events);
                 Update(i, found < Buffer ? found : Buffer, after, now, events);
             }
+        }
+
+        /// <summary>The slack on Clear's sphere and margin, m (numerical: far above the rounding of coordinates a kilometre out, far
+        /// below the drone's shapes).</summary>
+        const double ClearSlack = 1e-3;
+
+        // Whether no shape, wire or runtime piece of the world is near any of the body's non-disc shapes in this step's sweeps (w9
+        // step budget, second pass): one query, the ground left out (NoGround), of a sphere about the origin holding every such
+        // shape at both poses, its margin grown by the farthest a point of them moves in the step. Each shape lies inside the
+        // sphere at every point of the sweep (both are swept linearly), and a shape's touch during the sweep is at most that move
+        // from its current pose, so whatever a shape's own query would meet lies within the grown margin of the sphere's current
+        // pose and its query meets it too (every sweep answers a current pose within its margin). When it meets nothing, each
+        // shape's contacts are its ground's alone (Sense): the same contacts, in the same order, with the same bits. A set moved
+        // since the last Sense (a leg's, p7g-legs 1.3) sweeps from elsewhere: not clear.
+        bool Clear(in FlightState was, in FlightState now)
+        {
+            double far = 0, thick = 0; // the farthest core end's square and the thickest radius: their sum bounds every shape
+            for (int o = 0; o < _order.Length; o++)
+            {
+                int i = _order[o];
+                if (_off[i] || _shapes[i].Role == ContactRole.Disc) continue;
+                ref readonly ContactShape shape = ref _shapes[i];
+                if (!Same(_wasA[i], shape.A) || !Same(_wasB[i], shape.B)) return false;
+                far = DetMath.Max(far, DetMath.Max(Double3.Dot(shape.A, shape.A), Double3.Dot(shape.B, shape.B)));
+                thick = DetMath.Max(thick, shape.Radius);
+            }
+            double reach = DetMath.Sqrt(far) + thick;
+            // A body point p moves by the origin's move and by at most π·|q₁ − q₂|·|p| for the turn between two unit quaternions
+            // (the turn's angle is at most twice their angle apart, which is at most π/2·|q₁ − q₂|); 4 for π.
+            Quat a = was.Attitude, b = now.Attitude;
+            double dx = b.X - a.X, dy = b.Y - a.Y, dz = b.Z - a.Z, dw = b.W - a.W;
+            double move = (now.Position - was.Position).Length() + 4 * DetMath.Sqrt(dx * dx + dy * dy + dz * dz + dw * dw) * reach;
+            double r = reach + ClearSlack;
+            return _world.StaticContacts(new Capsule(was.Position, was.Position, r), new Capsule(now.Position, now.Position, r),
+                _spec.Margin + move + ClearSlack, _buf, QueryFilter.NoGround) == 0;
         }
 
         // A support's overlap of the sample's facet along its normal: r − n·(c − P), P the facet's point under the core, so
@@ -3669,6 +4254,9 @@ namespace Fpv450.Sim.Contact
             {
                 ref Pair p = ref _pairs[first + k];
                 Depth(ref p, part);
+                Member(ref p, part);
+                CrownRow crown = RowOf(p).Crown;
+                if (crown != null) Yield(ref p, crown.TwigReach);
                 // A blade's slack: its overlap where it came back after its rotor's passes, then only less as the blade leaves
                 // (never a spring pressed by no motion, PlaceBlades).
                 if (blade) p.Slack = _appeared[i] ? DetMath.Max(p.Depth, 0) : DetMath.Min(p.Slack, DetMath.Max(p.Depth, 0));
@@ -3680,7 +4268,7 @@ namespace Fpv450.Sim.Contact
                     if (p.Touching) Broken(ref p, i, now.Step, events);
                     continue;
                 }
-                if (p.Latched && -p.Depth > _spec.Margin)
+                if (p.Latched && -p.Depth > _spec.Margin && crown == null)
                 {
                     if (p.Touching) Broken(ref p, i, now.Step, events);
                     continue;
@@ -3690,6 +4278,18 @@ namespace Fpv450.Sim.Contact
                 kept++;
             }
             _count[i] = kept;
+            // One crown a part (2.3): its overlapping shells stand for one crown's twigs, so its deepest touching crown pair carries
+            // them and the others are held for the step (Twigs takes the deepest shell's meeting for their union, as here).
+            int deepest = -1;
+            for (int k = 0; k < kept; k++)
+            {
+                ref Pair p = ref _pairs[first + k];
+                if (p.Touching && RowOf(p).Crown != null && (deepest < 0 || p.Depth > _pairs[first + deepest].Depth)) deepest = k;
+            }
+            for (int k = 0; deepest >= 0 && k < kept; k++)
+                if (k != deepest && _pairs[first + k].Touching && RowOf(_pairs[first + k]).Crown != null) _pairs[first + k].Suppressed = true;
+            _crownPair[i] = deepest;
+            _inCrown |= deepest >= 0;
         }
 
         // A part found inside a rigid box with no first touch this step (a blade come back to rest, a piece a leg's set or break
@@ -3783,11 +4383,15 @@ namespace Fpv450.Sim.Contact
                 ContactShape s = _shapes[i];
                 if (i == capsule || s.Part != c.Part || s.Role == ContactRole.Disc || !Same(s.A, s.B)) continue;
                 double reach = c.Radius + s.Radius;
-                if (s.Role == ContactRole.Support && _ground[i].Touching && Near(_ground[i].Point, contact.Point, reach)) return true;
+                // A sphere carries the capsule's touch only by its own depth (2.6d, SupportByDepth): one a hanging half's give holds
+                // touching (Hung) is pressed through the half's chain, not on that face.
+                bool byDepth = _spec.SupportByDepth;
+                if (s.Role == ContactRole.Support && _ground[i].Touching && (!byDepth || _ground[i].Depth > 0) && Near(_ground[i].Point, contact.Point, reach))
+                    return true;
                 for (int k = 0; k < _count[i]; k++)
                 {
                     ref Pair p = ref _pairs[i * PairsPerShape + k];
-                    if (!p.Touching || p.Suppressed) continue;
+                    if (!p.Touching || p.Suppressed || byDepth && !(p.Depth > 0)) continue;
                     if (Near(p.Point, contact.Point, reach)) return true;
                     if (s.Role == ContactRole.Support && (p.Object == contact.Object && p.Shape == contact.Shape || OnPlane(p.N, p.Point, contact.Point))
                         && -contact.Distance <= p.Depth + c.Radius) return true;
@@ -3900,6 +4504,29 @@ namespace Fpv450.Sim.Contact
             p.Point = core - p.N * h;
         }
 
+        // A latched pair on a round rigid member (w9-village-physics 2.6d, ContactSpec.RollOff): its depth and point are the member's
+        // own along the latched normal (RoundMember), not the tangent plane's, and a part whose core left the member's side is beside
+        // it: not pressed, its latch let go, so the next query meets it afresh. On model 100's plane an arm whose core had passed
+        // L03's conductor and then left its side read 10–18 mm 34–98 mm clear of it and was pressed with 200–390 N until the
+        // conductor left the margin, a Tunnel; a hanging half's shapes followed that plane 0.39 m with the drone's travel.
+        void Member(ref Pair p, in Capsule part)
+        {
+            p.Beside = false;
+            if (!_spec.RollOff || !p.Latched || p.Object == WorldIds.Ground || p.Surface != WorldIds.NoSurface || !RowOf(p).Rigid) return;
+            if (!_world.Geometry(p.Object, p.Shape, out ShapeGeometry g)) return;
+            ReadOnlySpan<Double3> chain = g.Kind == ShapeKind.Wire ? _world.WirePoints(p.Object, p.Shape) : default;
+            double depth = p.Depth;
+            Double3 point = p.Point;
+            MemberReading reading = RoundMember.Read(g, chain, part.A, part.B, part.Radius, p.N, ref depth, ref point);
+            if (reading == MemberReading.Face) return;
+            p.Depth = depth;
+            p.Point = point;
+            if (reading != MemberReading.Beside) return;
+            p.Beside = true;
+            p.Latched = false;
+            p.Flipped = false;
+        }
+
         static Double3 Closest(Double3 a, Double3 b, Double3 x)
         {
             Double3 ab = b - a;
@@ -3918,10 +4545,23 @@ namespace Fpv450.Sim.Contact
             return Double3.Dot(p.Entry, deep - g.Center) < 0;
         }
 
+        // A hanging half's point still pressed (w9-village-physics 2.6): its shapes stand out of what they touch by the half's
+        // elastic give, which the massless half holds only while it is pressed, so its pair touches while its overlap without
+        // that give is positive. On its turned depth alone a pair the give had just lifted clear read no force for a step, the
+        // give fell to 0 and the half's shapes snapped back into the ground by it (the sweep's 91 mm, a one-step limit cycle).
+        bool Hung(int i, in Pair p, in FlightState s)
+        {
+            if (!_spec.HangingGive || _legs == null || p.Beside) return false;
+            ContactRole role = _shapes[i].Role;
+            int c = _shapes[i].Corner;
+            if (role != ContactRole.Support && role != ContactRole.Skid || c < 0 || c >= 4 || (_corner[c] & CornerState.Hanging) == 0) return false;
+            return p.Depth + Unturned(c, p, s) > 0;
+        }
+
         // Touching starts or ends: ContactMade (and maybe an impact) or ContactBroken.
         void Transition(ref Pair p, int i, in FlightState now, StepEvents events, bool objectPair)
         {
-            bool touching = p.Depth > 0;
+            bool touching = p.Depth > 0 || Hung(i, p, now);
             if (touching == p.Touching) return;
             if (!touching)
             {
@@ -4015,6 +4655,7 @@ namespace Fpv450.Sim.Contact
             for (int k = 0; k < _count[i]; k++) _pairs[first + k].Seen = false;
             double r = d.Radius + d.HalfThickness;
             Double3 hubWas = World(was, d.A), hubNow = World(now, d.A);
+            _discFrom[i] = hubWas;
             int gate = _world.StaticContacts(new Capsule(hubWas, hubWas, r), new Capsule(hubNow, hubNow, r), 0, _buf);
             int gated = gate < Buffer ? gate : Buffer;
             for (int j = 0; j < gated; j++) _gate[j] = _buf[j];
@@ -4070,7 +4711,7 @@ namespace Fpv450.Sim.Contact
                 StaticContact c = _gate[j];
                 int k = 0;
                 while (k < _count[i] && (_pairs[first + k].Object != c.Object || _pairs[first + k].Shape != c.Shape)) k++;
-                if (k < _count[i] || !Cuts(d, hubNow, axis, c.Object, c.Shape, c.Point, c.Normal, c.Surface, out BladeCut.Meeting m)) continue;
+                if (k < _count[i] || !Cuts(d, hubNow, axis, c.Object, c.Shape, c.Point, c.Normal, c.Surface, out BladeCut.Meeting m, hubWas, true)) continue;
                 if (k == PairsPerShape)
                 {
                     lost++;
@@ -4113,7 +4754,8 @@ namespace Fpv450.Sim.Contact
 
         // Whether (obj, shape) cuts the disc's slab within its rim at the hub's pose now (BladeCut, the world's geometry now:
         // a runtime object where it is; a terrain's ground the plane of the contact that names it, GroundPlane).
-        bool Cuts(in ContactShape d, Double3 hub, Double3 axis, int obj, int shape, Double3 point, Double3 normal, byte surface, out BladeCut.Meeting m)
+        bool Cuts(in ContactShape d, Double3 hub, Double3 axis, int obj, int shape, Double3 point, Double3 normal, byte surface, out BladeCut.Meeting m,
+            Double3 from = default, bool swept = false)
         {
             m = default;
             ShapeGeometry g;
@@ -4127,7 +4769,10 @@ namespace Fpv450.Sim.Contact
                 if (hi < lo) return false;
                 chain = chain.Slice(lo, hi - lo + 2);
             }
-            return BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out m);
+            if (BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out m)) return true;
+            // A shape the slab crossed within the step, in neither its start's slab nor its end's (2.6's addendum): the gate's sweep met
+            // it, and the slab's own sweep holds it between.
+            return swept && BladeCut.Crossing(g, chain, from, hub, axis, d.HalfThickness, d.Radius, out m, out _, out _, out _);
         }
 
         /// <summary>A terrain's ground at a contact as a plane (w3-farmland-ground 2.2): the plane through the contact's point with

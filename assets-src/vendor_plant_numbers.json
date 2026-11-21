@@ -1,0 +1,2892 @@
+{
+  "schema": 1,
+  "about": "The plants' numbers for the props (w9-village-physics 2.8; D-089): stems per drawn grass instance per prefab and per layer of maps/farmland/map.json, and each vendor tree and bush variant's drawn leaf area per m3 of its twig shell. Measured from the local store by python tools/blender/vendor_plant_numbers.py; method and limits in openspec/changes/w9-village-physics/design.md 2.8. Widths in mm as drawn where a blade crosses a horizontal plane (p10, p50, p90).",
+  "grass": {
+    "prefabs": {
+      "GrassBurnt_A": {
+        "source": {
+          "prefab": {
+            "file": "Assets/Farm_land/Prefabs/Grass/GrassBurnt_A.prefab",
+            "sha256": "66d509bc3e60a5c73a804c605effd225a2c8aa3d73a751667f087b24ceae722a"
+          },
+          "mesh": {
+            "file": "Assets/TerrainSampleAssets/Models/GrassDry_A.asset",
+            "sha256": "d836d2b066d4f94819e3d70253ff84a275b93450606f11195e4c4c4875cbe32b"
+          },
+          "material": {
+            "file": "Assets/Farm_land/URP_Materials/GrassBurnt.mat",
+            "sha256": "68ce2b58f15c4efdb59c409acb2730ed579bb498963ad3eac23d127433fb7ab4"
+          },
+          "base_map": {
+            "file": "Assets/TerrainSampleAssets/Textures/Details/GrassDry_BaseColor.tif",
+            "sha256": "afef4552d9bb3813747cecc114c262c4a2e1f69fea7ce044f7f16a00d8bca4e1"
+          }
+        },
+        "cutoff": 0.5,
+        "cards": 14,
+        "triangles": 173,
+        "mesh_y_m": [
+          -0.0203,
+          0.5299
+        ],
+        "stems": 179,
+        "stems_at": 0.15,
+        "width_mm": [
+          0.59,
+          1.36,
+          5.38
+        ],
+        "profile": [
+          {
+            "at": 0.05,
+            "height_m": 0.0265,
+            "stems": 93,
+            "width_mm": [
+              0.56,
+              2.45,
+              7.8
+            ]
+          },
+          {
+            "at": 0.1,
+            "height_m": 0.053,
+            "stems": 140,
+            "width_mm": [
+              0.6,
+              1.63,
+              5.18
+            ]
+          },
+          {
+            "at": 0.15,
+            "height_m": 0.0795,
+            "stems": 179,
+            "width_mm": [
+              0.59,
+              1.36,
+              5.38
+            ]
+          },
+          {
+            "at": 0.2,
+            "height_m": 0.106,
+            "stems": 173,
+            "width_mm": [
+              0.57,
+              1.28,
+              3.47
+            ]
+          },
+          {
+            "at": 0.25,
+            "height_m": 0.1325,
+            "stems": 146,
+            "width_mm": [
+              0.57,
+              1.44,
+              3.39
+            ]
+          },
+          {
+            "at": 0.3,
+            "height_m": 0.159,
+            "stems": 128,
+            "width_mm": [
+              0.57,
+              1.25,
+              3.58
+            ]
+          },
+          {
+            "at": 0.35,
+            "height_m": 0.1855,
+            "stems": 97,
+            "width_mm": [
+              0.56,
+              1.15,
+              2.85
+            ]
+          },
+          {
+            "at": 0.4,
+            "height_m": 0.212,
+            "stems": 92,
+            "width_mm": [
+              0.54,
+              1.17,
+              2.51
+            ]
+          },
+          {
+            "at": 0.45,
+            "height_m": 0.2384,
+            "stems": 76,
+            "width_mm": [
+              0.58,
+              1.26,
+              2.14
+            ]
+          },
+          {
+            "at": 0.5,
+            "height_m": 0.2649,
+            "stems": 61,
+            "width_mm": [
+              0.58,
+              1.13,
+              1.91
+            ]
+          },
+          {
+            "at": 0.55,
+            "height_m": 0.2914,
+            "stems": 36,
+            "width_mm": [
+              0.63,
+              1.16,
+              1.91
+            ]
+          },
+          {
+            "at": 0.6,
+            "height_m": 0.3179,
+            "stems": 33,
+            "width_mm": [
+              0.58,
+              1.26,
+              1.83
+            ]
+          },
+          {
+            "at": 0.65,
+            "height_m": 0.3444,
+            "stems": 21,
+            "width_mm": [
+              0.58,
+              0.76,
+              1.5
+            ]
+          },
+          {
+            "at": 0.7,
+            "height_m": 0.3709,
+            "stems": 10,
+            "width_mm": [
+              0.73,
+              1.13,
+              1.46
+            ]
+          },
+          {
+            "at": 0.75,
+            "height_m": 0.3974,
+            "stems": 3,
+            "width_mm": [
+              0.74,
+              0.74,
+              2.55
+            ]
+          },
+          {
+            "at": 0.8,
+            "height_m": 0.4239,
+            "stems": 2,
+            "width_mm": [
+              0.73,
+              1.46,
+              1.46
+            ]
+          },
+          {
+            "at": 0.85,
+            "height_m": 0.4504,
+            "stems": 1,
+            "width_mm": [
+              0.73,
+              0.73,
+              0.73
+            ]
+          },
+          {
+            "at": 0.9,
+            "height_m": 0.4769,
+            "stems": 1,
+            "width_mm": [
+              0.73,
+              0.73,
+              0.73
+            ]
+          },
+          {
+            "at": 0.95,
+            "height_m": 0.5034,
+            "stems": 1,
+            "width_mm": [
+              2.13,
+              2.13,
+              2.13
+            ]
+          }
+        ]
+      },
+      "GrassBurnt_B": {
+        "source": {
+          "prefab": {
+            "file": "Assets/Farm_land/Prefabs/Grass/GrassBurnt_B.prefab",
+            "sha256": "2a6ab765209c51c75685fd18857d3fb798ad7b5bb0d5ea441bba191331a59458"
+          },
+          "mesh": {
+            "file": "Assets/TerrainSampleAssets/Models/GrassDry_B.asset",
+            "sha256": "893c0444a31f8c416f425739345443a70434eb32a4d70deef6aa60424c51a669"
+          },
+          "material": {
+            "file": "Assets/Farm_land/URP_Materials/GrassBurnt.mat",
+            "sha256": "68ce2b58f15c4efdb59c409acb2730ed579bb498963ad3eac23d127433fb7ab4"
+          },
+          "base_map": {
+            "file": "Assets/TerrainSampleAssets/Textures/Details/GrassDry_BaseColor.tif",
+            "sha256": "afef4552d9bb3813747cecc114c262c4a2e1f69fea7ce044f7f16a00d8bca4e1"
+          }
+        },
+        "cutoff": 0.5,
+        "cards": 18,
+        "triangles": 168,
+        "mesh_y_m": [
+          -0.0152,
+          0.3658
+        ],
+        "stems": 210,
+        "stems_at": 0.25,
+        "width_mm": [
+          0.56,
+          1.2,
+          3.49
+        ],
+        "profile": [
+          {
+            "at": 0.05,
+            "height_m": 0.0183,
+            "stems": 93,
+            "width_mm": [
+              0.71,
+              2.33,
+              6.7
+            ]
+          },
+          {
+            "at": 0.1,
+            "height_m": 0.0366,
+            "stems": 152,
+            "width_mm": [
+              0.57,
+              1.65,
+              4.88
+            ]
+          },
+          {
+            "at": 0.15,
+            "height_m": 0.0549,
+            "stems": 196,
+            "width_mm": [
+              0.54,
+              1.33,
+              4.4
+            ]
+          },
+          {
+            "at": 0.2,
+            "height_m": 0.0732,
+            "stems": 207,
+            "width_mm": [
+              0.53,
+              1.22,
+              3.86
+            ]
+          },
+          {
+            "at": 0.25,
+            "height_m": 0.0915,
+            "stems": 210,
+            "width_mm": [
+              0.56,
+              1.2,
+              3.49
+            ]
+          },
+          {
+            "at": 0.3,
+            "height_m": 0.1098,
+            "stems": 164,
+            "width_mm": [
+              0.55,
+              1.26,
+              2.85
+            ]
+          },
+          {
+            "at": 0.35,
+            "height_m": 0.128,
+            "stems": 134,
+            "width_mm": [
+              0.55,
+              1.26,
+              2.61
+            ]
+          },
+          {
+            "at": 0.4,
+            "height_m": 0.1463,
+            "stems": 103,
+            "width_mm": [
+              0.56,
+              1.22,
+              2.51
+            ]
+          },
+          {
+            "at": 0.45,
+            "height_m": 0.1646,
+            "stems": 86,
+            "width_mm": [
+              0.55,
+              1.27,
+              2.39
+            ]
+          },
+          {
+            "at": 0.5,
+            "height_m": 0.1829,
+            "stems": 64,
+            "width_mm": [
+              0.56,
+              1.1,
+              2.05
+            ]
+          },
+          {
+            "at": 0.55,
+            "height_m": 0.2012,
+            "stems": 51,
+            "width_mm": [
+              0.51,
+              1.1,
+              2.51
+            ]
+          },
+          {
+            "at": 0.6,
+            "height_m": 0.2195,
+            "stems": 37,
+            "width_mm": [
+              0.56,
+              1.11,
+              2.02
+            ]
+          },
+          {
+            "at": 0.65,
+            "height_m": 0.2378,
+            "stems": 27,
+            "width_mm": [
+              0.54,
+              1.12,
+              1.92
+            ]
+          },
+          {
+            "at": 0.7,
+            "height_m": 0.2561,
+            "stems": 22,
+            "width_mm": [
+              0.52,
+              0.95,
+              1.68
+            ]
+          },
+          {
+            "at": 0.75,
+            "height_m": 0.2744,
+            "stems": 16,
+            "width_mm": [
+              0.53,
+              1.18,
+              1.98
+            ]
+          },
+          {
+            "at": 0.8,
+            "height_m": 0.2927,
+            "stems": 9,
+            "width_mm": [
+              0.58,
+              1.0,
+              1.64
+            ]
+          },
+          {
+            "at": 0.85,
+            "height_m": 0.311,
+            "stems": 6,
+            "width_mm": [
+              1.09,
+              1.33,
+              1.56
+            ]
+          },
+          {
+            "at": 0.9,
+            "height_m": 0.3293,
+            "stems": 4,
+            "width_mm": [
+              0.51,
+              1.64,
+              1.93
+            ]
+          },
+          {
+            "at": 0.95,
+            "height_m": 0.3475,
+            "stems": 2,
+            "width_mm": [
+              0.63,
+              0.64,
+              0.64
+            ]
+          }
+        ]
+      },
+      "GrassBurnt_C": {
+        "source": {
+          "prefab": {
+            "file": "Assets/Farm_land/Prefabs/Grass/GrassBurnt_C.prefab",
+            "sha256": "a84e4afd13053263e04a213c4ef5be7a334f487f90a5b27196f34af72555b289"
+          },
+          "mesh": {
+            "file": "Assets/TerrainSampleAssets/Models/GrassDry_C.asset",
+            "sha256": "89930f10bb5f31e9612d4ce73c7097c24df9338b1081c2b1c60a018edaecd20d"
+          },
+          "material": {
+            "file": "Assets/Farm_land/URP_Materials/GrassBurnt.mat",
+            "sha256": "68ce2b58f15c4efdb59c409acb2730ed579bb498963ad3eac23d127433fb7ab4"
+          },
+          "base_map": {
+            "file": "Assets/TerrainSampleAssets/Textures/Details/GrassDry_BaseColor.tif",
+            "sha256": "afef4552d9bb3813747cecc114c262c4a2e1f69fea7ce044f7f16a00d8bca4e1"
+          }
+        },
+        "cutoff": 0.5,
+        "cards": 9,
+        "triangles": 122,
+        "mesh_y_m": [
+          -0.0266,
+          0.6789
+        ],
+        "stems": 110,
+        "stems_at": 0.15,
+        "width_mm": [
+          0.72,
+          1.63,
+          6.26
+        ],
+        "profile": [
+          {
+            "at": 0.05,
+            "height_m": 0.0339,
+            "stems": 70,
+            "width_mm": [
+              0.99,
+              2.47,
+              8.6
+            ]
+          },
+          {
+            "at": 0.1,
+            "height_m": 0.0679,
+            "stems": 99,
+            "width_mm": [
+              0.63,
+              1.71,
+              6.63
+            ]
+          },
+          {
+            "at": 0.15,
+            "height_m": 0.1018,
+            "stems": 110,
+            "width_mm": [
+              0.72,
+              1.63,
+              6.26
+            ]
+          },
+          {
+            "at": 0.2,
+            "height_m": 0.1358,
+            "stems": 108,
+            "width_mm": [
+              0.96,
+              1.81,
+              4.72
+            ]
+          },
+          {
+            "at": 0.25,
+            "height_m": 0.1697,
+            "stems": 107,
+            "width_mm": [
+              0.62,
+              1.62,
+              3.87
+            ]
+          },
+          {
+            "at": 0.3,
+            "height_m": 0.2037,
+            "stems": 105,
+            "width_mm": [
+              0.72,
+              1.59,
+              3.11
+            ]
+          },
+          {
+            "at": 0.35,
+            "height_m": 0.2376,
+            "stems": 91,
+            "width_mm": [
+              0.7,
+              1.73,
+              3.59
+            ]
+          },
+          {
+            "at": 0.4,
+            "height_m": 0.2715,
+            "stems": 69,
+            "width_mm": [
+              0.72,
+              1.62,
+              3.87
+            ]
+          },
+          {
+            "at": 0.45,
+            "height_m": 0.3055,
+            "stems": 59,
+            "width_mm": [
+              0.72,
+              1.55,
+              2.59
+            ]
+          },
+          {
+            "at": 0.5,
+            "height_m": 0.3394,
+            "stems": 46,
+            "width_mm": [
+              0.81,
+              1.46,
+              2.59
+            ]
+          },
+          {
+            "at": 0.55,
+            "height_m": 0.3734,
+            "stems": 34,
+            "width_mm": [
+              0.77,
+              1.48,
+              2.44
+            ]
+          },
+          {
+            "at": 0.6,
+            "height_m": 0.4073,
+            "stems": 23,
+            "width_mm": [
+              0.86,
+              1.65,
+              2.47
+            ]
+          },
+          {
+            "at": 0.65,
+            "height_m": 0.4413,
+            "stems": 10,
+            "width_mm": [
+              0.87,
+              1.47,
+              1.65
+            ]
+          },
+          {
+            "at": 0.7,
+            "height_m": 0.4752,
+            "stems": 7,
+            "width_mm": [
+              0.98,
+              1.65,
+              1.72
+            ]
+          },
+          {
+            "at": 0.75,
+            "height_m": 0.5092,
+            "stems": 4,
+            "width_mm": [
+              0.83,
+              1.65,
+              1.99
+            ]
+          },
+          {
+            "at": 0.8,
+            "height_m": 0.5431,
+            "stems": 1,
+            "width_mm": [
+              1.99,
+              1.99,
+              1.99
+            ]
+          },
+          {
+            "at": 0.85,
+            "height_m": 0.577,
+            "stems": 1,
+            "width_mm": [
+              0.99,
+              0.99,
+              0.99
+            ]
+          },
+          {
+            "at": 0.9,
+            "height_m": 0.611,
+            "stems": 1,
+            "width_mm": [
+              1.97,
+              1.97,
+              1.97
+            ]
+          },
+          {
+            "at": 0.95,
+            "height_m": 0.6449,
+            "stems": 2,
+            "width_mm": [
+              0.48,
+              1.93,
+              1.93
+            ]
+          }
+        ]
+      },
+      "GrassDry_A": {
+        "source": {
+          "prefab": {
+            "file": "Assets/Farm_land/Prefabs/Grass/GrassDry_A.prefab",
+            "sha256": "b650f58f69ad836f07272ed2e4ac41becc02e3b052349e2a5cd2e03da31c8f9c"
+          },
+          "mesh": {
+            "file": "Assets/TerrainSampleAssets/Models/GrassDry_A.asset",
+            "sha256": "d836d2b066d4f94819e3d70253ff84a275b93450606f11195e4c4c4875cbe32b"
+          },
+          "material": {
+            "file": "Assets/Farm_land/URP_Materials/GrassDry.mat",
+            "sha256": "b885a265738bfff030ddd5465eb2b6271aa627813531ac4af0a9fc9d9c0f7eb6"
+          },
+          "base_map": {
+            "file": "Assets/TerrainSampleAssets/Textures/Details/GrassDry_BaseColor.tif",
+            "sha256": "afef4552d9bb3813747cecc114c262c4a2e1f69fea7ce044f7f16a00d8bca4e1"
+          }
+        },
+        "cutoff": 0.5,
+        "cards": 14,
+        "triangles": 173,
+        "mesh_y_m": [
+          -0.0203,
+          0.5299
+        ],
+        "stems": 179,
+        "stems_at": 0.15,
+        "width_mm": [
+          0.59,
+          1.36,
+          5.38
+        ],
+        "profile": [
+          {
+            "at": 0.05,
+            "height_m": 0.0265,
+            "stems": 93,
+            "width_mm": [
+              0.56,
+              2.45,
+              7.8
+            ]
+          },
+          {
+            "at": 0.1,
+            "height_m": 0.053,
+            "stems": 140,
+            "width_mm": [
+              0.6,
+              1.63,
+              5.18
+            ]
+          },
+          {
+            "at": 0.15,
+            "height_m": 0.0795,
+            "stems": 179,
+            "width_mm": [
+              0.59,
+              1.36,
+              5.38
+            ]
+          },
+          {
+            "at": 0.2,
+            "height_m": 0.106,
+            "stems": 173,
+            "width_mm": [
+              0.57,
+              1.28,
+              3.47
+            ]
+          },
+          {
+            "at": 0.25,
+            "height_m": 0.1325,
+            "stems": 146,
+            "width_mm": [
+              0.57,
+              1.44,
+              3.39
+            ]
+          },
+          {
+            "at": 0.3,
+            "height_m": 0.159,
+            "stems": 128,
+            "width_mm": [
+              0.57,
+              1.25,
+              3.58
+            ]
+          },
+          {
+            "at": 0.35,
+            "height_m": 0.1855,
+            "stems": 97,
+            "width_mm": [
+              0.56,
+              1.15,
+              2.85
+            ]
+          },
+          {
+            "at": 0.4,
+            "height_m": 0.212,
+            "stems": 92,
+            "width_mm": [
+              0.54,
+              1.17,
+              2.51
+            ]
+          },
+          {
+            "at": 0.45,
+            "height_m": 0.2384,
+            "stems": 76,
+            "width_mm": [
+              0.58,
+              1.26,
+              2.14
+            ]
+          },
+          {
+            "at": 0.5,
+            "height_m": 0.2649,
+            "stems": 61,
+            "width_mm": [
+              0.58,
+              1.13,
+              1.91
+            ]
+          },
+          {
+            "at": 0.55,
+            "height_m": 0.2914,
+            "stems": 36,
+            "width_mm": [
+              0.63,
+              1.16,
+              1.91
+            ]
+          },
+          {
+            "at": 0.6,
+            "height_m": 0.3179,
+            "stems": 33,
+            "width_mm": [
+              0.58,
+              1.26,
+              1.83
+            ]
+          },
+          {
+            "at": 0.65,
+            "height_m": 0.3444,
+            "stems": 21,
+            "width_mm": [
+              0.58,
+              0.76,
+              1.5
+            ]
+          },
+          {
+            "at": 0.7,
+            "height_m": 0.3709,
+            "stems": 10,
+            "width_mm": [
+              0.73,
+              1.13,
+              1.46
+            ]
+          },
+          {
+            "at": 0.75,
+            "height_m": 0.3974,
+            "stems": 3,
+            "width_mm": [
+              0.74,
+              0.74,
+              2.55
+            ]
+          },
+          {
+            "at": 0.8,
+            "height_m": 0.4239,
+            "stems": 2,
+            "width_mm": [
+              0.73,
+              1.46,
+              1.46
+            ]
+          },
+          {
+            "at": 0.85,
+            "height_m": 0.4504,
+            "stems": 1,
+            "width_mm": [
+              0.73,
+              0.73,
+              0.73
+            ]
+          },
+          {
+            "at": 0.9,
+            "height_m": 0.4769,
+            "stems": 1,
+            "width_mm": [
+              0.73,
+              0.73,
+              0.73
+            ]
+          },
+          {
+            "at": 0.95,
+            "height_m": 0.5034,
+            "stems": 1,
+            "width_mm": [
+              2.13,
+              2.13,
+              2.13
+            ]
+          }
+        ]
+      },
+      "GrassDry_B": {
+        "source": {
+          "prefab": {
+            "file": "Assets/Farm_land/Prefabs/Grass/GrassDry_B.prefab",
+            "sha256": "578838dc032328d9ff61dda8976179d945cc2779c896462b8024e0310d65eaa0"
+          },
+          "mesh": {
+            "file": "Assets/TerrainSampleAssets/Models/GrassDry_B.asset",
+            "sha256": "893c0444a31f8c416f425739345443a70434eb32a4d70deef6aa60424c51a669"
+          },
+          "material": {
+            "file": "Assets/Farm_land/URP_Materials/GrassDry.mat",
+            "sha256": "b885a265738bfff030ddd5465eb2b6271aa627813531ac4af0a9fc9d9c0f7eb6"
+          },
+          "base_map": {
+            "file": "Assets/TerrainSampleAssets/Textures/Details/GrassDry_BaseColor.tif",
+            "sha256": "afef4552d9bb3813747cecc114c262c4a2e1f69fea7ce044f7f16a00d8bca4e1"
+          }
+        },
+        "cutoff": 0.5,
+        "cards": 18,
+        "triangles": 168,
+        "mesh_y_m": [
+          -0.0152,
+          0.3658
+        ],
+        "stems": 210,
+        "stems_at": 0.25,
+        "width_mm": [
+          0.56,
+          1.2,
+          3.49
+        ],
+        "profile": [
+          {
+            "at": 0.05,
+            "height_m": 0.0183,
+            "stems": 93,
+            "width_mm": [
+              0.71,
+              2.33,
+              6.7
+            ]
+          },
+          {
+            "at": 0.1,
+            "height_m": 0.0366,
+            "stems": 152,
+            "width_mm": [
+              0.57,
+              1.65,
+              4.88
+            ]
+          },
+          {
+            "at": 0.15,
+            "height_m": 0.0549,
+            "stems": 196,
+            "width_mm": [
+              0.54,
+              1.33,
+              4.4
+            ]
+          },
+          {
+            "at": 0.2,
+            "height_m": 0.0732,
+            "stems": 207,
+            "width_mm": [
+              0.53,
+              1.22,
+              3.86
+            ]
+          },
+          {
+            "at": 0.25,
+            "height_m": 0.0915,
+            "stems": 210,
+            "width_mm": [
+              0.56,
+              1.2,
+              3.49
+            ]
+          },
+          {
+            "at": 0.3,
+            "height_m": 0.1098,
+            "stems": 164,
+            "width_mm": [
+              0.55,
+              1.26,
+              2.85
+            ]
+          },
+          {
+            "at": 0.35,
+            "height_m": 0.128,
+            "stems": 134,
+            "width_mm": [
+              0.55,
+              1.26,
+              2.61
+            ]
+          },
+          {
+            "at": 0.4,
+            "height_m": 0.1463,
+            "stems": 103,
+            "width_mm": [
+              0.56,
+              1.22,
+              2.51
+            ]
+          },
+          {
+            "at": 0.45,
+            "height_m": 0.1646,
+            "stems": 86,
+            "width_mm": [
+              0.55,
+              1.27,
+              2.39
+            ]
+          },
+          {
+            "at": 0.5,
+            "height_m": 0.1829,
+            "stems": 64,
+            "width_mm": [
+              0.56,
+              1.1,
+              2.05
+            ]
+          },
+          {
+            "at": 0.55,
+            "height_m": 0.2012,
+            "stems": 51,
+            "width_mm": [
+              0.51,
+              1.1,
+              2.51
+            ]
+          },
+          {
+            "at": 0.6,
+            "height_m": 0.2195,
+            "stems": 37,
+            "width_mm": [
+              0.56,
+              1.11,
+              2.02
+            ]
+          },
+          {
+            "at": 0.65,
+            "height_m": 0.2378,
+            "stems": 27,
+            "width_mm": [
+              0.54,
+              1.12,
+              1.92
+            ]
+          },
+          {
+            "at": 0.7,
+            "height_m": 0.2561,
+            "stems": 22,
+            "width_mm": [
+              0.52,
+              0.95,
+              1.68
+            ]
+          },
+          {
+            "at": 0.75,
+            "height_m": 0.2744,
+            "stems": 16,
+            "width_mm": [
+              0.53,
+              1.18,
+              1.98
+            ]
+          },
+          {
+            "at": 0.8,
+            "height_m": 0.2927,
+            "stems": 9,
+            "width_mm": [
+              0.58,
+              1.0,
+              1.64
+            ]
+          },
+          {
+            "at": 0.85,
+            "height_m": 0.311,
+            "stems": 6,
+            "width_mm": [
+              1.09,
+              1.33,
+              1.56
+            ]
+          },
+          {
+            "at": 0.9,
+            "height_m": 0.3293,
+            "stems": 4,
+            "width_mm": [
+              0.51,
+              1.64,
+              1.93
+            ]
+          },
+          {
+            "at": 0.95,
+            "height_m": 0.3475,
+            "stems": 2,
+            "width_mm": [
+              0.63,
+              0.64,
+              0.64
+            ]
+          }
+        ]
+      },
+      "GrassDry_C": {
+        "source": {
+          "prefab": {
+            "file": "Assets/Farm_land/Prefabs/Grass/GrassDry_C.prefab",
+            "sha256": "270255b63ba06566fb09ff39fd73af824c7164cd377a7b1f14e80e7facaa53f2"
+          },
+          "mesh": {
+            "file": "Assets/TerrainSampleAssets/Models/GrassDry_C.asset",
+            "sha256": "89930f10bb5f31e9612d4ce73c7097c24df9338b1081c2b1c60a018edaecd20d"
+          },
+          "material": {
+            "file": "Assets/Farm_land/URP_Materials/GrassDry.mat",
+            "sha256": "b885a265738bfff030ddd5465eb2b6271aa627813531ac4af0a9fc9d9c0f7eb6"
+          },
+          "base_map": {
+            "file": "Assets/TerrainSampleAssets/Textures/Details/GrassDry_BaseColor.tif",
+            "sha256": "afef4552d9bb3813747cecc114c262c4a2e1f69fea7ce044f7f16a00d8bca4e1"
+          }
+        },
+        "cutoff": 0.5,
+        "cards": 9,
+        "triangles": 122,
+        "mesh_y_m": [
+          -0.0266,
+          0.6789
+        ],
+        "stems": 110,
+        "stems_at": 0.15,
+        "width_mm": [
+          0.72,
+          1.63,
+          6.26
+        ],
+        "profile": [
+          {
+            "at": 0.05,
+            "height_m": 0.0339,
+            "stems": 70,
+            "width_mm": [
+              0.99,
+              2.47,
+              8.6
+            ]
+          },
+          {
+            "at": 0.1,
+            "height_m": 0.0679,
+            "stems": 99,
+            "width_mm": [
+              0.63,
+              1.71,
+              6.63
+            ]
+          },
+          {
+            "at": 0.15,
+            "height_m": 0.1018,
+            "stems": 110,
+            "width_mm": [
+              0.72,
+              1.63,
+              6.26
+            ]
+          },
+          {
+            "at": 0.2,
+            "height_m": 0.1358,
+            "stems": 108,
+            "width_mm": [
+              0.96,
+              1.81,
+              4.72
+            ]
+          },
+          {
+            "at": 0.25,
+            "height_m": 0.1697,
+            "stems": 107,
+            "width_mm": [
+              0.62,
+              1.62,
+              3.87
+            ]
+          },
+          {
+            "at": 0.3,
+            "height_m": 0.2037,
+            "stems": 105,
+            "width_mm": [
+              0.72,
+              1.59,
+              3.11
+            ]
+          },
+          {
+            "at": 0.35,
+            "height_m": 0.2376,
+            "stems": 91,
+            "width_mm": [
+              0.7,
+              1.73,
+              3.59
+            ]
+          },
+          {
+            "at": 0.4,
+            "height_m": 0.2715,
+            "stems": 69,
+            "width_mm": [
+              0.72,
+              1.62,
+              3.87
+            ]
+          },
+          {
+            "at": 0.45,
+            "height_m": 0.3055,
+            "stems": 59,
+            "width_mm": [
+              0.72,
+              1.55,
+              2.59
+            ]
+          },
+          {
+            "at": 0.5,
+            "height_m": 0.3394,
+            "stems": 46,
+            "width_mm": [
+              0.81,
+              1.46,
+              2.59
+            ]
+          },
+          {
+            "at": 0.55,
+            "height_m": 0.3734,
+            "stems": 34,
+            "width_mm": [
+              0.77,
+              1.48,
+              2.44
+            ]
+          },
+          {
+            "at": 0.6,
+            "height_m": 0.4073,
+            "stems": 23,
+            "width_mm": [
+              0.86,
+              1.65,
+              2.47
+            ]
+          },
+          {
+            "at": 0.65,
+            "height_m": 0.4413,
+            "stems": 10,
+            "width_mm": [
+              0.87,
+              1.47,
+              1.65
+            ]
+          },
+          {
+            "at": 0.7,
+            "height_m": 0.4752,
+            "stems": 7,
+            "width_mm": [
+              0.98,
+              1.65,
+              1.72
+            ]
+          },
+          {
+            "at": 0.75,
+            "height_m": 0.5092,
+            "stems": 4,
+            "width_mm": [
+              0.83,
+              1.65,
+              1.99
+            ]
+          },
+          {
+            "at": 0.8,
+            "height_m": 0.5431,
+            "stems": 1,
+            "width_mm": [
+              1.99,
+              1.99,
+              1.99
+            ]
+          },
+          {
+            "at": 0.85,
+            "height_m": 0.577,
+            "stems": 1,
+            "width_mm": [
+              0.99,
+              0.99,
+              0.99
+            ]
+          },
+          {
+            "at": 0.9,
+            "height_m": 0.611,
+            "stems": 1,
+            "width_mm": [
+              1.97,
+              1.97,
+              1.97
+            ]
+          },
+          {
+            "at": 0.95,
+            "height_m": 0.6449,
+            "stems": 2,
+            "width_mm": [
+              0.48,
+              1.93,
+              1.93
+            ]
+          }
+        ]
+      },
+      "Grass_A": {
+        "source": {
+          "prefab": {
+            "file": "Assets/Farm_land/Prefabs/Grass/Grass_A.prefab",
+            "sha256": "1f6c077f9c01e373e05456ff7c67e2b03e84dd0b843a3c8ba132945c68cc531b"
+          },
+          "mesh": {
+            "file": "Assets/TerrainSampleAssets/Models/Grass_A.asset",
+            "sha256": "9f26c8bc1c798de0fb255ae7523cd101c9d32d18c92009e2780317416a818bb3"
+          },
+          "material": {
+            "file": "Assets/Farm_land/URP_Materials/Grass.mat",
+            "sha256": "70fa76cddabcbaeaf14c837bab2322cff2808a7943af0c243cf93e38a306d4c7"
+          },
+          "base_map": {
+            "file": "Assets/TerrainSampleAssets/Textures/Details/Grass_A_BaseColor.tif",
+            "sha256": "9054bca35052027d59410200b8982ccd5203d15aacc3596229909bdac273a7de"
+          }
+        },
+        "cutoff": 0.5,
+        "cards": 19,
+        "triangles": 128,
+        "mesh_y_m": [
+          -0.0423,
+          0.2579
+        ],
+        "stems": 225,
+        "stems_at": 0.15,
+        "width_mm": [
+          1.0,
+          2.5,
+          7.0
+        ],
+        "profile": [
+          {
+            "at": 0.05,
+            "height_m": 0.0129,
+            "stems": 186,
+            "width_mm": [
+              1.0,
+              2.5,
+              9.0
+            ]
+          },
+          {
+            "at": 0.1,
+            "height_m": 0.0258,
+            "stems": 208,
+            "width_mm": [
+              1.0,
+              2.49,
+              8.94
+            ]
+          },
+          {
+            "at": 0.15,
+            "height_m": 0.0387,
+            "stems": 225,
+            "width_mm": [
+              1.0,
+              2.5,
+              7.0
+            ]
+          },
+          {
+            "at": 0.2,
+            "height_m": 0.0516,
+            "stems": 215,
+            "width_mm": [
+              1.49,
+              3.0,
+              6.97
+            ]
+          },
+          {
+            "at": 0.25,
+            "height_m": 0.0645,
+            "stems": 202,
+            "width_mm": [
+              1.0,
+              2.99,
+              6.0
+            ]
+          },
+          {
+            "at": 0.3,
+            "height_m": 0.0774,
+            "stems": 161,
+            "width_mm": [
+              1.0,
+              3.49,
+              6.98
+            ]
+          },
+          {
+            "at": 0.35,
+            "height_m": 0.0902,
+            "stems": 140,
+            "width_mm": [
+              1.0,
+              2.5,
+              5.5
+            ]
+          },
+          {
+            "at": 0.4,
+            "height_m": 0.1031,
+            "stems": 125,
+            "width_mm": [
+              1.0,
+              2.49,
+              5.99
+            ]
+          },
+          {
+            "at": 0.45,
+            "height_m": 0.116,
+            "stems": 93,
+            "width_mm": [
+              1.0,
+              2.5,
+              7.49
+            ]
+          },
+          {
+            "at": 0.5,
+            "height_m": 0.1289,
+            "stems": 78,
+            "width_mm": [
+              1.0,
+              2.5,
+              5.48
+            ]
+          },
+          {
+            "at": 0.55,
+            "height_m": 0.1418,
+            "stems": 76,
+            "width_mm": [
+              1.0,
+              2.49,
+              4.48
+            ]
+          },
+          {
+            "at": 0.6,
+            "height_m": 0.1547,
+            "stems": 54,
+            "width_mm": [
+              1.0,
+              2.49,
+              4.99
+            ]
+          },
+          {
+            "at": 0.65,
+            "height_m": 0.1676,
+            "stems": 44,
+            "width_mm": [
+              1.0,
+              2.5,
+              5.0
+            ]
+          },
+          {
+            "at": 0.7,
+            "height_m": 0.1805,
+            "stems": 31,
+            "width_mm": [
+              1.0,
+              2.48,
+              4.99
+            ]
+          },
+          {
+            "at": 0.75,
+            "height_m": 0.1934,
+            "stems": 17,
+            "width_mm": [
+              1.5,
+              2.5,
+              4.49
+            ]
+          },
+          {
+            "at": 0.8,
+            "height_m": 0.2063,
+            "stems": 16,
+            "width_mm": [
+              1.0,
+              2.5,
+              3.5
+            ]
+          },
+          {
+            "at": 0.85,
+            "height_m": 0.2192,
+            "stems": 12,
+            "width_mm": [
+              1.0,
+              2.0,
+              2.5
+            ]
+          },
+          {
+            "at": 0.9,
+            "height_m": 0.2321,
+            "stems": 2,
+            "width_mm": [
+              1.0,
+              1.49,
+              1.49
+            ]
+          },
+          {
+            "at": 0.95,
+            "height_m": 0.245,
+            "stems": 2,
+            "width_mm": [
+              0.99,
+              1.0,
+              1.0
+            ]
+          }
+        ]
+      },
+      "Grass_B": {
+        "source": {
+          "prefab": {
+            "file": "Assets/Farm_land/Prefabs/Grass/Grass_B.prefab",
+            "sha256": "18708354184cf79c3c0d8e7f8a0aacb4ac36c69f384a51b580874c6076b6261d"
+          },
+          "mesh": {
+            "file": "Assets/TerrainSampleAssets/Models/Grass_B.asset",
+            "sha256": "bdd038fe7a1b89e8771edd4e6c008fafaedc4a055db8263dcdf752d38ccbde18"
+          },
+          "material": {
+            "file": "Assets/Farm_land/URP_Materials/Grass.mat",
+            "sha256": "70fa76cddabcbaeaf14c837bab2322cff2808a7943af0c243cf93e38a306d4c7"
+          },
+          "base_map": {
+            "file": "Assets/TerrainSampleAssets/Textures/Details/Grass_A_BaseColor.tif",
+            "sha256": "9054bca35052027d59410200b8982ccd5203d15aacc3596229909bdac273a7de"
+          }
+        },
+        "cutoff": 0.5,
+        "cards": 157,
+        "triangles": 1136,
+        "mesh_y_m": [
+          -0.0436,
+          0.3466
+        ],
+        "stems": 2050,
+        "stems_at": 0.15,
+        "width_mm": [
+          1.0,
+          2.5,
+          6.98
+        ],
+        "profile": [
+          {
+            "at": 0.05,
+            "height_m": 0.0173,
+            "stems": 1882,
+            "width_mm": [
+              1.0,
+              2.49,
+              7.96
+            ]
+          },
+          {
+            "at": 0.1,
+            "height_m": 0.0347,
+            "stems": 2006,
+            "width_mm": [
+              1.0,
+              2.5,
+              8.47
+            ]
+          },
+          {
+            "at": 0.15,
+            "height_m": 0.052,
+            "stems": 2050,
+            "width_mm": [
+              1.0,
+              2.5,
+              6.98
+            ]
+          },
+          {
+            "at": 0.2,
+            "height_m": 0.0693,
+            "stems": 1702,
+            "width_mm": [
+              1.0,
+              2.5,
+              6.0
+            ]
+          },
+          {
+            "at": 0.25,
+            "height_m": 0.0867,
+            "stems": 1463,
+            "width_mm": [
+              1.0,
+              2.5,
+              5.94
+            ]
+          },
+          {
+            "at": 0.3,
+            "height_m": 0.104,
+            "stems": 1186,
+            "width_mm": [
+              1.0,
+              2.5,
+              5.98
+            ]
+          },
+          {
+            "at": 0.35,
+            "height_m": 0.1213,
+            "stems": 867,
+            "width_mm": [
+              1.0,
+              2.5,
+              5.97
+            ]
+          },
+          {
+            "at": 0.4,
+            "height_m": 0.1386,
+            "stems": 750,
+            "width_mm": [
+              1.0,
+              2.0,
+              4.5
+            ]
+          },
+          {
+            "at": 0.45,
+            "height_m": 0.156,
+            "stems": 541,
+            "width_mm": [
+              1.0,
+              2.0,
+              4.49
+            ]
+          },
+          {
+            "at": 0.5,
+            "height_m": 0.1733,
+            "stems": 378,
+            "width_mm": [
+              1.0,
+              2.0,
+              3.5
+            ]
+          },
+          {
+            "at": 0.55,
+            "height_m": 0.1906,
+            "stems": 212,
+            "width_mm": [
+              1.0,
+              2.49,
+              4.49
+            ]
+          },
+          {
+            "at": 0.6,
+            "height_m": 0.208,
+            "stems": 164,
+            "width_mm": [
+              1.0,
+              2.0,
+              3.49
+            ]
+          },
+          {
+            "at": 0.65,
+            "height_m": 0.2253,
+            "stems": 89,
+            "width_mm": [
+              1.0,
+              1.49,
+              2.49
+            ]
+          },
+          {
+            "at": 0.7,
+            "height_m": 0.2426,
+            "stems": 21,
+            "width_mm": [
+              0.99,
+              1.49,
+              2.47
+            ]
+          },
+          {
+            "at": 0.75,
+            "height_m": 0.26,
+            "stems": 4,
+            "width_mm": [
+              1.0,
+              1.47,
+              1.47
+            ]
+          },
+          {
+            "at": 0.8,
+            "height_m": 0.2773,
+            "stems": 2,
+            "width_mm": [
+              2.5,
+              2.5,
+              2.5
+            ]
+          },
+          {
+            "at": 0.85,
+            "height_m": 0.2946,
+            "stems": 2,
+            "width_mm": [
+              2.5,
+              2.5,
+              2.5
+            ]
+          },
+          {
+            "at": 0.9,
+            "height_m": 0.312,
+            "stems": 0,
+            "width_mm": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "at": 0.95,
+            "height_m": 0.3293,
+            "stems": 0,
+            "width_mm": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        ]
+      },
+      "Grass_C": {
+        "source": {
+          "prefab": {
+            "file": "Assets/Farm_land/Prefabs/Grass/Grass_C.prefab",
+            "sha256": "a8a4e9f118ae38b20b6d809b18fa9f420bbc898eb25e65a1f08442336d0daaad"
+          },
+          "mesh": {
+            "file": "Assets/TerrainSampleAssets/Models/Grass_C.asset",
+            "sha256": "f1e9e2ccb75474b7e148f47720d7dd929f9c5376c01a6a84951bdbfa85fec520"
+          },
+          "material": {
+            "file": "Assets/Farm_land/URP_Materials/Grass_C.mat",
+            "sha256": "abbf2cdf811a32cd4486c570b33c5e1cd84cfa8f9179db91f575402156d82585"
+          },
+          "base_map": {
+            "file": "Assets/TerrainSampleAssets/Textures/Details/Grass_C_BaseColor.tif",
+            "sha256": "a43f845bca79f4dd46e4bc386fde42ab7dfed2ee43d958c7a1ac6042ddd35c0a"
+          }
+        },
+        "cutoff": 0.5,
+        "cards": 43,
+        "triangles": 1002,
+        "mesh_y_m": [
+          -0.0045,
+          0.5964
+        ],
+        "stems": 614,
+        "stems_at": 0.1,
+        "width_mm": [
+          1.64,
+          4.51,
+          8.41
+        ],
+        "profile": [
+          {
+            "at": 0.05,
+            "height_m": 0.0298,
+            "stems": 349,
+            "width_mm": [
+              0.84,
+              2.17,
+              5.69
+            ]
+          },
+          {
+            "at": 0.1,
+            "height_m": 0.0596,
+            "stems": 614,
+            "width_mm": [
+              1.64,
+              4.51,
+              8.41
+            ]
+          },
+          {
+            "at": 0.15,
+            "height_m": 0.0895,
+            "stems": 459,
+            "width_mm": [
+              1.52,
+              3.92,
+              7.89
+            ]
+          },
+          {
+            "at": 0.2,
+            "height_m": 0.1193,
+            "stems": 303,
+            "width_mm": [
+              0.97,
+              2.49,
+              5.85
+            ]
+          },
+          {
+            "at": 0.25,
+            "height_m": 0.1491,
+            "stems": 161,
+            "width_mm": [
+              0.9,
+              2.48,
+              6.48
+            ]
+          },
+          {
+            "at": 0.3,
+            "height_m": 0.1789,
+            "stems": 84,
+            "width_mm": [
+              0.99,
+              2.47,
+              8.87
+            ]
+          },
+          {
+            "at": 0.35,
+            "height_m": 0.2087,
+            "stems": 54,
+            "width_mm": [
+              1.0,
+              2.67,
+              11.48
+            ]
+          },
+          {
+            "at": 0.4,
+            "height_m": 0.2386,
+            "stems": 43,
+            "width_mm": [
+              1.73,
+              3.98,
+              17.34
+            ]
+          },
+          {
+            "at": 0.45,
+            "height_m": 0.2684,
+            "stems": 44,
+            "width_mm": [
+              1.49,
+              4.69,
+              14.48
+            ]
+          },
+          {
+            "at": 0.5,
+            "height_m": 0.2982,
+            "stems": 45,
+            "width_mm": [
+              1.63,
+              3.31,
+              9.92
+            ]
+          },
+          {
+            "at": 0.55,
+            "height_m": 0.328,
+            "stems": 42,
+            "width_mm": [
+              0.99,
+              2.0,
+              11.38
+            ]
+          },
+          {
+            "at": 0.6,
+            "height_m": 0.3578,
+            "stems": 25,
+            "width_mm": [
+              1.92,
+              2.47,
+              11.26
+            ]
+          },
+          {
+            "at": 0.65,
+            "height_m": 0.3877,
+            "stems": 20,
+            "width_mm": [
+              2.43,
+              6.43,
+              19.45
+            ]
+          },
+          {
+            "at": 0.7,
+            "height_m": 0.4175,
+            "stems": 14,
+            "width_mm": [
+              1.0,
+              4.13,
+              11.96
+            ]
+          },
+          {
+            "at": 0.75,
+            "height_m": 0.4473,
+            "stems": 12,
+            "width_mm": [
+              1.0,
+              2.06,
+              4.43
+            ]
+          },
+          {
+            "at": 0.8,
+            "height_m": 0.4771,
+            "stems": 4,
+            "width_mm": [
+              2.59,
+              3.11,
+              23.8
+            ]
+          },
+          {
+            "at": 0.85,
+            "height_m": 0.5069,
+            "stems": 4,
+            "width_mm": [
+              7.47,
+              8.49,
+              12.08
+            ]
+          },
+          {
+            "at": 0.9,
+            "height_m": 0.5368,
+            "stems": 7,
+            "width_mm": [
+              0.67,
+              4.86,
+              10.05
+            ]
+          },
+          {
+            "at": 0.95,
+            "height_m": 0.5666,
+            "stems": 2,
+            "width_mm": [
+              5.25,
+              6.31,
+              6.31
+            ]
+          }
+        ]
+      },
+      "Grass_D": {
+        "source": {
+          "prefab": {
+            "file": "Assets/Farm_land/Prefabs/Grass/Grass_D.prefab",
+            "sha256": "c8f14c3b12db0f28e028477ae5fcd82cb7e589d64ccd2b519537a01dc861081a"
+          },
+          "mesh": {
+            "file": "Assets/TerrainSampleAssets/Models/Grass_D.asset",
+            "sha256": "f8cc649eced3036a2b49fe87451a49d4a485fd077154a2e60c3668d6d47e4e35"
+          },
+          "material": {
+            "file": "Assets/Farm_land/URP_Materials/Grass_C.mat",
+            "sha256": "abbf2cdf811a32cd4486c570b33c5e1cd84cfa8f9179db91f575402156d82585"
+          },
+          "base_map": {
+            "file": "Assets/TerrainSampleAssets/Textures/Details/Grass_C_BaseColor.tif",
+            "sha256": "a43f845bca79f4dd46e4bc386fde42ab7dfed2ee43d958c7a1ac6042ddd35c0a"
+          }
+        },
+        "cutoff": 0.5,
+        "cards": 55,
+        "triangles": 1268,
+        "mesh_y_m": [
+          -0.0151,
+          0.7424
+        ],
+        "stems": 566,
+        "stems_at": 0.05,
+        "width_mm": [
+          1.23,
+          3.95,
+          7.49
+        ],
+        "profile": [
+          {
+            "at": 0.05,
+            "height_m": 0.0371,
+            "stems": 566,
+            "width_mm": [
+              1.23,
+              3.95,
+              7.49
+            ]
+          },
+          {
+            "at": 0.1,
+            "height_m": 0.0742,
+            "stems": 520,
+            "width_mm": [
+              1.75,
+              4.18,
+              7.95
+            ]
+          },
+          {
+            "at": 0.15,
+            "height_m": 0.1114,
+            "stems": 338,
+            "width_mm": [
+              1.42,
+              2.99,
+              8.04
+            ]
+          },
+          {
+            "at": 0.2,
+            "height_m": 0.1485,
+            "stems": 184,
+            "width_mm": [
+              0.89,
+              2.91,
+              8.55
+            ]
+          },
+          {
+            "at": 0.25,
+            "height_m": 0.1856,
+            "stems": 106,
+            "width_mm": [
+              1.35,
+              3.49,
+              10.56
+            ]
+          },
+          {
+            "at": 0.3,
+            "height_m": 0.2227,
+            "stems": 81,
+            "width_mm": [
+              1.21,
+              4.17,
+              14.91
+            ]
+          },
+          {
+            "at": 0.35,
+            "height_m": 0.2599,
+            "stems": 70,
+            "width_mm": [
+              1.57,
+              5.09,
+              17.73
+            ]
+          },
+          {
+            "at": 0.4,
+            "height_m": 0.297,
+            "stems": 83,
+            "width_mm": [
+              1.68,
+              3.26,
+              14.92
+            ]
+          },
+          {
+            "at": 0.45,
+            "height_m": 0.3341,
+            "stems": 61,
+            "width_mm": [
+              1.87,
+              3.64,
+              11.46
+            ]
+          },
+          {
+            "at": 0.5,
+            "height_m": 0.3712,
+            "stems": 58,
+            "width_mm": [
+              1.86,
+              4.65,
+              14.72
+            ]
+          },
+          {
+            "at": 0.55,
+            "height_m": 0.4083,
+            "stems": 42,
+            "width_mm": [
+              1.49,
+              2.94,
+              14.66
+            ]
+          },
+          {
+            "at": 0.6,
+            "height_m": 0.4455,
+            "stems": 32,
+            "width_mm": [
+              1.73,
+              4.1,
+              21.49
+            ]
+          },
+          {
+            "at": 0.65,
+            "height_m": 0.4826,
+            "stems": 27,
+            "width_mm": [
+              1.49,
+              4.88,
+              21.08
+            ]
+          },
+          {
+            "at": 0.7,
+            "height_m": 0.5197,
+            "stems": 16,
+            "width_mm": [
+              2.76,
+              4.41,
+              11.98
+            ]
+          },
+          {
+            "at": 0.75,
+            "height_m": 0.5568,
+            "stems": 11,
+            "width_mm": [
+              4.1,
+              8.95,
+              12.12
+            ]
+          },
+          {
+            "at": 0.8,
+            "height_m": 0.594,
+            "stems": 4,
+            "width_mm": [
+              3.29,
+              4.65,
+              6.52
+            ]
+          },
+          {
+            "at": 0.85,
+            "height_m": 0.6311,
+            "stems": 2,
+            "width_mm": [
+              13.75,
+              15.01,
+              15.01
+            ]
+          },
+          {
+            "at": 0.9,
+            "height_m": 0.6682,
+            "stems": 3,
+            "width_mm": [
+              14.38,
+              15.05,
+              44.38
+            ]
+          },
+          {
+            "at": 0.95,
+            "height_m": 0.7053,
+            "stems": 2,
+            "width_mm": [
+              7.78,
+              8.58,
+              8.58
+            ]
+          }
+        ]
+      }
+    },
+    "layers": [
+      {
+        "layer": 0,
+        "prefab": "Grass_A",
+        "group": "Green",
+        "stems_per_instance": 225,
+        "height_m": [
+          0.464,
+          0.671
+        ],
+        "width_mm": [
+          2.6,
+          23.8
+        ]
+      },
+      {
+        "layer": 1,
+        "prefab": "Grass_B",
+        "group": "GreenClump",
+        "stems_per_instance": 2050,
+        "height_m": [
+          0.451,
+          0.624
+        ],
+        "width_mm": [
+          1.2,
+          11.87
+        ]
+      },
+      {
+        "layer": 2,
+        "prefab": "Grass_C",
+        "group": "GreenClump",
+        "stems_per_instance": 614,
+        "height_m": [
+          0.596,
+          0.835
+        ],
+        "width_mm": [
+          1.64,
+          11.77
+        ]
+      },
+      {
+        "layer": 3,
+        "prefab": "Grass_D",
+        "group": "GreenClump",
+        "stems_per_instance": 566,
+        "height_m": [
+          0.668,
+          0.965
+        ],
+        "width_mm": [
+          1.11,
+          9.74
+        ]
+      },
+      {
+        "layer": 4,
+        "prefab": "GrassDry_A",
+        "group": "Dry",
+        "stems_per_instance": 179,
+        "height_m": [
+          0.636,
+          0.901
+        ],
+        "width_mm": [
+          0.71,
+          9.15
+        ]
+      },
+      {
+        "layer": 5,
+        "prefab": "GrassDry_B",
+        "group": "Dry",
+        "stems_per_instance": 210,
+        "height_m": [
+          0.585,
+          0.805
+        ],
+        "width_mm": [
+          0.9,
+          7.68
+        ]
+      },
+      {
+        "layer": 6,
+        "prefab": "GrassDry_C",
+        "group": "DryClump",
+        "stems_per_instance": 110,
+        "height_m": [
+          0.679,
+          0.95
+        ],
+        "width_mm": [
+          0.72,
+          8.76
+        ]
+      },
+      {
+        "layer": 7,
+        "prefab": "GrassBurnt_A",
+        "group": "Burnt",
+        "stems_per_instance": 179,
+        "height_m": [
+          0.53,
+          0.795
+        ],
+        "width_mm": [
+          0.71,
+          9.15
+        ]
+      },
+      {
+        "layer": 8,
+        "prefab": "GrassBurnt_B",
+        "group": "Burnt",
+        "stems_per_instance": 210,
+        "height_m": [
+          0.439,
+          0.658
+        ],
+        "width_mm": [
+          0.9,
+          7.68
+        ]
+      },
+      {
+        "layer": 9,
+        "prefab": "GrassBurnt_C",
+        "group": "Burnt",
+        "stems_per_instance": 110,
+        "height_m": [
+          0.679,
+          1.154
+        ],
+        "width_mm": [
+          0.72,
+          10.02
+        ]
+      },
+      {
+        "layer": 10,
+        "prefab": "Grass_A",
+        "group": "TallGreen",
+        "stems_per_instance": 225,
+        "height_m": [
+          0.928,
+          1.341
+        ],
+        "width_mm": [
+          2.6,
+          25.2
+        ]
+      },
+      {
+        "layer": 11,
+        "prefab": "GrassDry_C",
+        "group": "TallDry",
+        "stems_per_instance": 110,
+        "height_m": [
+          1.222,
+          1.765
+        ],
+        "width_mm": [
+          1.08,
+          13.77
+        ]
+      },
+      {
+        "layer": 12,
+        "prefab": "GrassDry_A",
+        "group": "TallDry",
+        "stems_per_instance": 179,
+        "height_m": [
+          1.166,
+          1.59
+        ],
+        "width_mm": [
+          1.06,
+          13.99
+        ]
+      },
+      {
+        "layer": 13,
+        "prefab": "GrassBurnt_C",
+        "group": "TallBurnt",
+        "stems_per_instance": 110,
+        "height_m": [
+          1.222,
+          1.765
+        ],
+        "width_mm": [
+          1.08,
+          13.77
+        ]
+      }
+    ]
+  },
+  "crowns": {
+    "IslandTree": {
+      "id": "VF01",
+      "kind": "tree",
+      "slots": [
+        {
+          "material": "IslandTree_Twigs",
+          "kind": "twig",
+          "cutoff": null,
+          "card_area_m2": 31.351,
+          "drawn_area_m2": 31.351
+        },
+        {
+          "material": "IslandTree_Leaves",
+          "kind": "leaf",
+          "cutoff": 0.5,
+          "card_area_m2": 3182.269,
+          "drawn_area_m2": 391.542
+        }
+      ],
+      "leaf_area_m2": 391.542,
+      "twig_card_area_m2": 31.351,
+      "shell_spheres": 103,
+      "crown_volume_m3": 447.595,
+      "leaf_area_density_m2_per_m3": 0.875,
+      "leaf_inside_shell": 1.0
+    },
+    "IslandTree_Dry": {
+      "id": "VF01",
+      "kind": "tree",
+      "slots": [
+        {
+          "material": "IslandTree_Twigs",
+          "kind": "twig",
+          "cutoff": null,
+          "card_area_m2": 31.351,
+          "drawn_area_m2": 31.351
+        },
+        {
+          "material": "IslandTree_DryLeaves",
+          "kind": "leaf",
+          "cutoff": 0.5,
+          "card_area_m2": 1851.214,
+          "drawn_area_m2": 228.622
+        }
+      ],
+      "leaf_area_m2": 228.622,
+      "twig_card_area_m2": 31.351,
+      "shell_spheres": 94,
+      "crown_volume_m3": 379.062,
+      "leaf_area_density_m2_per_m3": 0.603,
+      "leaf_inside_shell": 0.999
+    },
+    "Pine002_S2": {
+      "id": "VF02",
+      "kind": "tree",
+      "slots": [
+        {
+          "material": "Pine002_Branches",
+          "kind": "needle",
+          "cutoff": 0.35,
+          "card_area_m2": 97.436,
+          "drawn_area_m2": 43.759
+        }
+      ],
+      "leaf_area_m2": 43.759,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 7,
+      "crown_volume_m3": 20.987,
+      "leaf_area_density_m2_per_m3": 2.085,
+      "leaf_inside_shell": 0.996
+    },
+    "Pine002_M": {
+      "id": "VF02",
+      "kind": "tree",
+      "slots": [
+        {
+          "material": "Pine002_Branches",
+          "kind": "needle",
+          "cutoff": 0.35,
+          "card_area_m2": 222.895,
+          "drawn_area_m2": 99.3
+        }
+      ],
+      "leaf_area_m2": 99.3,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 101,
+      "crown_volume_m3": 64.09,
+      "leaf_area_density_m2_per_m3": 1.549,
+      "leaf_inside_shell": 0.99
+    },
+    "Pine002_M_Dry": {
+      "id": "VF02",
+      "kind": "tree",
+      "slots": [
+        {
+          "material": "Pine002_DryBranches",
+          "kind": "needle",
+          "cutoff": 0.35,
+          "card_area_m2": 222.895,
+          "drawn_area_m2": 99.3
+        }
+      ],
+      "leaf_area_m2": 99.3,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 101,
+      "crown_volume_m3": 64.09,
+      "leaf_area_density_m2_per_m3": 1.549,
+      "leaf_inside_shell": 0.99
+    },
+    "Pine002_L": {
+      "id": "VF02",
+      "kind": "tree",
+      "slots": [
+        {
+          "material": "Pine002_Branches",
+          "kind": "needle",
+          "cutoff": 0.35,
+          "card_area_m2": 213.931,
+          "drawn_area_m2": 95.124
+        }
+      ],
+      "leaf_area_m2": 95.124,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 165,
+      "crown_volume_m3": 49.5,
+      "leaf_area_density_m2_per_m3": 1.922,
+      "leaf_inside_shell": 0.976
+    },
+    "Pine004_1": {
+      "id": "VF03",
+      "kind": "tree",
+      "slots": [
+        {
+          "material": "Pine004_Branches",
+          "kind": "needle",
+          "cutoff": 0.5,
+          "card_area_m2": 1478.912,
+          "drawn_area_m2": 300.192
+        }
+      ],
+      "leaf_area_m2": 300.192,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 116,
+      "crown_volume_m3": 273.281,
+      "leaf_area_density_m2_per_m3": 1.098,
+      "leaf_inside_shell": 0.996
+    },
+    "Pine004_1_Dry": {
+      "id": "VF03",
+      "kind": "tree",
+      "slots": [
+        {
+          "material": "Pine004_DryBranches",
+          "kind": "needle",
+          "cutoff": 0.5,
+          "card_area_m2": 1478.912,
+          "drawn_area_m2": 300.192
+        }
+      ],
+      "leaf_area_m2": 300.192,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 116,
+      "crown_volume_m3": 273.281,
+      "leaf_area_density_m2_per_m3": 1.098,
+      "leaf_inside_shell": 0.996
+    },
+    "Pine004_3": {
+      "id": "VF03",
+      "kind": "tree",
+      "slots": [
+        {
+          "material": "Pine004_Branches",
+          "kind": "needle",
+          "cutoff": 0.5,
+          "card_area_m2": 642.529,
+          "drawn_area_m2": 133.162
+        }
+      ],
+      "leaf_area_m2": 133.162,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 256,
+      "crown_volume_m3": 76.274,
+      "leaf_area_density_m2_per_m3": 1.746,
+      "leaf_inside_shell": 0.966
+    },
+    "Pine006_01": {
+      "id": "VF04",
+      "kind": "tree",
+      "slots": [
+        {
+          "material": "Pine006_Branches",
+          "kind": "needle",
+          "cutoff": 0.5,
+          "card_area_m2": 44.634,
+          "drawn_area_m2": 9.214
+        }
+      ],
+      "leaf_area_m2": 9.214,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 44,
+      "crown_volume_m3": 12.679,
+      "leaf_area_density_m2_per_m3": 0.727,
+      "leaf_inside_shell": 0.982
+    },
+    "Pine006_01_Dry": {
+      "id": "VF04",
+      "kind": "tree",
+      "slots": [
+        {
+          "material": "Pine006_DryBranches",
+          "kind": "needle",
+          "cutoff": 0.5,
+          "card_area_m2": 44.634,
+          "drawn_area_m2": 9.214
+        }
+      ],
+      "leaf_area_m2": 9.214,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 44,
+      "crown_volume_m3": 12.679,
+      "leaf_area_density_m2_per_m3": 0.727,
+      "leaf_inside_shell": 0.982
+    },
+    "Pine006_02": {
+      "id": "VF04",
+      "kind": "tree",
+      "slots": [
+        {
+          "material": "Pine006_Branches",
+          "kind": "needle",
+          "cutoff": 0.5,
+          "card_area_m2": 61.474,
+          "drawn_area_m2": 10.115
+        }
+      ],
+      "leaf_area_m2": 10.115,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 15,
+      "crown_volume_m3": 48.353,
+      "leaf_area_density_m2_per_m3": 0.209,
+      "leaf_inside_shell": 0.998
+    },
+    "PineDead_02": {
+      "id": "VF05",
+      "kind": "tree",
+      "slots": [],
+      "leaf_area_m2": 0.0,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 128,
+      "crown_volume_m3": 0.614,
+      "leaf_area_density_m2_per_m3": 0.0,
+      "leaf_inside_shell": null
+    },
+    "DeadBush_4": {
+      "id": "VF06",
+      "kind": "bush",
+      "slots": [
+        {
+          "material": "Bush_Bush_Dead_Br_01",
+          "kind": "twig",
+          "cutoff": 0.3,
+          "card_area_m2": 134.723,
+          "drawn_area_m2": 11.463
+        }
+      ],
+      "leaf_area_m2": 0.0,
+      "twig_card_area_m2": 11.463,
+      "shell_spheres": 5,
+      "crown_volume_m3": 27.223,
+      "leaf_area_density_m2_per_m3": 0.0,
+      "leaf_inside_shell": null
+    },
+    "DeadBush_6": {
+      "id": "VF06",
+      "kind": "bush",
+      "slots": [
+        {
+          "material": "Bush_Bush_Dead_Br_01",
+          "kind": "twig",
+          "cutoff": 0.3,
+          "card_area_m2": 347.275,
+          "drawn_area_m2": 22.649
+        }
+      ],
+      "leaf_area_m2": 0.0,
+      "twig_card_area_m2": 22.649,
+      "shell_spheres": 18,
+      "crown_volume_m3": 88.137,
+      "leaf_area_density_m2_per_m3": 0.0,
+      "leaf_inside_shell": null
+    },
+    "GreenBush": {
+      "id": "VF07",
+      "kind": "bush",
+      "slots": [
+        {
+          "material": "Bush_GreenBush_mat",
+          "kind": "leaf",
+          "cutoff": 0.5,
+          "card_area_m2": 47.834,
+          "drawn_area_m2": 12.164
+        }
+      ],
+      "leaf_area_m2": 12.164,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 6,
+      "crown_volume_m3": 12.463,
+      "leaf_area_density_m2_per_m3": 0.976,
+      "leaf_inside_shell": 0.996
+    },
+    "GreenBush_Dry": {
+      "id": "VF07",
+      "kind": "bush",
+      "slots": [
+        {
+          "material": "Bush_GreenBush_mat_Dry",
+          "kind": "leaf",
+          "cutoff": 0.5,
+          "card_area_m2": 47.834,
+          "drawn_area_m2": 12.164
+        }
+      ],
+      "leaf_area_m2": 12.164,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 6,
+      "crown_volume_m3": 12.463,
+      "leaf_area_density_m2_per_m3": 0.976,
+      "leaf_inside_shell": 0.996
+    },
+    "LeafyBush_P2": {
+      "id": "VF08",
+      "kind": "bush",
+      "slots": [
+        {
+          "material": "Bush_Plant_Perennials_qilgP2",
+          "kind": "leaf",
+          "cutoff": 0.5,
+          "card_area_m2": 81.093,
+          "drawn_area_m2": 25.188
+        }
+      ],
+      "leaf_area_m2": 25.188,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 50,
+      "crown_volume_m3": 26.62,
+      "leaf_area_density_m2_per_m3": 0.946,
+      "leaf_inside_shell": 0.976
+    },
+    "LeafyBush_P2_Dry": {
+      "id": "VF08",
+      "kind": "bush",
+      "slots": [
+        {
+          "material": "Bush_Plant_Perennials_qilgP2_Dry",
+          "kind": "leaf",
+          "cutoff": 0.5,
+          "card_area_m2": 81.093,
+          "drawn_area_m2": 25.188
+        }
+      ],
+      "leaf_area_m2": 25.188,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 50,
+      "crown_volume_m3": 26.62,
+      "leaf_area_density_m2_per_m3": 0.946,
+      "leaf_inside_shell": 0.976
+    },
+    "RedBush_Dry": {
+      "id": "VF09",
+      "kind": "bush",
+      "slots": [
+        {
+          "material": "Bush_RedBush_Dry",
+          "kind": "leaf",
+          "cutoff": 0.5,
+          "card_area_m2": 33.325,
+          "drawn_area_m2": 9.156
+        }
+      ],
+      "leaf_area_m2": 9.156,
+      "twig_card_area_m2": 0.0,
+      "shell_spheres": 12,
+      "crown_volume_m3": 8.073,
+      "leaf_area_density_m2_per_m3": 1.134,
+      "leaf_inside_shell": 0.989
+    },
+    "SmallBushDry_A": {
+      "id": "VF10",
+      "kind": "bush",
+      "slots": [
+        {
+          "material": "Bush_SampleBushDry",
+          "kind": "twig",
+          "cutoff": 0.5,
+          "card_area_m2": 10.064,
+          "drawn_area_m2": 1.976
+        }
+      ],
+      "leaf_area_m2": 0.0,
+      "twig_card_area_m2": 1.976,
+      "shell_spheres": 6,
+      "crown_volume_m3": 1.437,
+      "leaf_area_density_m2_per_m3": 0.0,
+      "leaf_inside_shell": null
+    },
+    "SmallBushDry_B": {
+      "id": "VF10",
+      "kind": "bush",
+      "slots": [
+        {
+          "material": "Bush_SampleBushDry",
+          "kind": "twig",
+          "cutoff": 0.5,
+          "card_area_m2": 15.324,
+          "drawn_area_m2": 2.937
+        }
+      ],
+      "leaf_area_m2": 0.0,
+      "twig_card_area_m2": 2.937,
+      "shell_spheres": 6,
+      "crown_volume_m3": 2.551,
+      "leaf_area_density_m2_per_m3": 0.0,
+      "leaf_inside_shell": null
+    }
+  }
+}

@@ -237,11 +237,11 @@ namespace Fpv450.Sim.Tests
             Double3 inPatch = Position(Find("S04_patch")) + new Double3(0.3, 0.2, -0.4);
             var results = new MicroElement[8192];
             world.MicroDetailNear(inPatch, 2, MicroKind.All, results);
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int i = 0; i < 100; i++)
                 world.MicroDetailNear(inPatch + new Double3(0.01 * i, 0, 0), 2, MicroKind.All, results);
             // Is.Zero, not Is.EqualTo(0): .NET's JIT boxes that 0 (24 B) before the closing count is read.
-            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.Zero);
+            Assert.That(AllocProbe.After(before), Is.Zero, AllocProbe.Report());
         }
 
         // ---- Nothing rooted in a hole --------------------------------------------------------------------------------

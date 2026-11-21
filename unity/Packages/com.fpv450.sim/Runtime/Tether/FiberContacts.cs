@@ -91,6 +91,16 @@ namespace Fpv450.Sim.Tether
         // A member already on a slot keeps it to twice that (numerical hysteresis: a slot does not flicker at the edge).
         public const double KeepGap = 2 * InsertGap;
         const double LeastPiece = 0.005;
+        // A kept slot's plane moving under its node deeper than this (m) is an overlap the node did not make (numerical: 1 N on a
+        // fixed member's spring, far above a pressed node's step-to-step change).
+        const double SinkTolerance = 1e-4;
+        // A kept slot's point moving this far over the member in a step (m) has jumped, not slid (numerical: a thin member's
+        // radius; the coil's switch was 29.6 mm, a node's slide in a step at 2 m/s 2 mm).
+        const double SinkJump = 0.005;
+        // Design 21: an overlap a shape's slot keeps is let out at this speed, m/s (numerical: 0.01 mm a step, 0.1 N more on a
+        // fixed member's spring, against the 1–9 mm a whole push gave at 10–90 N), so the node leaves it within a second
+        // whatever holds it in, and never freezes into the trail inside a shape.
+        const double SinkRelax = 0.01;
         const double CellSize = 0.25;
         // A box test's slack, m (numerical: far above the rounding of a closest approach's points a kilometre out, 1e-13 m).
         const double BoxSlack = 1e-9;
@@ -117,11 +127,22 @@ namespace Fpv450.Sim.Tether
         readonly double _youngs, _glassRadius, _coating, _bending, _glassArea;
         readonly long _swap;
         readonly double _dt;
+        readonly bool _thrown; // FlightSetup.TetherBeforeDesign18: an overlap a slot's new plane makes is thrown out (no Sunk)
+        // FlightSetup.TetherBeforeDesign21 (or an older line's switch): design 21's corner and placed nodes' overlaps off.
+        readonly bool _nodeSlots;
         readonly double _polymerStatic, _polymerKinetic, _aluminiumStatic, _aluminiumKinetic;
 
         // The world's materials and surfaces by id: μs, μk, the arris, skipped (a homogenised shell), a layer.
         readonly double[] _matStatic, _matKinetic, _matEdge;
         readonly bool[] _matSkip, _matLayer, _matRough;
+        // Design 21: the rows harder than the line's coating by the abrasive threshold (physics_materials.json's hardness_pa), so
+        // a rough face, an arris or a record of them abrades it; and the elements' (the twig row's, the straw row's for straws and
+        // stems).
+        readonly bool[] _matHard;
+        readonly bool _twigHard, _strawHard;
+        /// <summary>A counterface abrades a surface only when it is harder than it by about this ratio (published: the abrasive's
+        /// hardness against the surface's, Hutchings, Tribology 1992; below it the wear falls by orders of magnitude).</summary>
+        public const double AbrasiveRatio = 1.2;
         readonly double[] _surfStatic, _surfKinetic, _surfEdge;
         // The elements' tissue (surfaces.json's cover at the flight's moisture) and their friction (the twig and straw rows).
         readonly CoverSet _straw, _stem, _twig;
@@ -181,6 +202,15 @@ namespace Fpv450.Sim.Tether
         readonly int[] _nextHit = new int[MaxHits];
         readonly double[] _split;
         readonly int[] _splitsBefore;
+        // Design 24 (unless FlightSetup.TetherFullChainRefuses): room made for the contact nodes before they are put, free nodes
+        // giving way (CableChain.GiveWay); the ends of segments a member meets kept (by node, shifted as nodes go); each node of
+        // the chain at the start of Prepare gone or not, and those gone before each.
+        readonly bool _room;
+        readonly bool[] _keep, _gone;
+        readonly int[] _orig, _goneBefore;
+        // Assign's node: its neighbours, whose segments the corner holds off a round member (design 21).
+        Double3 _before, _after;
+        bool _hasBefore, _hasAfter;
         readonly Candidate[] _cand = new Candidate[16];
         // The shapes asked alone at the current node of Assign (Evaluate), with their answers.
         readonly StaticContact[] _asked = new StaticContact[16];
@@ -200,6 +230,8 @@ namespace Fpv450.Sim.Tether
             double groundPerMetre, double groundHold, double dt)
         {
             _dt = dt;
+            _thrown = setup.TetherBeforeDesign18;
+            _nodeSlots = FiberLine.BeforeDesign21(setup);
             _world = world;
             _parts = parts;
             _coilPart = setup.TetherCoilPart;
@@ -222,9 +254,15 @@ namespace Fpv450.Sim.Tether
             _aluminiumStatic = table.Number("contact.aluminium_static_friction");
             _aluminiumKinetic = table.Number("contact.aluminium_kinetic_friction");
 
-            int nodes = (int)table.Number("span.max_nodes") + FiberLine.CrestNodes; // a terrain's chain holds its crests' too
+            // A terrain's chain holds its crests' too, and with design 24 the contact nodes' own room.
+            _room = !FiberLine.FullChainRefuses(setup);
+            int nodes = (int)table.Number("span.max_nodes") + FiberLine.CrestNodes + (_room ? FiberLine.ContactNodes : 0);
             _split = new double[nodes];
             _splitsBefore = new int[nodes + 1];
+            _keep = new bool[nodes];
+            _gone = new bool[nodes];
+            _orig = new int[nodes];
+            _goneBefore = new int[nodes + 1];
             _segHits = new int[nodes];
             _segHitsEnd = new int[nodes];
             _nodeHit = new int[nodes];
@@ -253,6 +291,8 @@ namespace Fpv450.Sim.Tether
             _matSkip = new bool[top + 1];
             _matLayer = new bool[top + 1];
             _matRough = new bool[top + 1];
+            _matHard = new bool[top + 1];
+            double hard = AbrasiveRatio * table.Number("fiber.coating_hardness_pa");
             for (int id = 0; id <= top; id++)
             {
                 _matStatic[id] = _polymerStatic;
@@ -266,6 +306,7 @@ namespace Fpv450.Sim.Tether
                 _matKinetic[id] = wet && r.HasWet ? r.WetKineticFriction : r.KineticFriction;
                 _matEdge[id] = r.EdgeRadius;
                 _matLayer[id] = r.AreaLaw != AreaLaw.None;
+                _matHard[id] = r.Hardness >= hard;
             }
             _twigStatic = _strawStatic = _polymerStatic;
             _twigKinetic = _strawKinetic = _polymerKinetic;
@@ -278,7 +319,9 @@ namespace Fpv450.Sim.Tether
             {
                 _strawStatic = wet && st.HasWet ? st.WetStaticFriction : st.StaticFriction;
                 _strawKinetic = wet && st.HasWet ? st.WetKineticFriction : st.KineticFriction;
+                _strawHard = st.Hardness >= hard;
             }
+            if (spec != null && spec.Row("twig", out MaterialRow tw2)) _twigHard = tw2.Hardness >= hard;
 
             // The surfaces: their set's μ at the flight's moisture (the drone's polymer pair, the coating as a polymer part) and
             // the lip's edge; without surfaces.json the span's polymer pair.
@@ -356,6 +399,10 @@ namespace Fpv450.Sim.Tether
         }
 
         // ---- what the tests and the log read ----
+
+        /// <summary>The line's static friction on a ground surface (SampleGround's id) at the flight's moisture: its set's, else the
+        /// polymer pair (p7d-tether design 20: what holds a laid point).</summary>
+        public double GroundStatic(byte surface) => _surfStatic[surface];
 
         /// <summary>The least bend radius over the line's pressing contacts after the last step (FiberMinBendRadius), m; +∞ for
         /// none. Its node, its member's kind and the bend's θ, T and σ there.</summary>
@@ -487,18 +534,23 @@ namespace Fpv450.Sim.Tether
                 {
                     ref Hit x = ref _hits[h];
                     if (!(x.Gap < best)) continue;
-                    double piece = 2 * (x.Radius + _radius);
-                    if (piece < LeastPiece) piece = LeastPiece;
+                    double piece = Piece(x.Radius);
                     if (!(x.U * len > piece) || !((1 - x.U) * len > piece)) continue;
                     best = x.Gap;
                     u = x.U;
                 }
                 _split[j] = u;
             }
+            // Design 24: a contact node outranks a free one. Where the spacing law's room cannot take them all, free nodes give way
+            // first (the ones holding the least of the line's shape, never an end of a segment a member meets this step, so every
+            // hit keeps its segment), then the contacts' own room takes the rest; only past both is one refused.
+            for (int i = 0; i < n; i++) _goneBefore[i] = 0;
+            if (_room) MakeRoom(chain, n);
             for (int j = n - 2; j >= 0; j--)
             {
                 if (!(_split[j] > 0)) continue;
-                if (chain.SplitAt(j, _split[j])) Inserted++;
+                int at = j - _goneBefore[j];
+                if (_room ? chain.SplitContact(at, _split[j]) : chain.SplitAt(at, _split[j])) Inserted++;
                 else
                 {
                     Refused++;
@@ -515,7 +567,7 @@ namespace Fpv450.Sim.Tether
             for (int h = 0; h < _hitCount; h++)
             {
                 ref Hit x = ref _hits[h];
-                int j = x.Seg, at = j + _splitsBefore[j];
+                int j = x.Seg, at = j + _splitsBefore[j] - _goneBefore[j];
                 double cut = _split[j];
                 int node;
                 if (cut > 0)
@@ -538,6 +590,87 @@ namespace Fpv450.Sim.Tether
                 _nodeHit[node] = h;
             }
         }
+
+        // Design 24: room for this Prepare's contact nodes (_split), free nodes giving way while the spacing law's room cannot take
+        // them all, at most one a node wanted; _goneBefore[j] the nodes gone below node j of the chain as Prepare found it (n).
+        void MakeRoom(CableChain chain, int n)
+        {
+            int want = 0;
+            for (int j = 0; j + 1 < n; j++)
+                if (_split[j] > 0) want++;
+            int over = want - (chain.SpacingCapacity - (n - chain.Crests));
+            if (over > want) over = want;
+            if (!(over > 0)) return;
+            for (int i = 0; i < n; i++)
+            {
+                _keep[i] = false;
+                _gone[i] = false;
+                _orig[i] = i;
+            }
+            for (int j = 0; j + 1 < n; j++)
+                if (_segHitsEnd[j] > _segHits[j])
+                {
+                    _keep[j] = true;
+                    _keep[j + 1] = true;
+                }
+            for (int k = 0; k < over; k++)
+            {
+                int m = chain.GiveWay(_keep);
+                if (m < 0) break;
+                _gone[_orig[m]] = true;
+                Array.Copy(_orig, m + 1, _orig, m, chain.Count - m);
+                GaveWay++;
+            }
+            int gone = 0;
+            for (int i = 0; i < n; i++)
+            {
+                _goneBefore[i] = gone;
+                if (_gone[i]) gone++;
+            }
+        }
+
+        /// <summary>Design 24: free nodes merged away to give a contact node room (CableChain.GiveWay; forensics).</summary>
+        public long GaveWay { get; private set; }
+
+        /// <summary>
+        /// Design 24: whether the line from a to node b lies through a rigid shape (any but the ground, a layer and the skipped
+        /// shells) with its axis deeper than ThroughDepth: the trail never freezes such a segment (FiberLine). A member b's own
+        /// slots hold, or a's (a0, a1: the shape members the node frozen at a held, 0 for none), is not one it lies through (a
+        /// node pressed into a member, or between two overlapping ones, design 21's named case, is its slots' to let out). One
+        /// query at no margin.
+        /// </summary>
+        public bool Through(Double3 a, ulong a0, ulong a1, in CableNode b)
+        {
+            var cap = new Capsule(a, b.Position, _radius);
+            int count = _world.StaticContacts(cap, cap, 0, _shapes, QueryFilter.NoWires | QueryFilter.NoGround);
+            Queries++;
+            QueriesTotal++;
+            if (count > ShapeBuffer) count = ShapeBuffer;
+            for (int i = 0; i < count; i++)
+            {
+                ref StaticContact c = ref _shapes[i];
+                if (c.Object == WorldIds.Ground || c.Surface != WorldIds.NoSurface) continue;
+                if (c.Material < _matSkip.Length && (_matSkip[c.Material] || _matLayer[c.Material])) continue;
+                if (!(c.Distance < -(_radius + ThroughDepth))) continue;
+                ulong member = ((ulong)(uint)c.Object << 32) | (uint)c.Shape;
+                if (b.Contact0.Active && b.Contact0.Member == member && b.Contact0.MemberKind == (byte)FiberMember.Shape
+                    || b.Contact1.Active && b.Contact1.Member == member && b.Contact1.MemberKind == (byte)FiberMember.Shape
+                    || member == a0 || member == a1) continue;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>Design 24 (R1): whether a shape of this material is rigid to the line (not a skipped shell, not a layer).</summary>
+        public bool Rigid(ushort material) => !(material < _matSkip.Length && (_matSkip[material] || _matLayer[material]));
+
+        /// <summary>Design 24: the shape member slot c holds, for Through (0 for none or another kind).</summary>
+        public static ulong ShapeMember(in CableContact c) => c.Active && c.MemberKind == (byte)FiberMember.Shape ? c.Member : 0;
+
+        /// <summary>Design 24: how deep the line's axis may lie inside a rigid shape for the trail to freeze it there, m: the
+        /// chain's own polygon reaches that far into an arris (a contact node is put at an arris only where both pieces pass the
+        /// least piece, so a chord round it lies up to LeastPiece inside; numerical).</summary>
+        public const double ThroughDepth = LeastPiece;
 
         // The world's shapes near segment j, if its certificate has run out: what a query at the margin finds, the certificate
         // issued when it finds nothing (the ground, which the batch carries, and the skipped shells aside). Its near list
@@ -955,6 +1088,10 @@ namespace Fpv450.Sim.Tether
                 ref CableNode a = ref chain[i];
                 a.Contact0.Fresh = false;
                 a.Contact1.Fresh = false;
+                // Design 21: a node a split put on a chord keeps the overlap its fresh slot finds it in (CableNode.Placed), this
+                // step only: from the next, a node coming into a member is coming by its own motion.
+                bool placed = a.Placed && !_nodeSlots;
+                a.Placed = false;
                 if (i == n - 1 || i == 0 && a.AnchorStiffness > 0)
                 {
                     a.Contact0.Active = false;
@@ -964,6 +1101,10 @@ namespace Fpv450.Sim.Tether
                 int count = 0;
                 Double3 x = a.Position;
                 double tributary = Tributary(chain, i);
+                _hasBefore = i > 0;
+                _hasAfter = i + 1 < n;
+                _before = _hasBefore ? chain[i - 1].Position : default;
+                _after = _hasAfter ? chain[i + 1].Position : default;
                 // The plane ground within the reach (absent over a hole: the shapes there are the ground).
                 if ((ground[i].Flags & GroundFlags.Hole) == 0 && x.Y - groundHeight[i] < _reach)
                 {
@@ -1003,6 +1144,19 @@ namespace Fpv450.Sim.Tether
                     if (same < 0) count++;
                     else if (c.Gap < _cand[same].Gap) _cand[same] = c;
                 }
+                // Design 21: a node lying on the ground or a layer (within InsertGap of it) keeps a thin member's plane at ρ: the line
+                // lies over the stalk there, it cannot wrap it through the ground, and the corner's offset froze trail points up to
+                // 4 mm off the straw's top (S04's lie).
+                bool lying = false;
+                for (int k = 0; k < count; k++)
+                    if ((_cand[k].M.Kind == FiberMember.Ground || _cand[k].M.Kind == FiberMember.Layer) && _cand[k].Gap < InsertGap) lying = true;
+                if (lying)
+                    for (int k = 0; k < count; k++)
+                        if (_cand[k].Cornered)
+                        {
+                            _cand[k].Point = _cand[k].PlainPoint;
+                            _cand[k].Gap = _cand[k].PlainGap;
+                        }
                 // The two nearest (the first on a tie).
                 int first = -1, second = -1;
                 for (int k = 0; k < count; k++)
@@ -1031,8 +1185,8 @@ namespace Fpv450.Sim.Tether
                     if (put0 < 0) put0 = k;
                     else if (put1 < 0) put1 = k;
                 }
-                Set(ref a.Contact0, put0, keep0, a, tributary, x, s.Velocity, w, s.Position);
-                Set(ref a.Contact1, put1, keep1, a, tributary, x, s.Velocity, w, s.Position);
+                Set(ref a.Contact0, put0, keep0, placed, a, tributary, x, s.Velocity, w, s.Position);
+                Set(ref a.Contact1, put1, keep1, placed, a, tributary, x, s.Velocity, w, s.Position);
             }
             // Each run of neighbouring nodes on gliding members is one wrap: it sticks or slips as one (the capstan composes).
             for (int i = 1; i + 1 < n;)
@@ -1119,6 +1273,8 @@ namespace Fpv450.Sim.Tether
         bool Evaluate(ref CableNode a, in Hit hit, ref int near, ref Candidate c)
         {
             c.M = hit.M;
+            c.Cornered = false;
+            c.Thin = hit.M.Kind == FiberMember.Part; // a drone part pushes as before (a moving member: design 21 leaves its slots)
             Double3 x = a.Position;
             if (hit.M.Plane)
             {
@@ -1161,6 +1317,12 @@ namespace Fpv450.Sim.Tether
                 }
                 c.Normal = s.Normal;
                 c.Point = s.Point + s.Normal * _radius;
+                // Design 21: a sphere or a capsule too thin for the least piece to catch a segment crossing it pushes a node it finds
+                // inside out, as before (near its axis a kept overlap's plane turns round with the node). Its corner is not built yet
+                // (named).
+                if (!_nodeSlots && hit.M.Kind == FiberMember.Shape && _world.Geometry(hit.M.Object, hit.M.Shape, out ShapeGeometry g)
+                    && (g.Kind == ShapeKind.Sphere || g.Kind == ShapeKind.Capsule) && g.Radius + _radius <= Piece(0))
+                    c.Thin = true;
                 c.Gap = Double3.Dot(c.Normal, x - c.Point);
                 return true;
             }
@@ -1174,13 +1336,67 @@ namespace Fpv450.Sim.Tether
             c.Normal = nrm;
             c.Point = core + nrm * (hit.M.Radius + _radius);
             c.Gap = dist - hit.M.Radius - _radius;
+            // Design 21: a thin rigid round member (a twig, a conductor) holds the node at its segments' corner. Not a snag record:
+            // its barbs lock the touch along the record and the coil's loops overlap (named, not built).
+            if (!_nodeSlots && (hit.M.Kind == FiberMember.Twig || hit.M.Kind == FiberMember.Wire))
+            {
+                c.Thin = true;
+                double rho = hit.M.Radius + _radius;
+                Double3 axis = t > 0 && t < 1 ? cd * (1 / DetMath.Sqrt(l2)) : default;
+                double need = Corner(x, nrm, dist, core, axis, rho, Piece(hit.Radius));
+                if (need > rho)
+                {
+                    c.Cornered = true;
+                    c.PlainPoint = c.Point;
+                    c.PlainGap = c.Gap;
+                    c.Point = core + nrm * need;
+                    c.Gap = dist - need;
+                }
+            }
             c.M.Along = hit.M.Along + t * DetMath.Sqrt(l2);
             if (hit.M.Kind == FiberMember.Straw && !Holds(a.Contact0, hit.M) && !Holds(a.Contact1, hit.M) && !(core.Y > x.Y)) return false;
             return true;
         }
 
-        // Slot c takes candidate k (or none): kept, its plane, springs and friction updated; else set afresh.
-        void Set(ref CableContact slot, int k, bool kept, in CableNode node, double tributary, Double3 x, Double3 v, Double3 w, Double3 origin)
+        // The least piece a contact node leaves either side of it on a member of this radius (0: a shape's face), m.
+        double Piece(double radius)
+        {
+            double piece = 2 * (radius + _radius);
+            return piece < LeastPiece ? LeastPiece : piece;
+        }
+
+        // Design 21: how far from a round member's axis node x's slot stands (x at dist along n from core, the axis's nearest
+        // point; e the axis's unit direction, or 0 at a sphere or a capsule's cap). The line on the member lies on an arc and the
+        // chain's nodes are its polygon, so the node is held at the corner of its segments' tangents, ρ/s, s the least |n × û|
+        // over its segments that head into the member (û across the axis) and pass the axis before their far node, a far node
+        // inside the member being its own overlap; else at ρ. At most √(ρ² + piece²): the corner whose tangent point lies a least
+        // piece out, where Prepare puts a node.
+        double Corner(Double3 x, Double3 n, double dist, Double3 core, Double3 e, double rho, double piece)
+        {
+            double need = rho, most2 = rho * rho + piece * piece;
+            for (int k = 0; k < 2; k++)
+            {
+                if (k == 0 ? !_hasBefore : !_hasAfter) continue;
+                Double3 y = k == 0 ? _before : _after;
+                Double3 u = y - x, far = y - core;
+                u = u - e * Double3.Dot(e, u);
+                far = far - e * Double3.Dot(e, far);
+                if (!(Double3.Dot(far, far) > rho * rho)) continue;
+                double l = u.Length();
+                if (!(l > 0)) continue;
+                double into = -Double3.Dot(n, u) / l;
+                if (!(into > 0) || !(dist * into < l)) continue;
+                double across = 1 - into * into;
+                if (!(rho * rho < most2 * across)) return DetMath.Sqrt(most2);
+                double d = rho / DetMath.Sqrt(across);
+                if (d > need) need = d;
+            }
+            return need;
+        }
+
+        // Slot c takes candidate k (or none): kept, its plane, springs and friction updated; else set afresh. Placed: the node was
+        // put into a segment this step (design 21), so an overlap its fresh slot finds is the chord's, not its own motion's.
+        void Set(ref CableContact slot, int k, bool kept, bool placed, in CableNode node, double tributary, Double3 x, Double3 v, Double3 w, Double3 origin)
         {
             if (k < 0)
             {
@@ -1236,6 +1452,43 @@ namespace Fpv450.Sim.Tether
                     remesh = false;
                     break;
             }
+            // An overlap the slot's new plane puts the node in, not reached by its own motion (CableContact.Sunk): on a fresh slot
+            // any depth inside; on a kept one the depth past where the old plane had it, beyond SinkTolerance; it follows the node
+            // out as the node rises.
+            double depth = Double3.Dot(c.Normal, node.Position - c.Point);
+            if (depth > 0) depth = 0;
+            double inside = depth;
+            double sunk;
+            // A fresh slot pushes a node it finds inside out (the member is solid), unless the overlap is not the node's own
+            // motion's (design 21): a split put the node on a chord that cut the member, or the node was already that side of the
+            // member's plane a step ago, relative to the member (a slot lost and taken again as the hits passed between two
+            // nodes, or as a third member took it for a step): thrown out, 1e4 N/m on a few millimetres, it stretched the pieces
+            // beside it to Newtons while the line beyond lay slack. Only a rigid shape keeps it: a thin round member (the corner's)
+            // and a drone part still push (near a thin member's axis a node has no plane to keep, its corner keeping the chords off
+            // it; a part moves), and so do the ground, a layer, a hook and a stem, whose depth is their give (kept, the straw mat's
+            // lie made 9582 TetherWedges).
+            if (!kept)
+            {
+                double before = depth - _dt * Double3.Dot(c.Normal, node.Velocity - velocity);
+                sunk = c.M.Kind == FiberMember.Shape && !c.Thin && (placed || !_nodeSlots && before < 0) ? depth : 0;
+            }
+            else
+            {
+                // A kept slot leaves an overlap only where its point jumped across the member (the record's closest segment
+                // switching), past the member's own motion over the step by more than SinkJump: a plane that turns or drifts with
+                // the node, or a drone part that sweeps into the line, pushes it as ever.
+                Double3 carried = slot.Point + slot.Velocity * _dt;
+                double before = Double3.Dot(slot.Normal, node.Position - carried);
+                if (before > 0) before = 0;
+                sunk = slot.Sunk;
+                if ((c.Point - carried).Length() > SinkJump && inside < before - SinkTolerance) sunk += inside - before;
+                if (!_nodeSlots && m.Kind == FiberMember.Shape && sunk < 0)
+                {
+                    sunk += SinkRelax * _dt;
+                    if (sunk > 0) sunk = 0;
+                }
+                if (sunk < depth) sunk = depth; // the node has risen out of the overlap by its own loads
+            }
             if (!kept)
             {
                 slot = CableContact.On(c.Point, c.Normal, velocity, stiffness, damping, hold, m.Static, m.Kinetic, capstan);
@@ -1261,9 +1514,11 @@ namespace Fpv450.Sim.Tether
             slot.Kinematic = m.Kind != FiberMember.Ground && m.Kind != FiberMember.Layer;
             slot.Edge = m.Edge;
             slot.Rough = RoughOf(m);
+            slot.Abrasive = !_nodeSlots && AbrasiveOf(m, slot.Rough);
             slot.Cap = cap;
             slot.Slide = slide;
             slot.Through = node.Material;
+            slot.Sunk = _thrown ? 0 : sunk;
         }
 
         // ---- after the step ----
@@ -1352,6 +1607,32 @@ namespace Fpv450.Sim.Tether
                 if (pressed) touching++;
             }
             Touching = touching;
+        }
+
+        // Design 21: whether a member abrades the coating (Archard's severe band): a rough face, a sharp arris (FiberCuts.AbrasiveEdge)
+        // or a record, of a row harder than the coating by AbrasiveRatio. Wood, bark, twigs, fabric and sandbags are softer than
+        // the acrylate (their rows' 6–70 MPa against its 70.7) and wear it mildly; masonry, concrete, asbestos cement and the
+        // metals abrade it. Before it (FiberCuts' own rule) every rough row, every record and every sharp arris abraded.
+        bool AbrasiveOf(in MemberSeg m, bool rough)
+        {
+            bool hard;
+            switch (m.Kind)
+            {
+                case FiberMember.Twig:
+                    hard = _twigHard;
+                    break;
+                case FiberMember.Stem:
+                case FiberMember.Straw:
+                    hard = _strawHard;
+                    break;
+                case FiberMember.Shape:
+                case FiberMember.Snag:
+                    hard = m.Material < _matHard.Length && _matHard[m.Material];
+                    break;
+                default:
+                    return false;
+            }
+            return hard && (rough || m.Kind == FiberMember.Snag || m.Kind == FiberMember.Shape && m.Edge <= FiberCuts.AbrasiveEdge);
         }
 
         // A member's surface class for the microbend (RoughMaterials): the ground, a layer and the drawn elements rough (soil,
@@ -1563,6 +1844,14 @@ namespace Fpv450.Sim.Tether
             public MemberSeg M;
             public Double3 Point, Normal;
             public double Gap;
+            // Design 21: a thin round member (the corner's) or a drone part: a node found inside it is pushed out as before, its
+            // overlap never kept (kept on a 2 mm twig, a node 0.4–0.7 mm from the axis made TetherWedges, its plane turning round
+            // with it; kept in a part, the line rode inside the drone's legs and coil and was dragged to its discs).
+            public bool Thin;
+            // Design 21: the corner moved this candidate's plane; its plane at ρ, where a line lying on the ground or a layer takes it.
+            public bool Cornered;
+            public Double3 PlainPoint;
+            public double PlainGap;
         }
     }
 

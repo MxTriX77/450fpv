@@ -78,6 +78,10 @@ namespace Fpv450.Sim.Flight
 
         public int SnagsNear(Double3 centre, double radius, Span<SnagSegment> results) => _query.SnagsNear(centre, radius, results);
 
+        /// <summary>A map's stem field under a circle at a height over the ground (IWorldQuery.StemsNear, w9-village-physics 2.1): the
+        /// props' stems (PropStems, 2.2).</summary>
+        public int StemsNear(XZ centre, double radius, double height, Span<StemPatch> results) => _query.StemsNear(centre, radius, height, results);
+
         public int WiresNear(Double3 centre, double radius, Span<Conductor> results) => _query.WiresNear(centre, radius, results);
 
         public bool Geometry(int obj, int shape, out ShapeGeometry geometry) => _query.Geometry(obj, shape, out geometry);

@@ -74,10 +74,10 @@ namespace Fpv450.FlightBench
             for (int k = 0; k < steps; k++)
             {
                 StickSample stick = Sticks(pilot, core, map, ground, route, foot, stand, k * 0.001, core.State.Step * FlightCore.StepUs);
-                long a = GC.GetAllocatedBytesForCurrentThread(), t0 = Stopwatch.GetTimestamp();
+                long a = AllocProbe.Before(), t0 = Stopwatch.GetTimestamp();
                 core.Advance(stick);
                 times[k] = Stopwatch.GetTimestamp() - t0;
-                if (k >= 1) allocated += GC.GetAllocatedBytesForCurrentThread() - a;
+                if (k >= 1) allocated += AllocProbe.After(a);
                 if (crashed < 0 && core.State.Crashed) crashed = core.State.Step;
                 for (int e = 0; e < core.Events.Count; e++)
                     if (core.Events[e].Kind == EventKind.WorldBug && core.Events[e].Index < bugs.Length) bugs[core.Events[e].Index]++;

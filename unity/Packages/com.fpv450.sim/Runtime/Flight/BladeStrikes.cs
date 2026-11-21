@@ -15,6 +15,11 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>A soft wire (p7d-tether 1.10's).</summary>
         Wire = 3,
+
+        /// <summary>Standing stems (w9-village-physics 2.2, PropStems): a map's stem field or its drawn straws and stems. Material is
+        /// their surfaces.json cover kind + 1 (Contact.CoverKind), never a world material id; Count the whole stems the blade's running
+        /// count passed in the step (the field's counts are means, never drawn); Diameter the kind's or the element's.</summary>
+        Stem = 4,
     }
 
     /// <summary>
@@ -41,6 +46,21 @@ namespace Fpv450.Sim.Flight
             Diameter = diameter;
             CutEnergy += cutEnergy;
             if (Count < byte.MaxValue) Count++;
+        }
+
+        /// <summary>Adds a step's stems (StrikeKind.Stem): their energy, impulse and edges' work to the step's, the radius if it is the
+        /// smallest, and the whole stems counted (held to 255).</summary>
+        public void AddStems(ushort kind, double energy, double impulse, double diameter, double cutEnergy, double radius, int whole)
+        {
+            if (Count == 0 && Energy == 0 || radius < Radius) Radius = radius;
+            Kind = StrikeKind.Stem;
+            Material = kind;
+            Energy += energy;
+            Impulse += impulse;
+            Diameter = diameter;
+            CutEnergy += cutEnergy;
+            int count = Count + whole;
+            Count = (byte)(count < byte.MaxValue ? count : byte.MaxValue);
         }
     }
 

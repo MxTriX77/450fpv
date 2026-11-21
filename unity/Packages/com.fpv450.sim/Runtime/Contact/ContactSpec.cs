@@ -101,7 +101,42 @@ namespace Fpv450.Sim.Contact
         /// row whose members are round, or homogenised: the fiber reads their own radius or skips them, p7d-tether 1.7).</summary>
         public double EdgeRadius;
 
+        /// <summary>What a crown's twig shell of this row stands for (its crown block, w9-village-physics 2.3); null for none.</summary>
+        public CrownRow Crown;
+
         public readonly bool Rigid => Stiffness == 0;
+    }
+
+    /// <summary>
+    /// A crown row's twigs and leaves (physics_materials.json's twig.crown, each value labelled there; design.md 2.3). The twigs:
+    /// their length per volume (m/m³), diameter, free length from their branch (m), green wood's rupture stress and modulus
+    /// (Pa). The leaves: dry mass per area (kg/m²), dry matter content, work to shear (J/m), the edge's critical speed (m/s),
+    /// the cleared cell (m), and each variant's leaf area density (m²/m³; a variant not listed, none).
+    /// </summary>
+    public sealed class CrownRow
+    {
+        public double TwigLength, TwigDiameter, TwigFreeLength, TwigRupture, TwigModulus;
+        public double LeafMassPerArea, LeafDryMatter, LeafWork, LeafCriticalSpeed, LeafCell;
+        public string[] Variants = new string[0];
+        public double[] LeafAreaDensity = new double[0];
+
+        /// <summary>A twig met by a part bearing at an arm spread evenly over its free length ℓ breaks at P = σZ/a after
+        /// δ = 2σa²/(3Ed): the mean work to break it, W̄ = σ²Zℓ/(6Ed), J, and its mean deflection then, δ̄ = 2σℓ²/(9Ed), m
+        /// (derived, Z = πd³/32).</summary>
+        public double TwigWork => TwigRupture * TwigRupture * (3.141592653589793 * TwigDiameter * TwigDiameter * TwigDiameter / 32) * TwigFreeLength
+            / (6 * TwigModulus * TwigDiameter);
+
+        public double TwigReach => 2 * TwigRupture * TwigFreeLength * TwigFreeLength / (9 * TwigModulus * TwigDiameter);
+
+        /// <summary>A leaf's fresh mass per area, kg/m² (dry over its dry matter content).</summary>
+        public double LeafFreshMass => LeafMassPerArea / LeafDryMatter;
+
+        /// <summary>A variant's leaf area density, m²/m³; 0 for one not listed.</summary>
+        public double LeafAreaDensityOf(string variant)
+        {
+            int i = variant == null ? -1 : Array.IndexOf(Variants, variant);
+            return i < 0 ? 0 : LeafAreaDensity[i];
+        }
     }
 
     /// <summary>
@@ -197,6 +232,98 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public bool HangingGive = true;
 
+        /// <summary>
+        /// A hanging skid half lies in what it touches by its contact's own compression (w9-village-physics 2.6b): with
+        /// HangingGive, the massless half's deepest point stands in by its carried force over its tube stock's contact spring
+        /// (and a layer's own share of the overlap), the rest of its overlap is its chain's give, split between the cantilever's
+        /// turn and the bore's move by their compliances; its cantilever is 3EI/r³ at its points' own levers from the bore, and
+        /// the bore gives as its holding leg's tube. On for every flight; off only for the known-wrong and the kept audits
+        /// against model 98, whose give was its springs' push without the anchor's stretch and whose bore gave by the holding
+        /// leg's foot chain, so a half lay 20–100 mm in the ground at 1–7 N. The header records it in its own entry.
+        /// </summary>
+        public bool HangingDepth = true;
+
+        /// <summary>
+        /// A latched pair on a round member reads the member's own surface along its latched normal (w9-village-physics 2.6d,
+        /// RoundMember): on a sphere, a capsule, a wire or a cylinder's side, its depth is how far its core must go along that normal
+        /// to leave the member grown by its radius, and where that line misses the member the part has rolled off its side, an
+        /// ordinary break, its latch let go. A box's face and a cylinder's cap keep the plane. On for every flight; off only for the
+        /// known-wrong and the kept audits against model 100, whose latch kept the tangent plane, infinite, after the part's core had
+        /// passed a thin member's axis and left its side: it pressed an arm with 390 N while the conductor was 34–98 mm clear, carried
+        /// a hanging half's shapes 0.39 m with the drone's travel, and logged a Tunnel when the member left the margin. The header
+        /// records it in its own entry with SupportByDepth.
+        /// </summary>
+        public bool RollOff = true;
+
+        /// <summary>
+        /// A support sphere carries a skid capsule's touch (SameSupport, P3) only while it touches by its own depth (w9-village-physics
+        /// 2.6d): one a hanging half's give holds touching (Hung) is pressed through the half's chain, not on that face. On for every
+        /// flight; off only for the known-wrong and the kept audits against model 100, whose rule handed a hanging skid's pressed
+        /// contact on a limb to its end sphere 11 mm clear of it; the chain then read the sphere's normal, 88° off, and the half's
+        /// give jumped and put the skid 110 mm through the limb in a step. Only hanging halves change. The header records it in its
+        /// own entry with RollOff.
+        /// </summary>
+        public bool SupportByDepth = true;
+
+        /// <summary>
+        /// A touch on an intact leg's tube in its clamp's jaws (above the clamp's bottom edge along the legs' axis) meets the clamp's
+        /// mount, as the broken leg's stub there does (LegDamageSpec.StubStiffness, the plate arm under the clamp in its plane and out
+        /// of it), and bends no free tube at the edge (w9-village-physics 2.6d). On for every flight; off only for the known-wrong and
+        /// the kept audits against model 100, whose tube met it on its own penetration spring (6.6 kN/m, assumed) the whole length:
+        /// L03's conductor, met in leg_fl's jaws at 10.3 m/s, went 123 mm through it, a Tunnel. The header records it in its own entry
+        /// with RollOff.
+        /// </summary>
+        public bool ClampedTube = true;
+
+        /// <summary>
+        /// A leg's held foot within its reach (w9-village-physics 2.4, model 86; ContactModel.Reached): a soil foot's or a leg
+        /// point's stretch on the ground past what the leg's lever reaches turned square (γL across its tube, the frame's lever
+        /// along the skid) is let go, and the hold starts again at the foot. On for every flight; off only for the known-wrong and
+        /// the kept audits against model 85, whose slide ran the stretch to tens of metres and the moment's lever with it. The
+        /// header records it in its own entry (2.9), so a flight flown with it off replays.
+        /// </summary>
+        public bool AnchorReach = true;
+
+        /// <summary>
+        /// The legs stand on their tips in the soil (w17-four-legs, design decisions 1–4 and 6): each corner's one support is its
+        /// leg's tip, a small penetrometer that digs in by the soil's own resistance, holds on the way out by the shaft's friction
+        /// and adhesion alone, resists sliding by the soil in front of its shaft, and starts each flight set down to its own drawn
+        /// depth. True for a drone on four separate legs (DroneSpec.BuildContacts: the legs' build without T-joints, no skid shape);
+        /// false for a drone on skids, which flies model 105's ground law: the half-skids in soil, the skids' frame, the hanging half
+        /// (the kept audits fly drone_skids.json with it; a hand-built spec keeps it false). A log without its header entry (tag 35)
+        /// flew the skids. The header records it with the tip law's values in its own entry.
+        /// </summary>
+        public bool LegTips;
+
+        /// <summary>The tip (design 1): its radius, a disc the soil plugs (legs.foot_radius_m, the support's), and the shaft's
+        /// outer diameter above it (legs.tube's), m; from drone.json at BuildContacts.</summary>
+        public double TipRadius, ShaftDiameter;
+
+        /// <summary>The depth at which a tip meets surfaces.json's tip_resistance_pa, z_ref (m): 0.025, derived (the middle of the
+        /// 0–5 cm layer field penetrometer readings of a topsoil average over); the resistance grows from nothing at the loose surface,
+        /// q(z) = q_t·z/z_ref (assumed form, Bekker's n = 1 line).</summary>
+        public double TipReferenceDepth = 0.025;
+
+        /// <summary>The soil's modulus over its penetration resistance for an axisymmetric load, α_E: 2.5 (published, Schmertmann,
+        /// Hartman and Brown 1978), and its Poisson's ratio ν: 0.3 (assumed, a loam's drained 0.25–0.35): the tip's elastic return
+        /// on unloading, Sneddon's rigid punch k_e = 2aE/(1 − ν²) on E = α_E·q(z_m).</summary>
+        public double TipModulusRatio = 2.5, TipPoisson = 0.3;
+
+        /// <summary>The shaft's friction over the tip resistance at its depth, r_s: 0.01 (assumed, design 2: CPT friction ratios of
+        /// silt mixtures 2–5 %, Robertson 1990, halved for a shaft pulled near the free surface; its band 0–0.04 is printed beside
+        /// PHY-03's rates). The grip on the embedded shaft is r_s·q(z) over πD·dz, both ways.</summary>
+        public double ShaftFriction = 0.01;
+
+        /// <summary>The penetration resistance over the soil's undrained shear strength, N_kt: 15 (published, 10–20, Lunne, Robertson
+        /// and Powell 1997), and Matlock 1970's growth of the lateral resistance with depth, J: 0.5 (published), for the soil in front
+        /// of a dug-in shaft, p_u = (3 + J·z/D)·c_u·D up to 9·c_u·D (design 3).</summary>
+        public double ConeFactor = 15, LateralGrowth = 0.5;
+
+        /// <summary>Each tip's set-down load over its static share at the start, leg.setdown: uniform in [1, 1.5] (assumed, design 4:
+        /// a careful hand lets go as the tips touch, pressing a leg at most half its share again).</summary>
+        public double SetDownMin = 1, SetDownMax = 1.5;
+
+
         /// <summary>The legs' failure law's data (LegDamage, p7g-legs 1.2); null for none, the elastic legs. Needs the side
         /// give.</summary>
         public LegDamageSpec Legs;
@@ -224,6 +351,20 @@ namespace Fpv450.Sim.Contact
         /// there is the hub's and the motor bell's. false: a pass at any radius, model 63's (the kept audits; at the axis it took
         /// the rotor's lost momentum over a vanishing lever).</summary>
         public bool BladeRoot = true;
+
+        /// <summary>The props meet the stems (w9-village-physics 2.2, PropStems): a map's stem field and its drawn straws and stems,
+        /// laid over by the slipstream, pushed aside by a leaning or slow blade, the rest cut and paid for. On for every flight; off
+        /// only for the kept audits of earlier models and a known-wrong's comparison.</summary>
+        public bool Stems = true;
+
+        /// <summary>
+        /// The drone's parts feel what they fly through (w16-plants-in-the-air 1.5, PropStrikes' PartStems): the stem field's stems
+        /// on every part but a turning disc (the legs, the skids, the body; with Stems), each 1.2's link pushed as a cantilever at its
+        /// contact, and a crown's leaves on the same parts by Newton's impact law. On for every flight; off only for the known-wrong
+        /// and the kept audits against model 103, whose parts skimmed the stems and the leaves with no force. The header records it
+        /// in its own entry.
+        /// </summary>
+        public bool PartStems = true;
 
         /// <summary>Archard's wear coefficient k of the blade sliding on a harder face, V = k·F_n·s/H_b: 3e-3 (assumed, p7f-damage
         /// design 5: inside Lancaster 1969's published 1e-3–1e-2 for polymers abraded by harder asperities, its middle on a log

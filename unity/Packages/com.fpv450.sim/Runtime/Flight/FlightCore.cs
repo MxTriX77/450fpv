@@ -137,6 +137,89 @@ namespace Fpv450.Sim.Flight
         /// audit against model 84 before 2.4 and every older line, never a pilot's flight.</summary>
         public bool TetherSlidingTrail;
 
+        /// <summary>The known-wrong line before p7d-tether design 18 (model 88's): the capstan lip (the spool's factor e^(μθ) over
+        /// the lip's whole wrap, the edge's bend decision 6's symmetric elastica at every wrap, its wear over the wrap's length
+        /// R_eff·θ: the line conforming to a 0.3 mm edge its own stiffness keeps it off), a node found inside a member when its
+        /// slot takes a new plane thrown out by the member's spring (no CableContact.Sunk), the capstans' slides left stretching
+        /// the exit's segment past the spool's law (no CableChain.SpoolAfterSlide), and a crest's node sharing its segment by the
+        /// taut paths alone. The audit against model 88 and every older line, and the harness's known-wrong for the edge's law,
+        /// never a pilot's flight.</summary>
+        public bool TetherBeforeDesign18;
+
+        /// <summary>The known-wrong wash below the rotors before p7d-tether design 19 (model 94's): each disc's column at 2v_i
+        /// without end, and a wall jet on the ground only when a disc stands within rotor_air.wake_reach_over_radius (4 R) along
+        /// its wake; no merged far jet. TetherBeforeDesign18 and TetherDesign4Air imply it (every kept audit of an older line).
+        /// The audit against model 94 and the harness's known-wrong for the wash, never a pilot's flight.</summary>
+        public bool TetherWakeReach4R;
+
+        /// <summary>The known-wrong laid trail before p7d-tether design 20 (model 97's): only the trail's last point is tested
+        /// against the air (node 0's, across the chain's first segment, past what it froze with plus μs·w of the polymer pair); a
+        /// frozen point deeper takes no air at all. TetherWakeReach4R, TetherBeforeDesign18 and TetherDesign4Air imply it (every
+        /// kept audit of an older line). The audit against model 97 and the known-wrong for the laid line in the wash, never a
+        /// pilot's flight.</summary>
+        public bool TetherAirlessTrail;
+
+        /// <summary>The known-wrong line before p7d-tether design 21 (model 100's): a slot on a round member holds its node alone
+        /// at the member's surface, so a segment beside it may cut the member, through its axis at a turn near 180°; a node the
+        /// contacts put on a chord inside a member is thrown out by its fresh slot; a capstan run slides only on its two outer
+        /// tensions, so a piece inside it stays stretched between slack ends; and the wear reads the member's spring, not the
+        /// line's own press, and sums a section's rubs at different points as one. TetherAirlessTrail, TetherWakeReach4R,
+        /// TetherBeforeDesign18 and TetherDesign4Air imply it (every kept audit of an older line). The audit against model 100
+        /// and the known-wrong for the line on a twig and on a ruin, never a pilot's flight.</summary>
+        public bool TetherBeforeDesign21;
+
+        /// <summary>The known-wrong chain before p7d-tether design 23 (model 103's): a step that spends its Newton solves with a
+        /// segment's tension still off its model's keeps its last solve's end, so a segment that solve modelled slack ends stretched
+        /// by its nodes' free parting and the cuts read a tension no force in the step made (the U-turn's seed 5: 1.59 N where the
+        /// solve applied none). TetherBeforeDesign21 and every switch it is implied by imply it (every kept audit of an older line).
+        /// The audit against design 22's line and the known-wrong for the span's tension, never a pilot's flight.</summary>
+        public bool TetherBeforeDesign23;
+
+        /// <summary>The known-wrong chain of p7d-tether design 24's R2 (model 105's): once the spacing law's room is spent a
+        /// member's contact node is refused, so the segment lies through the member until room comes (a 12 m segment through a
+        /// wall's beam in the pilot's flight 2); a trail point the pull would lift waits for room, so the frozen end holds what
+        /// reaches it; and the trail freezes its segment wherever it lies. TetherBeforeDesign23 and every switch it is implied by
+        /// imply it (every kept audit of an older line). The audit against model 105 and the known-wrong for the laid line over a
+        /// ruin, never a pilot's flight.</summary>
+        public bool TetherFullChainRefuses;
+
+        /// <summary>The known-wrong air of p7d-tether design 24's R1 (model 105's): a node lying on a rigid shape's face (a roof, a
+        /// wall's top, a slab) reads the wind and the rotors' wash at the terrain's height under it, the free air of its height over
+        /// the terrain and the wash as a free wake, and no wall's lift (7.9 m/s where the roof's own layer gives about 3.4, flight
+        /// 24's ridge). TetherBeforeDesign23 and every switch it is implied by imply it (every kept audit of an older line). The
+        /// audit against model 105 and the known-wrong for the line on a face, never a pilot's flight.</summary>
+        public bool TetherFreeAirOnFaces;
+
+        /// <summary>The known-wrong slots of p7d-tether design 24's C1 (model 105's): a capstan slot on a world member holds the line
+        /// along it at its hold's full stiffness whatever its press, so a node lying a millimetre off a ruin's member, not pressing
+        /// it, carries the pull past a corner (QA's C1: 94 of 148 corner runs past the capstan's bound). TetherBeforeDesign23 and
+        /// every switch it is implied by imply it (every kept audit of an older line). The audit against model 105 and the
+        /// known-wrong for the corner, never a pilot's flight.</summary>
+        public bool TetherHoldWithoutPress;
+
+        /// <summary>The known-wrong edge of p7d-tether design 25 (model 107's): the line passing the hole's edge meets it with its
+        /// section's drawn strength alone (an intact section 3–5 GPa, a flaw, an abraded one), never the strength the line keeps
+        /// over the pilot's hole (a Weibull of the hole's scale, spool.hole_edge_strength_pa). TetherBeforeDesign23 and every
+        /// switch it is implied by imply it. The audit against model 107 and the known-wrong for the pilot's cut table.</summary>
+        public bool TetherEdgeIntact;
+
+        /// <summary>The known-wrong liftoff of p7d-tether design 26 (model 107's): a liftoff cuts the line by its own mechanics
+        /// alone, never by the empirical law of the pilot's account (LiftoffCuts), and the hole's edge keeps its Weibull through it.
+        /// TetherBeforeDesign23 and every switch it is implied by imply it. The known-wrong for the pilot's liftoff rows.</summary>
+        public bool TetherLiftoffPhysical;
+
+        /// <summary>tether.json's table for the stems' air with StemWash in a flight without the line (w9-village-physics
+        /// 2.13): the props' stems (PropStems) read the rotors' wash by its rotor_air rows, design 19's law the line reads
+        /// (RotorAir). With the line the line's table is read and this one is not. The header records its rows and hash when the
+        /// stems read it.</summary>
+        public Tether.TetherTable StemAir;
+
+        /// <summary>The stems under the wash with distance (w9-village-physics 2.13, a test's or a bench's option, D-111): the
+        /// props' stems read design 19's law of the rotors' air (the line's table, or StemAir) in place of 2.12's slipstream
+        /// (q = T/A on every stem based within R of a disc's axis, its swirl, nothing elsewhere), which every flight flies until
+        /// the near wake's spread and the jets' turbulence are built. Off: model 98's stems.</summary>
+        public bool StemWash;
+
         /// <summary>The gyro's full scale, °/s (p7f-damage 1.6, the losses, model 72): each axis the flight controller reads is clipped to ±it,
         /// as its sensor's range does: 2000 (published: Betaflight 4.5's ICM-426xx driver sets INV_FSR_2000DPS; the class's SpeedyBee
         /// F405 V4 carries an ICM-42688-P; its BMI270 and MPU-6000 drivers set ±2000 too). 0: no range, model 68's clean gyro.</summary>
@@ -237,7 +320,7 @@ namespace Fpv450.Sim.Flight
         Corners _rotorThrust = default; // each rotor's mean thrust over the step's sub-steps, for the modes
         ModeSet _modeAccel; // the modes' accelerations over the last step, for the camera
         StepTrace _trace;
-        readonly StepEvents _events = new StepEvents();
+        readonly StepEvents _events; // sized from the contact table (StepEvents.ForContacts, w9-village-physics 2.3)
         readonly Tether.FiberLine _tether; // the fiber (FlightSetup.Tether), or null
         readonly Control.Failsafe _failsafe; // the controller's failsafe on the line's break (p7d-tether 1.8), or null
         // The link's field window (FeedSignals): the exit's tension (sum, max), the least bend radius, the margin (sum, least).
@@ -295,6 +378,12 @@ namespace Fpv450.Sim.Flight
                 if (_rain.FilmMass > 0) mass.SetPartMass(_filmPart, _rain.FilmMass);
             }
             _mass = mass;
+            // A start state that is not finite is the caller's bug, named here rather than flown (w9-village-physics 2.12's addendum).
+            if (!Finite(setup.StartPosition)) throw new ArgumentException("setup.StartPosition is not finite: " + setup.StartPosition, nameof(setup));
+            if (!Finite(setup.StartVelocity)) throw new ArgumentException("setup.StartVelocity is not finite: " + setup.StartVelocity, nameof(setup));
+            if (!Finite(setup.StartBodyRate)) throw new ArgumentException("setup.StartBodyRate is not finite: " + setup.StartBodyRate, nameof(setup));
+            Quat q0 = setup.StartAttitude;
+            if (!(Finite(q0.X) && Finite(q0.Y) && Finite(q0.Z) && Finite(q0.W))) throw new ArgumentException("setup.StartAttitude is not finite", nameof(setup));
             _state = new FlightState
             {
                 Position = setup.StartPosition,
@@ -347,6 +436,7 @@ namespace Fpv450.Sim.Flight
             RuntimeIds = new int[objects.Length];
             for (int i = 0; i < objects.Length; i++)
                 RuntimeIds[i] = World.Query.AddObject(objects[i].Name, objects[i].Shapes);
+            _events = new StepEvents(StepEvents.ForContacts(setup.Contacts?.Shapes?.Length ?? 0));
             if (setup.Contacts != null)
             {
                 Contact.Moisture moisture = Contact.SurfaceTable.MoistureOf(setup.Rain);
@@ -359,6 +449,8 @@ namespace Fpv450.Sim.Flight
                 }
                 // The motors' bells (p7f-damage 1.5): a contact on a turning bell drags its rotor, dents its ring and rubs its gap.
                 if (_propulsion != null) _contacts.AttachBells(_propulsion, setup.Propulsion);
+                // Four legs (w17-four-legs design 4): a start standing on the ground is set down, each tip to its drawn depth.
+                _contacts.SetDown(ref _state, _mass.Properties);
                 _contacts.Sense(_state, ref _state, _events);
                 _events.Clear();
                 if (_contacts.Legs != null)
@@ -367,7 +459,15 @@ namespace Fpv450.Sim.Flight
                     _trace.Loose = _loose;
                 }
                 if (_propulsion != null && setup.Propulsion.Rotor != null && setup.Contacts.BladeStrikes)
+                {
                     _strikes = new Contact.PropStrikes(_contacts, World, _propulsion, setup.Propulsion, Random);
+                    // On request the stems read the line's law of the rotors' air (w9-village-physics 2.13, D-111): the line's
+                    // table and switches, or tether.json's for the stems alone; otherwise 2.12's column.
+                    Tether.TetherTable air = setup.Tether ?? setup.StemAir;
+                    if (air != null && setup.StemWash)
+                        _strikes.UseWash(air, setup.Propulsion, _wind, !setup.TetherDesign4Air, !setup.TetherFountainThroughBody,
+                            setup.TetherWakeReach4R || setup.TetherBeforeDesign18 || setup.TetherDesign4Air);
+                }
             }
 
             // The fiber (p7d-tether 1.6), laid at the start pose; its draws after every other model's.
@@ -502,12 +602,16 @@ namespace Fpv450.Sim.Flight
             Double3 airForce = default, airMoment = default;
             if (_fc == null) s.Armed = flown.Arm;
             else Propel(ref s, flown, body, ref force, ref moment, ref airForce, ref airMoment);
+            Guard(force, moment, s, "propulsion");
             if (_aero != null) Drag(s, body, ref airForce, ref airMoment);
+            Guard(airForce, airMoment, s, "aerodynamics");
             Double3 airWorld = s.Attitude.Rotate(airForce);
             force = force + airWorld;
             moment = moment + airMoment;
             if (_contacts != null) _contacts.Forces(ref s, body, ref force, ref moment, ref _trace, _events);
+            Guard(force, moment, s, "contacts");
             if (_tether != null) TetherForce(s, body, ref force, ref moment);
+            Guard(force, moment, s, "tether");
 
             // The airframe's modes under the rotors' thrust and the relief of the body's whole load (AirframeModes).
             if (_modes != null)
@@ -516,6 +620,7 @@ namespace Fpv450.Sim.Flight
             // Semi-implicit Euler (RigidBody): the velocities first, then the positions with the new velocities.
             FlightState was = s;
             RigidBody.Step(ref s, in body, Gravity + force * body.InverseMass, moment, Dt);
+            Guard(default, default, s, "rigid body");
             _trace.NetForce = force + Gravity * body.Mass;
             _trace.NetMoment = moment;
             _trace.AeroForce = airWorld;
@@ -529,9 +634,16 @@ namespace Fpv450.Sim.Flight
                 if (_contacts.RestructurePending) Rebuild(_contacts.Restructure(s, _events), ref s, true);
             }
             if (_contacts != null) _contacts.Sense(was, ref s, _events);
+            Guard(default, default, s, "contact sense");
             // The blades' passes across what the discs cut: their work off the rotors, their impulses on the body, the damage
             // they leave (p7f-damage design 6), after the move as the strikes are sensed.
-            if (_strikes != null) _strikes.Apply(angles, ref s, body, _events);
+            if (_strikes != null)
+            {
+                _strikes.Apply(angles, ref s, body, _events, _rotorThrust);
+                // Each strike's push along its rotor's axis loads its arm at the tip in this step (w9-village-physics 2.2, G8).
+                if (_modes != null && ModesSpec.StrikeLoad) _modes.Strike(ref s.ModeRate, ref _modeAccel, _strikes.TipImpulse, Dt);
+                Guard(default, default, s, "prop strikes");
+            }
             _contacts?.Shafts?.Trace(s, ref _trace); // the shafts after the strikes that bend them (p7f-damage 1.6)
             if (_vibration != null) _vibration.Add(CameraAcceleration(was, s), FieldSteps);
 
@@ -539,6 +651,9 @@ namespace Fpv450.Sim.Flight
             // mass and the airframe's modes follow, the body's motion kept (RigidBody: the state is the body origin's).
             if (_tether != null)
             {
+                _tether.Ground(_contacts != null && _trace.ContactsTouching > 0,
+                    _contacts != null ? _trace.LegLoad.RearRight + _trace.LegLoad.FrontRight + _trace.LegLoad.RearLeft + _trace.LegLoad.FrontLeft : 0,
+                    _mass.Properties.Mass * -Gravity.Y);
                 _tether.Step(s, _tetherHubs, _rotorThrust, _wind, _events, ref _trace.Tether, angles);
                 if (_tether.MassChanged)
                 {
@@ -554,8 +669,25 @@ namespace Fpv450.Sim.Flight
             // The film takes the water the drops brought this step; the next step flies its mass.
             if (_rain == null) return;
             _rain.Fill(_rainMassRate, Dt);
+            if (!Finite(_rain.FilmMass)) throw new NonFiniteStateException("the rain film's mass", "rain", s.Step);
             _mass.SetPartMass(_filmPart, _rain.FilmMass);
             _trace.FilmMass = _rain.FilmMass;
+        }
+
+        static bool Finite(double x) => x - x == 0; // false for NaN and ±∞ (basic operations only)
+
+        static bool Finite(Double3 v) => Finite(v.X) && Finite(v.Y) && Finite(v.Z);
+
+        /// <summary>The step's guard (w9-village-physics 2.12's addendum): the step's force and moment so far and the state's pose,
+        /// velocity, rate and rotor speeds after a part of the step; the first value that is not finite throws, naming the part
+        /// that made it, in the step it appears. Comparisons only; nothing allocates unless it throws.</summary>
+        static void Guard(Double3 force, Double3 moment, in FlightState s, string part)
+        {
+            string what = !Finite(force) ? "force" : !Finite(moment) ? "moment" : !Finite(s.Position) ? "position" : !Finite(s.Velocity) ? "velocity"
+                : !Finite(s.BodyRate) ? "body rate" : !(Finite(s.Attitude.X) && Finite(s.Attitude.Y) && Finite(s.Attitude.Z) && Finite(s.Attitude.W)) ? "attitude"
+                : !(Finite(s.RotorSpeed.RearRight) && Finite(s.RotorSpeed.FrontRight) && Finite(s.RotorSpeed.RearLeft) && Finite(s.RotorSpeed.FrontLeft)) ? "rotor speed"
+                : null;
+            if (what != null) throw new NonFiniteStateException(what, part, s.Step);
         }
 
         // The line's pull at the exit (FiberLine.Force, from the last step's end) and its moment about the centre of mass, and
@@ -752,7 +884,7 @@ namespace Fpv450.Sim.Flight
             return s.Attitude.InverseRotate(_wind.At(camera, WindGround(camera)) - s.Velocity) - Double3.Cross(s.BodyRate, _camera);
         }
 
-        // The body's and the coil's drag (Aero) on the air's velocity at their centres, into the air's body-axis sums;
+        // The body's and the coil's drag (Aero) on the air's velocity at their centres, and the hull's moment, into the air's body-axis sums;
         // in rain, the drops' momentum flux on the same silhouettes (RainField), and the water they bring.
         void Drag(in FlightState s, in MassProperties body, ref Double3 force, ref Double3 moment)
         {
@@ -762,6 +894,8 @@ namespace Fpv450.Sim.Flight
             Double3 f = _aero.Body(a);
             force = force + f;
             moment = moment + Double3.Cross(cp - com, f);
+            // The hull's moment on the same air (a pure moment, p7c-wind design 12).
+            if (_aero.HasHull) moment = moment + _aero.Hull(a);
             Double3 fall = default, rain = default;
             double flux = 0;
             if (_rain != null)
@@ -1076,6 +1210,7 @@ namespace Fpv450.Sim.Flight
                 Velocity = s.Velocity,
                 BodyRate = s.BodyRate,
                 RotorSpeed = s.RotorSpeed,
+                RotorThrust = _rotorThrust,
                 Armed = s.Armed,
                 LegCompression = _trace.LegCompression, // the step's start: one step behind the pose
                 CameraTurn = _modes != null ? _modes.FrameTurn(s.ModeShape) : default,
@@ -1161,6 +1296,7 @@ namespace Fpv450.Sim.Flight
             signals.MotorCurrentStepAPerS = _fieldStepMax;
             signals.PackVolts = _fieldVolts;
             signals.PackLow = _fieldVolts < FeedSignals.LowCellVolts * _propulsion.SeriesCells;
+            _strikes?.StemSignals(ref signals); // the props' cut stems (w9-village-physics 2.2)
         }
     }
 }

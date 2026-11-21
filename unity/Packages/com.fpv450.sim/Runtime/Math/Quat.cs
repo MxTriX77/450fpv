@@ -1,14 +1,17 @@
+using System.Runtime.CompilerServices;
+
 namespace Fpv450.Sim
 {
     /// <summary>
     /// A rotation quaternion of doubles: the attitude, body to world (DetMath.cs, "Frames and units"). The components
     /// are Unity's Quaternion (x, y, z, w) one to one, so the renderer copies them with no conversion. Basic IEEE
-    /// operations only.
+    /// operations only. Rotate and its helpers are AggressiveInlining, as Double3's operators are (Mono's JIT, Double3.cs).
     /// </summary>
     public struct Quat
     {
         public double X, Y, Z, W;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Quat(double x, double y, double z, double w)
         {
             X = x;
@@ -26,6 +29,7 @@ namespace Fpv450.Sim
             a.W * b.Z + a.X * b.Y - a.Y * b.X + a.Z * b.W,
             a.W * b.W - a.X * b.X - a.Y * b.Y - a.Z * b.Z);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly Quat Conjugate() => new Quat(-X, -Y, -Z, W);
 
         public static double Dot(Quat a, Quat b) => a.X * b.X + a.Y * b.Y + a.Z * b.Z + a.W * b.W;
@@ -39,6 +43,7 @@ namespace Fpv450.Sim
         }
 
         /// <summary>v rotated by this unit quaternion: body to world for the attitude. v + 2w(u × v) + 2u × (u × v).</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly Double3 Rotate(Double3 v)
         {
             var u = new Double3(X, Y, Z);
@@ -47,6 +52,7 @@ namespace Fpv450.Sim
         }
 
         /// <summary>v rotated by the inverse: world to body for the attitude.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly Double3 InverseRotate(Double3 v) => Conjugate().Rotate(v);
 
         /// <summary>

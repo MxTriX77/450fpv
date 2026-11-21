@@ -2,7 +2,14 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- No background collection: during one, GC.GetAllocatedBytesForCurrentThread counts bytes nobody allocated (AllocProbe). -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
+
+  <!-- The 0 B measure the scenarios share with the suite. -->
+  <ItemGroup>
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/AllocProbe.cs" Link="AllocProbe.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../simcore/simcore.csproj" />
@@ -35,6 +42,10 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/LegScenarios.cs" Link="LegScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/SlopeScenarios.cs" Link="SlopeScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/TetherScenarios.cs" Link="TetherScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/FiberCutScenarios.cs" Link="FiberCutScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/FiberContactScenarios.cs" Link="FiberContactScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/LiftoffScenarios.cs" Link="LiftoffScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/SweepScenarios.cs" Link="SweepScenarios.cs" />
   </ItemGroup>
 
   <!-- K§8.5's simulated pilot and the test flight, which the wind-harness mode flies (p7c-wind 1.2). -->

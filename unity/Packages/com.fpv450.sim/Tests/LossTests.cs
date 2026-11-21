@@ -40,7 +40,8 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ALostBladeHoldsAtSteadyThrottle()
         {
-            DroneSpec spec = Spec;
+            // w17-four-legs 1.3: model 105's drone on its skids (the fixture), its pull set on that mass, until re-derived for the four legs' (198 N there).
+            DroneSpec spec = SkidsDrone.Spec();
             foreach (bool cruise in new[] { false, true })
                 foreach (double payload in new[] { 0.0, 2.0 })
                     foreach (bool centred in new[] { true, false })
@@ -95,7 +96,7 @@ namespace Fpv450.Sim.Tests
             }
             core.Propulsion.Rotor(LossScenarios.Corner).Blade(0).Trim(spec.Blade.Stations[0]);
             core.Propulsion.Rebuild(LossScenarios.Corner);
-            long start = GC.GetAllocatedBytesForCurrentThread();
+            long start = AllocProbe.Before();
             for (int k = 0; k < 1500; k++)
             {
                 stick.HostUs = core.State.Step * FlightCore.StepUs;
@@ -103,9 +104,9 @@ namespace Fpv450.Sim.Tests
                 core.Advance(stick);
                 core.CameraVibration();
             }
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - start;
+            long allocated = AllocProbe.After(start);
             TestContext.Out.WriteLine($"  {allocated} B over 1500 steps; rr's arm broken: {(core.State.ArmBroken & 1) != 0}");
-            Assert.That(allocated, Is.Zero);
+            Assert.That(allocated, Is.Zero, AllocProbe.Report());
         }
     }
 }

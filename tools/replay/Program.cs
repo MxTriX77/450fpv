@@ -113,7 +113,8 @@ namespace Fpv450.Replay
                 Console.WriteLine($"  surfaces.json {surfaces}: 0x{surfacesHash:X16}");
             }
             ulong tetherHash = 0;
-            string tether = Option(args, "--tether") ?? (h.Tether != null ? ScriptedFlight.RepositoryTether() : null);
+            // The line's table, or the stems' air's without the line (w9-village-physics 2.13): tether.json either way.
+            string tether = Option(args, "--tether") ?? (h.Tether != null || h.StemAir != null ? ScriptedFlight.RepositoryTether() : null);
             if (tether != null)
             {
                 tetherHash = ScriptedFlight.TetherHash(tether, out string problem);

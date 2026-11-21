@@ -113,8 +113,14 @@ namespace Fpv450.Sim.Log
                 return Refuse("surfaces.json differs: the log was flown with surfaces.json 0x" + surfaces.ToString("X16", c)
                     + ", this replay has 0x" + surfacesHash.ToString("X16", c));
             ulong logTether = h.Tether?.ContentHash ?? 0;
-            if (logTether != tetherHash)
+            if (logTether != tetherHash && !(logTether == 0 && h.StemAir != null))
                 return Refuse("tether.json differs: the log was flown with tether.json 0x" + logTether.ToString("X16", c)
+                    + ", this replay has 0x" + tetherHash.ToString("X16", c));
+            // Without the line the stems' air read tether.json's rotor_air rows (w9-village-physics 2.13), which the header holds
+            // whole: a replay holding no tether.json takes them from it; one that holds one must hold the flight's.
+            ulong stemAir = h.StemAir?.ContentHash ?? 0;
+            if (logTether == 0 && stemAir != 0 && tetherHash != 0 && tetherHash != stemAir)
+                return Refuse("tether.json differs: the stems' air was flown with tether.json 0x" + stemAir.ToString("X16", c)
                     + ", this replay has 0x" + tetherHash.ToString("X16", c));
             var problems = new List<string>();
             FlightSetup setup = h.ToSetup(world, problems);

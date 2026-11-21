@@ -110,10 +110,10 @@ namespace Fpv450.Sim.Tests
                 return sum;
             }
             Run(); // the tiered JIT's first pass
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             double sum = Run();
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-            if (allocated != 0) Assert.Fail(allocated + " B allocated"); // no constraint built before the read (w3-farmland-ground 1.2's 24 B)
+            long allocated = AllocProbe.After(before);
+            if (allocated != 0) Assert.Fail(allocated + " B allocated" + AllocProbe.Report()); // no constraint built before the read (w3-farmland-ground 1.2's 24 B)
             TestContext.Out.WriteLine($"2000 samples the same bits ({ha:x16}); 10000 samples 0 B ({F(sum, "0.0")})");
         }
 
@@ -207,9 +207,9 @@ namespace Fpv450.Sim.Tests
                     pilot.Target = new Double3(x, SlopeScenarios.Ground(map, x, z).Height + stand + Math.Min(5, 2 * t), z);
                     stick = pilot.Sticks(core, k * FlightCore.StepUs);
                 }
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(stick);
-                if (k >= 1) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (k >= 1) allocated += AllocProbe.After(before);
                 recorder.RecordStep(core.State, stick, core.Trace, core.Events);
             }
             recorder.Close();
@@ -223,7 +223,7 @@ namespace Fpv450.Sim.Tests
                 + same.Message);
             Assert.That(same.Outcome, Is.EqualTo(Log.ReplayOutcome.Match), same.Message);
             Assert.That(same.Steps, Is.EqualTo(steps));
-            if (allocated != 0) Assert.Fail(allocated + " B allocated after the first step");
+            if (allocated != 0) Assert.Fail(allocated + " B allocated after the first step" + AllocProbe.Report());
         }
 
         [Test]

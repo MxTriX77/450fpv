@@ -131,6 +131,13 @@ namespace Fpv450.Sim.Flight
         /// <summary>The air's velocity at the camera, m/s, in the camera's axes.</summary>
         public Double3 AirVelocityAtCamera;
 
+        /// <summary>The props' cut stems per rotor over the latest whole field (w9-village-physics 2.2, PropStems; for the cut bits
+        /// in front of the camera, 2.5): the stems cut (the mean count, fractional), their pieces' mean length (m: what stood above
+        /// the cut, or the slice taken off a stub) and the cuts' mean radius on the blade (m), each 0 for a rotor that cut none; and
+        /// the rotor's angle at its last cut in the field (rad, FlightState.RotorAngle's). No Live bit: they are physics outputs the
+        /// feed reads as it chooses, as Sticks is. A replay gives the same values.</summary>
+        public Corners StemCuts, StemPieceLength, StemCutRadius, StemBladeAngle;
+
         /// <summary>The stick sample in force at this step, as the flight flew it (the OSD's stick overlay and throttle
         /// element, D-078, D-080: the app's, not a feed signal); Neutral before the first step.</summary>
         public Control.StickSample Sticks;
