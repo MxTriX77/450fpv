@@ -11,8 +11,8 @@ Work branch: `unity/world/w20-hunter-track`, from the build branch. One fresh ag
 - [ ] 1.3c [asset-artist] Build the three houses from 1.3b with a parametric generator, in the village's house materials: real wall thickness, rooms, roofs, openings, collision and gaps. Verify: a test passes the quad's outline through all 23 openings with 20 mm a side, each house has a review sheet at 1.5, 10, 50 and 200 m, and no local-only file is committed.
 - [ ] 1.4 [world-builder] Compile the map package: height tiles from the foot samples and 1.1's result, placements of the kit and the houses, manifest and height probes, with the kit's vendor list in the loader. Verify: `python tools/map/validate.py maps/hunter-09` passes, a test checks the ground and opening scenarios, and `flightbench --golden` passes with no re-record.
 - [ ] 1.5 [game-developer] Add the map's scene and the third Play card named ХАНТЕР-09, starting at the race's spawn point. Verify: EditMode tests pass, and a smoke flight on the card replays headless.
-- [ ] 1.6 [qa-engineer] Review portion 1 against the layout, neutrality, ground, gate and Play scenarios, then merge it into the build branch. Verify: the review file lists each scenario's evidence.
-- [ ] 1.7 [user-review] Build it, update the build pointer, and the pilot flies the layout. Verify: the pilot's notes are recorded in `docs/pilot-questions.md` or the ledger.
+- [ ] 1.6 [user-review] Merge portion 1 into the build branch without waiting for QA (the pilot, 2026-11-22; D-122), build it, update the build pointer, and the pilot flies the layout. Verify: the build's smoke test passes, and the pilot's notes are recorded in `docs/pilot-questions.md` or the ledger.
+- [ ] 1.7 [qa-engineer] Only after the pilot says so: review portion 1 against the layout, neutrality, ground, house, gate and Play scenarios. Verify: the review file lists each scenario's evidence.
 
 ## 2. Portion 2: our own objects
 
