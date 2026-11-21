@@ -355,6 +355,13 @@ namespace Fpv450.Sim.Tests
             Assert.That(level.Lost, Is.LessThanOrEqualTo(2));
             Assert.That(level.Rest, Is.LessThanOrEqualTo(1.0), "at rest within 1 s");
             Assert.That(along.Slide, Is.LessThan(0.05), "no sled");
+            // The pilot's account (D-086): the legs 'a little bit soft', 'sometimes the stumbling effect when you land': a gentle landing
+            // leaves the tubes where the sockets' friction holds them; a rough one (1.5 m/s down, 0.3 along, inside the pilot's measured
+            // 0.85–1.9 m/s, design §1.3) slips them in their sockets' play.
+            TipScenarios.Touchdown rough = TipScenarios.Drop(spec, "meadow_sod", RainLevel.Sunny, 1.5, 0.3);
+            Print("rough, 1.5 m/s down and 0.3 along: " + TipScenarios.Describe(rough));
+            Assert.That(level.Play, Is.Zero, "a gentle landing: the sockets hold");
+            Assert.That(rough.Play, Is.GreaterThan(0), "the stumble: a rough landing takes up the sockets' play");
             Assert.That(along.Rebound, Is.LessThanOrEqualTo(0.002));
             Assert.That(along.Lost, Is.LessThanOrEqualTo(2));
             Assert.That(level.Crashes + level.Tunnels + along.Crashes + along.Tunnels, Is.Zero);

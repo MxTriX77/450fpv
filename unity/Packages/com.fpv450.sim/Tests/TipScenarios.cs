@@ -85,6 +85,9 @@ namespace Fpv450.Sim.Tests
             /// from the touch to the end (m); the time from the touch until the body stays slower than 1 mm/s... 10 mm/s (s; NaN
             /// never); crashes and tunnels.</summary>
             public double TouchSpeed, Deepest, EndSink, PeakLoad, PeakG, Rebound, Slide, Rest;
+
+            /// <summary>The most any leg's tube slipped in its socket's clearance (m at the tip): the sockets' play taken up.</summary>
+            public double Play;
             public double[] Max, End;
             public int Lost, Crashes, Tunnels, Ploughed;
         }
@@ -132,6 +135,7 @@ namespace Fpv450.Sim.Tests
                 {
                     TipSoil t = core.Contacts.TipOf(c);
                     r.Max[c] = DetMath.Max(r.Max[c], t.Max);
+                    r.Play = DetMath.Max(r.Play, core.Contacts.PlayOf(c).Length());
                     r.PeakLoad = DetMath.Max(r.PeakLoad, core.Trace.LegLoad[c]);
                 }
                 r.PeakG = DetMath.Max(r.PeakG, core.Trace.ContactForce.Y / Weight(core));
@@ -440,7 +444,7 @@ namespace Fpv450.Sim.Tests
         public static string Describe(in Touchdown d) =>
             $"touch {d.TouchSpeed:F3} m/s: deepest {d.Deepest * 1e3:F2} mm, end {d.EndSink * 1e3:F2} mm (legs {d.End[0] * 1e3:F2}/{d.End[1] * 1e3:F2}/"
             + $"{d.End[2] * 1e3:F2}/{d.End[3] * 1e3:F2}), peak {d.PeakLoad:F1} N a leg, {d.PeakG:F2} W, rebound {d.Rebound * 1e3:F2} mm, lost {d.Lost}, "
-            + $"slide {d.Slide * 1e3:F1} mm, rest {d.Rest:F3} s, ploughed {d.Ploughed}, crashes {d.Crashes}, tunnels {d.Tunnels}";
+            + $"slide {d.Slide * 1e3:F1} mm, rest {d.Rest:F3} s, ploughed {d.Ploughed}, play taken {d.Play * 1e3:F2} mm, crashes {d.Crashes}, tunnels {d.Tunnels}";
 
         public static string Describe(in Liftoff l) =>
             $"released at {l.Left[0]:F3}/{l.Left[1]:F3}/{l.Left[2]:F3}/{l.Left[3]:F3} s (spread {l.Spread * 1e3:F0} ms), holds {l.Hold[0]:F2}/{l.Hold[1]:F2}/"

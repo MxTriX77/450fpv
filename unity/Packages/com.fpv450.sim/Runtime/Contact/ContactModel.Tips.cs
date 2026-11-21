@@ -294,7 +294,7 @@ namespace Fpv450.Sim.Contact
             {
                 Double3 d0 = n * t.X - dt;
                 double a0 = Double3.Dot(legUp, d0) - along;
-                Double3 lat0 = Played(d0 - legUp * Double3.Dot(legUp, d0) - across, PlayRadius(c));
+                Double3 lat0 = d0 - legUp * Double3.Dot(legUp, d0) - across - PlayOffset(c, s, legUp);
                 Lever(a0, lat0.Length(), k0, 0, legSide, _spec.LegLeverLength, SwayCap(c), out double secant0, out rise);
                 kq0 = OnAnchor(secant0, ratio * k0);
             }
@@ -425,7 +425,7 @@ namespace Fpv450.Sim.Contact
             Double3 v = PointVelocity(s, held);
             Double3 d = n * x - dt;
             double a = Double3.Dot(up, d) - along, va = Double3.Dot(up, v);
-            Double3 lat = Played(d - up * Double3.Dot(up, d) - across, PlayRadius(c));
+            Double3 lat = PlayStep(c, d - up * Double3.Dot(up, d) - across, kq, s, up);
             Double3 trial;
             if (lever)
             {
@@ -608,13 +608,38 @@ namespace Fpv450.Sim.Contact
         // angle over the free length; 0 without it.
         double PlayRadius(int c) => _legs != null ? 0.5 * _legs.Play(c) * _spec.Legs.FreeLength : 0;
 
-        // A push across the tube less the play it takes up freely (a frictionless clearance, quasi-static: the massless tube lies where the
-        // push puts it until it bears on the socket's wall); the push itself without play.
-        static Double3 Played(Double3 lat, double play)
+        // Each leg's tube's place in its socket's clearance at the tip (body, m, across the leg): where the play last let it slip to.
+        readonly Double3[] _playAt = new Double3[4];
+
+        /// <summary>Corner c's tube's place in its socket's clearance at the tip (body, m; 0 without the play): where it last slipped to.</summary>
+        public Double3 PlayOf(int corner) => _playAt[corner];
+
+        // The tube's place in the clearance now (world, across the leg's axis up): as it stands, held by the socket's friction.
+        Double3 PlayOffset(int c, in FlightState s, Double3 up)
         {
-            if (!(play > 0)) return lat;
-            double l = lat.Length();
-            return l > play ? lat * ((l - play) / l) : default;
+            Double3 o = s.Attitude.Rotate(_playAt[c]);
+            return o - up * Double3.Dot(up, o);
+        }
+
+        // A push across the tube at the tip (world) less the tube's place in its socket's clearance, which slips by stick-slip (the open
+        // items' 1, photo W's push-in socket and its screw): the screw's preload presses the tube on the socket's wall, so the tube holds
+        // where it is in the clearance until the force across at the tip, k times the push past its place, passes the socket's friction
+        // there (LegDamage.PlayFriction); then it slips along the push until that force is the friction's, and at the clearance's edge
+        // (PlayRadius) it bears on the wall, the push past it all the spring's. Quasi-static: the massless tube's slip, no speed of its own.
+        Double3 PlayStep(int c, Double3 lat, double k, in FlightState s, Double3 up)
+        {
+            double r = PlayRadius(c);
+            if (!(r > 0) || !(k > 0)) return lat;
+            Double3 o = PlayOffset(c, s, up), e = lat - o;
+            double el = e.Length(), held = _legs.PlayFriction(c) / k;
+            if (el > held)
+            {
+                o = lat - e * (held / el);
+                double ol = o.Length();
+                if (ol > r) o = o * (r / ol);
+                _playAt[c] = s.Attitude.InverseRotate(o);
+            }
+            return lat - o;
         }
 
         /// <summary>Corner c's tip in soil as the last Forces left it (default when it is not in soil, on skids, or without

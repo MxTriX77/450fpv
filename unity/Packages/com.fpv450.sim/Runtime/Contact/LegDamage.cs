@@ -421,6 +421,14 @@ namespace Fpv450.Sim.Contact
         /// <summary>The leg's drawn play in its socket, rad (the whole clearance; 0 without the sockets' play).</summary>
         public double Play(int leg) => _play[leg];
 
+        /// <summary>
+        /// The force across at the tip that slips the tube in its socket's clearance (N; the open items' 1, photo W's push-in socket): the
+        /// screw's preload P presses the tube on the socket's far wall, and the screw's point and the wall's line each slide μP at about half
+        /// the socket's depth from the tube's pivot at the socket's mouth (assumed), a friction moment μ·P·g over the leg's lever: the jaws'
+        /// slip force 2μP times g over twice the lever.
+        /// </summary>
+        public double PlayFriction(int leg) => _slipForce[leg] * _spec.GripLength / (2 * Lever(leg));
+
         /// <summary>The leg spring's rest moved by the leg's give: along the leg (the bow's shortening less the clamp's slip,
         /// m) and across it at the foot by the jaws' turn (body, m). The set and the twist move the leg's shapes instead
         /// (p7g-legs 1.3, design 8).</summary>

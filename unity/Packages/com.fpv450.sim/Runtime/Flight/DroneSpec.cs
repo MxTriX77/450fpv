@@ -426,6 +426,10 @@ namespace Fpv450.Sim.Flight
         public LegBound Play, Interlayer;
         public double SocketDiameter;
 
+        /// <summary>The socket's joint damping ratio across the leg (the open items' 1): the friction interfaces' loss a clamped joint adds to
+        /// its members' own (0 for a clamp without it, model 105's).</summary>
+        public double JointDamping;
+
         /// <summary>The pull the two jaws hold before the tube slides, 2μP, N.</summary>
         public double SlipForce => 2 * Friction.Value * Preload;
 
@@ -805,7 +809,7 @@ namespace Fpv450.Sim.Flight
                 // p7g-legs 1.2: the side give from the section (1.1's 262 N/m, derived), damped at the tube's own ζ = η/2 (its
                 // published loss factor); the failure law with the legs on.
                 c.LegSideStiffness = Legs.SideStiffness;
-                c.LegSideDampingRatio = Legs.Tube.LossFactor / 2;
+                c.LegSideDampingRatio = Legs.Tube.LossFactor / 2 + Legs.Clamp.JointDamping; // the socket's joint adds its own (0 on model 105's)
                 // p7g-legs 1.3: the side give's parts, the axial load's softening and the crack flown (design 3).
                 c.LegTubeSideStiffness = Legs.Tube.BendingStiffness;
                 c.LegJawSideStiffness = Legs.Clamp.JawStiffness / (Legs.Tube.FreeLength * Legs.Tube.FreeLength);
@@ -1596,7 +1600,7 @@ namespace Fpv450.Sim.Flight
                 if (!IsObject(p, at)) return c;
                 Members(p, at, "material", "modulus_pa", "grip_length_m", "bolt_diameter_m", "mount_stiffness_n_per_m", "mount_side_stiffness_n_per_m",
                     "torque_n_m", "torque_bounds_n_m", "nut_factor", "nut_factor_bounds", "friction", "friction_bounds", "edge_stress_factor", "edge_stress_factor_bounds",
-                    "play_rad", "play_bounds_rad", "socket_outer_diameter_m", "interlayer_strength_pa", "interlayer_strength_bounds_pa");
+                    "play_rad", "play_bounds_rad", "socket_outer_diameter_m", "interlayer_strength_pa", "interlayer_strength_bounds_pa", "joint_damping_ratio");
                 c.Material = Text(p, "material", at, PrintMaterials);
                 c.Modulus = Positive(p, "modulus_pa", at);
                 c.GripLength = Positive(p, "grip_length_m", at);
@@ -1612,6 +1616,7 @@ namespace Fpv450.Sim.Flight
                 if (p.Member("play_rad") != null) c.Play = Bounded(p, "play_rad", "play_bounds_rad", at);
                 if (p.Member("socket_outer_diameter_m") != null) c.SocketDiameter = Positive(p, "socket_outer_diameter_m", at);
                 if (p.Member("interlayer_strength_pa") != null) c.Interlayer = Bounded(p, "interlayer_strength_pa", "interlayer_strength_bounds_pa", at);
+                if (p.Member("joint_damping_ratio") != null) c.JointDamping = Positive(p, "joint_damping_ratio", at);
                 return c;
             }
 

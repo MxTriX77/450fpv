@@ -1663,7 +1663,7 @@ namespace Fpv450.Sim.Contact
                                     cap, anchor, cl, clf, moved, along, across, _dt, ref tube, ref side, ref tubeF, ref sideF, ref lean);
                             else
                                 LeverTrial(ref p, s, axis, sum, push, ka, ca, ks, _spec.LegLeverLength, cap, anchor, cl, moved, along, across, _dt,
-                                    ref tube, ref side, ref lean, _tips != null ? PlayRadius(c) : 0);
+                                    ref tube, ref side, ref lean, _tips != null ? PlayOffset(c, s, axis) : default);
                         }
                     }
                     _side[c] = side;
@@ -1746,7 +1746,7 @@ namespace Fpv450.Sim.Contact
         // the stick anchor, the dampers as Trial's; its shares of the leg's secant, its give with the anchor and its lean summed.
         static void LeverTrial(ref Pair p, in FlightState s, Double3 up, double sum, double deepest, double ka, double ca, double kt, double l0,
             double cap, double anchor, double cl, bool moved, double along, Double3 across, double dt, ref double tube, ref double side, ref double lean,
-            double play = 0)
+            Double3 play = default)
         {
             if (!(p.Overlap > 0)) return;
             double w = p.Overlap / sum;
@@ -1771,7 +1771,7 @@ namespace Fpv450.Sim.Contact
                 a -= along;
                 lat = lat - across;
             }
-            if (play > 0) lat = Played(lat, play); // four legs' sockets' play (w17-four-legs)
+            if (play.X != 0 || play.Y != 0 || play.Z != 0) lat = lat - play; // four legs: the tube's place in its socket's clearance, held
             double va = Double3.Dot(up, v), delta = lat.Length();
             double force = Lever(a, delta, ka, -ca * va, kt, l0, cap, out double secant, out _);
             double kl = OnAnchor(secant, anchor);
