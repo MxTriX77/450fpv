@@ -16,6 +16,8 @@ QA's recall of everything asked, said or decided about the drone's physics, with
 
 2026-11-17: §1.8 adds the pilot's eight statements after flying model 103 (3 contradicted, 2 partly, 2 missing, 1 built and unproven); the counts above are still as of §0's runs.
 
+2026-11-21: §1.9 adds the pilot's seven statements of 2026-11-17 and 11-18 on the legs and the cuts (as of model 108: 6 built and unproven, 1 partly).
+
 The seven contradictions: a leg never sticks alone at liftoff (P1); slope landings tumble (P9); straw landings cut and shake nothing, always lie flat, and the stalks are too thin (P12, P12a, P12c); two of the four fiber causes never cut, and no cut is at the hole's edge (P36, P37).
 
 ## Status words
@@ -165,6 +167,20 @@ The pilot's feedback is D-117; their words are rendered from Russian. The rows a
 | P59 | when a prop winds up its own fiber "the break is instant"; "it lies down under its own weight, and if, say, you laid it round a house's corner, the tension then goes from that corner" | D-117 | PHY-19, PHY-18 | `Tether/FiberCuts.cs` (a disc's cut), the wraps on members (design 21) | `fb --tether` rows for the disc's cut; a corner's hold on the laid line behind it has no test; `p7d-tether` 1.11h | **partly** |
 | P60 | "grass and leaves and twigs swaying should match the actual weather - it's important. the pilot should understand how strong the wind is, and where the gusts usually blow from this flight" | D-117 | VIS-05, AST-09, PHY-13 | the plants' law in the sim's air (`Wind/PlantLaw`, `PlantAir`, `PlantWash`) on the line; the drawn side on its branch, unmerged | `w16-plants-in-the-air` 1.3 and its requirement "The plants show the flight's weather" | **partly** |
 | P61 | the two thin wire whiskers on the kit's nose (the pale bars of the footage): "this does not affect our flight in any way, they are simply there, and from the wind, the speed and so on they can shake a little, and break too of course" | D-117 | VIS-07, DRN-04 | not built | a new change, from photos U and V | **missing** |
+
+### 1.9 The legs' material and the cut table (2026-11-17 and 11-18)
+
+D-120, D-121 and D-122. Model 108 is in the pilot's build; QA's review of its cut table is unfinished, so nothing here is **proven** yet.
+
+| # | The pilot's words | Source | Req | Where it is built | Proven by | Status |
+|---|---|---|---|---|---|---|
+| P62 | "legs themselves are of aluminum. but they are fixed to the drone using 3d-printed clamps … the clamps are tend to play" | D-120 | DRN-01, PHY-02, PHY-24 | `drone.json` `legs`, `Contact/LegDamage.cs`, the play's draw `leg.play` | `TipTests`; four tip tests open (the play's rattle, the rest on sod, a push across, a wet start) | **partly** |
+| P63 | "they must get used to cuts (even if they are SOMETIMES random, not too often)" | D-121 | PHY-19, PHY-24 | `Tether/FiberCuts.cs` (the edge's Weibull) | `flightbench --cuts 40`: the normal set 3 of 240 | **built, unproven** |
+| P64 | "sharp pitch or rolls during flight have 75% chance to cut fiber, the more throttle during this - ~+5% more chance" | D-121 | PHY-19 | the edge's Weibull, the discs | `--cuts 40`: pitch 63 %, at full throttle 83 % | **built, unproven** |
+| P65 | roll alone presses the edge "not that hard"; roll "combined with yaw" the same way harder | D-121 | PHY-19 | the same | `--cuts 40`: roll alone 0 %, with yaw 90 % | **built, unproven** |
+| P66 | a proper brake: rare when mild, "around 7%" from a higher speed, 25 % from top speed | D-121 | PHY-19 | the same (physical) | `--cuts 40`: 0 / 15 / 25 %; the 15 % is at its band's top, and the pilot's own approaches are not re-flown | **built, unproven** |
+| P67 | "a very sharp lift off - 87% gets cut. 95% if you lift off with max throttle", +10 with roll or pitch back, "throttle + pitch forward … down to 5%" | D-121 | PHY-19 | `Tether/LiftoffCuts.cs` (empirical, the pilot's account) | `--cuts 40`: 83 / 90 %, nose up 100 %, the safe launch 5 % | **built, unproven** |
+| P68 | "going backwards too much when lift off … around 40% … the more the spool looks at the ground vertically - the more the edge of the hole affects the fiber" | D-121 | PHY-19 | the edge's Weibull | `--cuts 40`: 43 % | **built, unproven** |
 
 ## 2. Every physics requirement
 

@@ -868,6 +868,7 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
   - **snagging on trees:** branch hooks and capstans
   - **a very sharp liftoff:** spool payout inertia and friction limit how fast line can leave, so a hard acceleration spikes the tension
   - **backward momentum right after liftoff:** the drone moves back over the line lying at the launch point, so the line can enter a prop disc (**a line–prop contact is a cut**) or snag on the stand
+- **The pilot's cut table sets the rates** (D-121): sharp pitch 75 %, about 80 % with high throttle; roll alone lower, roll with yaw the same way at least 75 %; a flip always; a proper brake rare, about 7 % from a higher speed, 25 % from top speed; a very sharp liftoff 87 %, 95 % at max throttle, plus 10 points with unnecessary roll or pitch back; the safe launch (throttle with pitch forward) 5 %; backward at liftoff about 40 %; rare random cuts in normal flying. `flightbench --cuts` checks every row in both directions, and no fiber change merges without passing it.
 - **Smooth orbits keep it safe.**
 - Over a soil lip (a trench edge) the line's effective bend radius is at least 0.02 m, so the lip never breaks it by bending; the danger there is capstan friction, e^(μθ).
 - *Accept:* one reverse manoeuvre over 20 seeds sometimes cuts the line; gentle orbits over 20 seeds never do.
