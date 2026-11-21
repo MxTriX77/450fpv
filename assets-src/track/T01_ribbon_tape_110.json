@@ -1,0 +1,16 @@
+{
+  "kind": "ribbon_tape",
+  "rows": [
+    {"name": "instance_id", "value": 110, "label": "F"},
+    {"name": "band_w_m", "value": 0.15, "label": "C"},
+    {"name": "band_t_m", "value": 0.002, "label": "A"},
+    {"name": "band_lift_m", "value": 0.01, "label": "A"},
+    {"name": "stake_d_m", "value": 0.02, "label": "A"},
+    {"name": "stake_h_m", "value": 0.45, "label": "C"}
+  ],
+  "paints": [
+    {"part": "band", "slot": "fabric", "colour": "yellow"},
+    {"part": "stake", "slot": "steel", "colour": "steel"}
+  ],
+  "lod": {"lod1_switch_m": 25.0, "lod2_switch_m": 80.0, "cull_m": 1000.0}
+}

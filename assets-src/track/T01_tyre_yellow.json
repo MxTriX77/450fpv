@@ -1,0 +1,12 @@
+{
+  "kind": "tyre_yellow",
+  "rows": [
+    {"name": "outer_d_m", "value": 1.2, "label": "C"},
+    {"name": "hole_d_m", "value": 0.7, "label": "C"},
+    {"name": "height_m", "value": 0.42, "label": "D"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "rubber", "colour": "yellow"}
+  ],
+  "lod": {"lod1_switch_m": 25.0, "lod2_switch_m": 80.0, "cull_m": 1000.0}
+}

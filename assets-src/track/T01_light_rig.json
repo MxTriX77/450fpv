@@ -1,0 +1,12 @@
+{
+  "kind": "light_rig",
+  "rows": [
+    {"name": "size_x_m", "value": 0.1, "label": "A"},
+    {"name": "size_y_m", "value": 0.5, "label": "A"},
+    {"name": "size_z_m", "value": 0.1, "label": "A"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "steel", "colour": "black"}
+  ],
+  "lod": {"lod1_switch_m": 15.0, "lod2_switch_m": 50.0, "cull_m": 300.0}
+}

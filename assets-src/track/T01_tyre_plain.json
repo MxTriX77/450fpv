@@ -1,0 +1,12 @@
+{
+  "kind": "tyre_plain",
+  "rows": [
+    {"name": "outer_d_m", "value": 1.2, "label": "A"},
+    {"name": "hole_d_m", "value": 0.7, "label": "A"},
+    {"name": "height_m", "value": 0.42, "label": "A"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "rubber", "colour": "rubber"}
+  ],
+  "lod": {"lod1_switch_m": 25.0, "lod2_switch_m": 80.0, "cull_m": 1000.0}
+}

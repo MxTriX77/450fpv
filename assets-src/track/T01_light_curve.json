@@ -1,0 +1,12 @@
+{
+  "kind": "light_curve",
+  "rows": [
+    {"name": "length_m", "value": 3.5, "label": "C"},
+    {"name": "tube_d_m", "value": 0.06, "label": "A"},
+    {"name": "arc_deg", "value": 60, "label": "A"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "plastic", "colour": "white"}
+  ],
+  "lod": {"lod1_switch_m": 15.0, "lod2_switch_m": 50.0, "cull_m": 300.0}
+}
