@@ -162,12 +162,21 @@ def test_a_valid_package_passes(tmp_path):
     (lambda p: p["map.json"]["counts"].update(tree=2), "1 tree rows, map.json counts 2"),
     (lambda p: jsonpart(p, "outlines.json", lambda d: d["fields"][0]["outline_m"].reverse()), "counter-clockwise"),
     (lambda p: jsonpart(p, "outlines.json", lambda d: d["village"].update(radius_m=0.5)), "a debris outside the village circle"),
+    (lambda p: jsonpart(p, "outlines.json", lambda d: d.pop("village")), "a ruin on a map with no village"),
     (lambda p: jsonpart(p, "height_probes.json", lambda d: d["probes"][1].update(y=d["probes"][1]["y"] + 0.0015)), "mm from Unity's"),
     (lambda p: jsonpart(p, "height_probes.json", lambda d: d["probes"][0].update(x=50.0)), "lies on no tile"),
 ])
 def test_each_rule_catches_its_break(tmp_path, edit, message):
     errors = errors_of(tmp_path, edit)
     assert any(message in e for e in errors), errors
+
+
+def test_a_package_may_have_no_grass(tmp_path):
+    def no_grass(parts):
+        del parts["map.json"]["grass"], parts["grass/map.raw"]
+    errors, summary = v.validate(write_package(tmp_path, no_grass))
+    assert errors == []
+    assert "0 grass instances" in summary
 
 
 def test_a_seam_step_between_abutting_tiles_is_reported(tmp_path):
