@@ -51,7 +51,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.06, y: 1.2, z: 0.03}
+  m_Size: {x: 0.7, y: 0.03, z: 0.42}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &5873011795921707872
 GameObject:
@@ -104,12 +104,12 @@ MonoBehaviour:
   id: T01
   variant: T01_led_flag
   generator: track_kit
-  paramsSha256: f8603c16a90a71a2ed7651a71674ced2d579121e69dbfeab12e3367f0635d749
+  paramsSha256: dd2abf5ffd4d42bdff02904f76163167acb30626557c112cfd13e2322f8d47f5
   units: m
   frame: unity-lh-yup
   bounds:
     m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 0.03, y: 0.6, z: 0.015}
+    m_Extent: {x: 0.35, y: 0.015, z: 0.21}
   lods:
   - mesh: T01_led_flag_LOD0
     tris: 12
@@ -124,7 +124,7 @@ MonoBehaviour:
   collision:
   - kind: 0
     center: {x: 0, y: 0, z: 0}
-    size: {x: 0.06, y: 1.2, z: 0.03}
+    size: {x: 0.7, y: 0.03, z: 0.42}
     radius: 0
     height: 0
     rotation: {x: 0, y: 0, z: 0, w: 1}
@@ -138,9 +138,12 @@ MonoBehaviour:
   snag:
   - kind: edge
     points:
-    - {x: 0, y: -0.6, z: 0}
-    - {x: 0, y: 0.6, z: 0}
-    radiusM: 0.03
+    - {x: -0.35, y: 0, z: -0.21}
+    - {x: 0.35, y: 0, z: -0.21}
+    - {x: 0.35, y: 0, z: 0.21}
+    - {x: -0.35, y: 0, z: 0.21}
+    - {x: -0.35, y: 0, z: -0.21}
+    radiusM: 0.015
   sourceJson: {fileID: 4900000, guid: 9cac4f26b40b8ac4090f938ea3c0b036, type: 3}
 --- !u!205 &366688371997651202
 LODGroup:
@@ -151,12 +154,12 @@ LODGroup:
   m_GameObject: {fileID: 5873011795921707872}
   serializedVersion: 2
   m_LocalReferencePoint: {x: 0, y: 0, z: 0}
-  m_Size: 1.2
+  m_Size: 0.7
   m_FadeMode: 0
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
   m_LODs:
-  - screenRelativeHeight: 0.0034641018
+  - screenRelativeHeight: 0.002020726
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 114266167914781306}

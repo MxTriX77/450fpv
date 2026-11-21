@@ -3,18 +3,18 @@
   "id": "T01",
   "variant": "T01_steel_profile",
   "generator": "track_kit",
-  "params_sha256": "fce7e1ac1b6316ec634c8bb77f75038c9934bf140103aebb59a3decc327ec7f2",
+  "params_sha256": "a9a19f7a77e3e736578e8933f1212493cc08e08d34a890cb133a44f2c29e5c5e",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
     "min": [
       -0.045,
-      -0.625,
+      0.0,
       -0.02
     ],
     "max": [
       0.045,
-      0.625,
+      2.4,
       0.02
     ]
   },
@@ -40,12 +40,12 @@
       "shape": "box",
       "center": [
         0.0,
-        0.0,
+        1.2,
         0.0
       ],
       "size": [
         0.09,
-        1.25,
+        2.4,
         0.04
       ],
       "rotation": [
