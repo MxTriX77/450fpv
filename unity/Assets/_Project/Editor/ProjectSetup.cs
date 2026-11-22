@@ -47,7 +47,7 @@ namespace Fpv450.EditorSetup
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(BootScenePath, true), new EditorBuildSettingsScene(TestRangeScene.ScenePath, true),
-                new EditorBuildSettingsScene(FarmlandScenePath, true),
+                new EditorBuildSettingsScene(FarmlandScenePath, true), new EditorBuildSettingsScene(HunterScene.ScenePath, true),
             };
             AssetDatabase.SaveAssets();
             Debug.Log("[ProjectSetup] Applied");

@@ -30,7 +30,7 @@ namespace Fpv450
         public static void Windows()
         {
             string[] scenes = EditorBuildSettings.scenes.Where(scene => scene.enabled).Select(scene => scene.path).ToArray();
-            foreach (string map in new[] { TestRangeScene.ScenePath, EditorSetup.ProjectSetup.FarmlandScenePath })
+            foreach (string map in new[] { TestRangeScene.ScenePath, EditorSetup.ProjectSetup.FarmlandScenePath, HunterScene.ScenePath })
             {
                 if (scenes.Contains(map)) continue;
                 Debug.LogError($"[Build] Windows: the build settings lack {map}; run Fpv450.EditorSetup.ProjectSetup.Apply");
