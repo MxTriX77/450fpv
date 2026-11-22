@@ -42,9 +42,11 @@ namespace Fpv450.Tests.App
         [Test]
         public void PlayOffersHouseThenVillage()
         {
-            Assert.That(PlayMaps.All, Is.EqualTo(new[] { PlayMaps.House, PlayMaps.Village }));
+            Assert.That(PlayMaps.All, Is.EqualTo(new[] { PlayMaps.House, PlayMaps.Village, PlayMaps.Hunter }));
             Assert.That((PlayMaps.House.Id, PlayMaps.House.Name, PlayMaps.House.Scene), Is.EqualTo((FlightWorlds.TestRangeMap, "House", "TestRange")));
             Assert.That((PlayMaps.Village.Id, PlayMaps.Village.Name, PlayMaps.Village.Scene), Is.EqualTo((FlightWorlds.FarmlandMap, "Village", FarmlandExplore.Scene)));
+            Assert.That((PlayMaps.Hunter.Id, PlayMaps.Hunter.Name, PlayMaps.Hunter.Scene), Is.EqualTo((FlightWorlds.HunterMap, "ХАНТЕР-09", "HunterTrack")));
+            Assert.That(PlayMaps.Hunter.Starts(AppData.Root).Select(s => s.Name), Is.EqualTo(new[] { "spawn" }), "the package's one start");
             string[] built = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => Path.GetFileNameWithoutExtension(s.path)).ToArray();
             foreach (PlayMap map in PlayMaps.All)
             {
@@ -57,6 +59,15 @@ namespace Fpv450.Tests.App
             FlightWorldChoice house = PlayMaps.House.World(AppData.Root);
             Assert.That(house.Id, Is.EqualTo(FlightWorlds.TestRangeMap), "House flies the test range");
             Assert.That(house.StartPoints.Select(s => s.Name), Is.EqualTo(new[] { FlightWorlds.HousesStart }));
+        }
+
+        // w20-hunter-track 1.5: the menu's font (the game skin's, which AppStyle copies) draws the third card's Cyrillic name.
+        [Test]
+        public void TheMenuFontHasTheCardsGlyphs()
+        {
+            Font font = EditorGUIUtility.GetBuiltinSkin(EditorSkin.Game).font ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            foreach (char c in PlayMaps.Hunter.Name)
+                Assert.That(font.HasCharacter(c), Is.True, font.name + " lacks '" + c + "'");
         }
 
         // A card's still is task 1.2's render at unity/Generated/stills/<map id>.png (the player's copy under its

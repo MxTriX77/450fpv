@@ -55,6 +55,7 @@ namespace Fpv450.Tests.App
                 Assert.That(range.Id, Is.EqualTo(FlightWorlds.TestRangeMap));
                 Assert.That(range.Open().ContentHash, Is.EqualTo(FlightWorlds.TestRange(AppData.Root).Open().ContentHash), "House: the same test range as the repository's");
                 Assert.That(System.Array.ConvertAll(range.StartPoints, s => s.Name), Is.EqualTo(new[] { FlightWorlds.HousesStart }), "House flies from the houses' start");
+                Assert.That(FlightWorlds.Hunter(copies).Open().ContentHash, Is.EqualTo(FlightWorlds.Hunter(AppData.Root).Open().ContentHash), "ХАНТЕР-09: the same map as the repository's");
                 foreach (string table in new[] { SurfaceTable.RelativePath, TetherTable.RelativePath, PhysicsMaterials.RelativePath })
                 {
                     Assert.That(files, Does.Contain(table), "the player carries " + table);

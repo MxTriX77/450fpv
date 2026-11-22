@@ -19,14 +19,17 @@ namespace Fpv450.App
 
         /// <summary>The files a player carries, by their paths under the root: drone.json, the physics materials, surfaces.json
         /// and tether.json (byte for byte the repository's, so tools/replay replays a pilot's flight with its own files), and
-        /// every file MapWorld reads for Play's two maps (D-100): the farmland's, recorded as it loads
-        /// (FlightWorlds.FarmlandFiles), and the test range's, back in the player for House (FlightWorlds.TestRangeFiles).</summary>
+        /// every file MapWorld reads for Play's maps (D-100): the farmland's, recorded as it loads
+        /// (FlightWorlds.FarmlandFiles), the test range's, back in the player for House (FlightWorlds.TestRangeFiles), and
+        /// hunter-09's (FlightWorlds.HunterFiles), whose height file MapGround draws too.</summary>
         public static List<string> PlayerFiles(string root)
         {
             var files = new List<string> { DroneFile, PhysicsMaterials.RelativePath, SurfaceTable.RelativePath, TetherTable.RelativePath };
             foreach (string file in FlightWorlds.FarmlandFiles(root))
                 if (!files.Contains(file)) files.Add(file);
             foreach (string file in FlightWorlds.TestRangeFiles(root))
+                if (!files.Contains(file)) files.Add(file);
+            foreach (string file in FlightWorlds.HunterFiles(root))
                 if (!files.Contains(file)) files.Add(file);
             return files;
         }
