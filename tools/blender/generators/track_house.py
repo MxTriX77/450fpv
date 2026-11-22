@@ -30,6 +30,10 @@ from lib import meta
 from lib.geometry import Mesh
 from lib.solids import palette_uv, tube
 
+# The pilot's raw build (2026-11-22): lib.audit's full collision search does not finish on these thin-board meshes, so
+# they answer to the stand-in audit (bounds and gaps) until task 1.3c makes the full one fast enough. Remove it then.
+STAND_IN = True
+
 LABELS = ("F", "C", "D", "A")
 PHYSICS = {"boards": "timber", "post": "timber", "frame": "timber", "floor": "timber", "roof": "asbestos_cement",
            "brick": "masonry", "bark": "bark", "batten": "timber"}
