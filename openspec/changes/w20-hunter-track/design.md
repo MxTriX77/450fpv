@@ -48,6 +48,8 @@ The repository has two placement formats. The test range's holds a yaw only. The
 - *Fit (**derived** from `drone.json`):* the drone is 0.574 m wide nose-first and 0.342 m tall with legs and 1 kg (0.304 m with legs off). 20 of the 23 markers pass it level. The windows are about 0.62 × 0.45 m, which leaves 23–28 mm each side and allows about 28–36° of pitch with legs on. Three are too small as marked: 416 (0.570 m wide), 394 (0.279 m tall) and 32 (0.330 m tall). The clips do not show them meaningfully larger, so 416 opens to 0.62 m, 394 to 0.40 m and 32 to 0.41 m (it shares one gap with marker 27, 0.406 m). They stay as hard as the rest.
 - *The tree:* 4 of the 19 attached objects (a flag and three light rigs) hang on a tree 2.8 m past the north house's end. The file holds no tree, so the houses' generator adds a stand-in birch of our own with the batten that holds them.
 
+**10. The start stands 1 m ahead of the file's spawn.** The file's spawn is on top of a concrete block lying on its side (**measured**: block top 20.404 m, spawn 20.399 m), the pilot's launch pad. A flight's start stands on the terrain, so at the spawn the drone begins inside the block, and its first step throws it out at 64 m/s and breaks the fiber (the pilot's first flight, 2026-11-22). 1 m along the heading clears the block by 0.79 m (**derived**). *Alternative:* start on the block's top, which needs a start with a height and a tilt in the session; left for after the pilot's notes.
+
 ## Risks / Trade-offs
 
 - [The 11 low objects turn out to need a real dip] → Height samples from the clips, marked as estimates; the pilot checks them on the first flight.

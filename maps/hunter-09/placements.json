@@ -281,5 +281,5 @@
     {"id": 273, "kind": "track", "variant": "T02_north_east", "position_m": [517.899, 20.55, 525.704], "rotation_xyzw": [0.0, 0.273119837, 0.0, -0.961980018], "scale": [1.0, 1.0, 1.0]},
     {"id": 274, "kind": "track", "variant": "T02_south", "position_m": [515.985, 20.44, 431.658], "rotation_xyzw": [0.0, 0.024170456, 0.0, 0.999707852], "scale": [1.0, 1.0, 1.0]}
   ],
-  "start_points": [{"id": "spawn", "position_m": [399.737518, 20.39872, 465.665649], "heading_deg": 58.948, "legs": "on", "stand": false}]
+  "start_points": [{"id": "spawn", "position_m": [400.59422, 20.39872, 466.18146], "heading_deg": 58.948, "legs": "on", "stand": false}]
 }

@@ -279,12 +279,17 @@ def variant_of(row, catalog):
     return name
 
 
-def start_point(rows, spawn_id):
-    """The race's spawn point: the file's position, upright, heading along its rotation's forward (+Z)."""
+def start_point(rows, spawn_id, forward_m):
+    """The race's spawn point, upright, heading along its rotation's forward (+Z), moved forward_m along that heading:
+    the file's spawn stands on a concrete block, and a flight's start stands on the terrain, which would put the drone
+    inside the block."""
     row = next(o for o in rows if o["kind"] == "spawn_point" and o["instance_id"] == spawn_id)
     x, y, z, w = row["rotation_xyzw"]
     heading = math.degrees(math.atan2(2 * (x * z + y * w), 1 - 2 * (x * x + y * y))) % 360.0
-    return {"id": "spawn", "position_m": row["position_m"], "heading_deg": round(heading, 3), "legs": "on", "stand": False}
+    px, py, pz = row["position_m"]
+    along = math.radians(heading)
+    position = [round(px + forward_m * math.sin(along), 6), py, round(pz + forward_m * math.cos(along), 6)]
+    return {"id": "spawn", "position_m": position, "heading_deg": round(heading, 3), "legs": "on", "stand": False}
 
 
 def placements_bytes(rows, p, catalog, spawn_id):
@@ -310,7 +315,7 @@ def placements_bytes(rows, p, catalog, spawn_id):
     variants = sorted({row["variant"] for row in placed})
     head = {"format": "fpv450-map-placements", "format_version": 1, "map": MAP_ID, "frame": "unity-lh-yup",
             "variants": [{"id": v, "kind": "track"} for v in variants]}
-    return dumps_rows(head, "placements", placed, {"start_points": [start_point(rows, spawn_id)]}), len(placed)
+    return dumps_rows(head, "placements", placed, {"start_points": [start_point(rows, spawn_id, p["start_forward_m"])]}), len(placed)
 
 
 def probe_points(rows, p):

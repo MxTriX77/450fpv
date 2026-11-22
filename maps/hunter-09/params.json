@@ -14,6 +14,7 @@
     "resting_kinds": {"value": ["concrete_block", "tyre_red", "tyre_plain", "tyre_blue", "tyre_yellow"], "label": "derived", "why": "sheet: origin at the bottom face, so an upright one low enough rests on the ground"},
     "resting_top_m": {"value": 20.05, "label": "derived", "why": "above the highest base-course block (20.027 m in the file), below the second course"},
     "resting_tilt_deg": {"value": 5, "label": "assumed", "why": "a block on its side or a leaning tyre does not rest on its origin"},
+    "start_forward_m": {"value": 1.0, "label": "derived", "why": "the file's spawn stands on a block and a flight starts on the terrain: 1 m along the heading clears the block by 0.79 m, past the props' 0.353 m"},
     "correction_radius_m": {"value": 8, "label": "assumed", "why": "the reach of the smooth local correction round each sample"},
     "ribbon_step_m": {"value": 2.0, "label": "assumed", "why": "the spacing of the ground samples along a ribbon's straight runs"},
     "ribbon_clear_m": {"value": 0.005, "label": "assumed", "why": "the ground lies this far under a ribbon's line, inside the band's own 10 mm lift"},

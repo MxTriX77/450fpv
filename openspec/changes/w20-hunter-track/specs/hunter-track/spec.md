@@ -101,7 +101,11 @@ Play SHALL offer the map as a third card named ХАНТЕР-09, with no describi
 
 #### Scenario: Flying the new map
 - **WHEN** the pilot chooses the ХАНТЕР-09 card and starts a flight
-- **THEN** the drone starts upright at the race's spawn point with the file's heading, on its legs or on the launch stand as set up, and the flight's log names the map so it replays headless
+- **THEN** the drone starts upright 1 m ahead of the race's spawn point along the file's heading, clear of the concrete block that spawn stands on, on its legs or on the launch stand as set up, and the flight's log names the map so it replays headless
+
+#### Scenario: The start survives its first steps
+- **WHEN** a flight on the fiber starts on the map, in calm and in severe wind
+- **THEN** no crash and no fiber break happens at the start, and a 20 s headless flight stays whole
 
 #### Scenario: The other maps are untouched
 - **WHEN** the flight goldens run after this change

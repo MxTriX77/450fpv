@@ -19,6 +19,10 @@ GATES = ("frame_8x10", "frame_square_a", "frame_square_b", "light_gate")
 FOOT_TOLERANCE_M = 0.05    # the spec
 BAND_LIFT_M = 0.010        # the kit lifts a ribbon's band this far above its points (assets-src/track, band_lift_m)
 GATE_TOLERANCE_M = 0.001   # the opening's lower edge may rest on the ground, to the sample's rounding
+BODY_OVER_GROUND_M = 0.234 # drone.json: the legs' tips under the body's centre
+PROP_REACH_M = 0.353       # drone.json: a hub 0.226 m from the centre, plus the prop's 0.127 m
+BLOCK_CENTRE_M = (0.0, 0.381, 0.0)  # T01_concrete_block's collision box
+BLOCK_HALF_M = (0.381, 0.381, 0.762)
 
 
 @pytest.fixture(scope="module")
@@ -122,6 +126,21 @@ def test_the_start_is_the_races_spawn_point_upright(package):
     spawn = next(o for o in package["rows"] if o["kind"] == "spawn_point"
                  and o["instance_id"] == package["layout"]["race"]["spawn_point_instance_id"])
     assert [s["id"] for s in starts] == ["spawn"]
-    assert starts[0]["position_m"] == spawn["position_m"]
     forward = turn(spawn["rotation_xyzw"], (0.0, 0.0, 1.0))
     assert starts[0]["heading_deg"] == pytest.approx(math.degrees(math.atan2(forward[0], forward[2])) % 360.0, abs=0.001)
+    along = math.atan2(forward[0], forward[2])
+    moved = package["params"]["start_forward_m"]
+    assert starts[0]["position_m"][0] == pytest.approx(spawn["position_m"][0] + moved * math.sin(along), abs=1e-5)
+    assert starts[0]["position_m"][2] == pytest.approx(spawn["position_m"][2] + moved * math.cos(along), abs=1e-5)
+
+
+def test_the_start_stands_clear_of_every_concrete_block(package):
+    """The pilot's first flight: the file's spawn stands on a block, a flight starts on the terrain, and a drone started
+    inside the block is thrown out on its first step. The body's centre, a leg's length over the ground, clears each."""
+    x, _, z = package["placements"]["start_points"][0]["position_m"]
+    body = (x, package["tile"].height(x, z) + BODY_OVER_GROUND_M, z)
+    for block in (o for o in package["rows"] if o["kind"] == "concrete_block"):
+        qx, qy, qz, qw = block["rotation_xyzw"]
+        local = turn((-qx, -qy, -qz, qw), [body[a] - block["position_m"][a] for a in range(3)])
+        outside = [max(abs(local[a] - BLOCK_CENTRE_M[a]) - BLOCK_HALF_M[a], 0.0) for a in range(3)]
+        assert math.sqrt(sum(d * d for d in outside)) > PROP_REACH_M, f"block {block['instance_id']}"
