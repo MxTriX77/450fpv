@@ -113,6 +113,34 @@ namespace Fpv450.Sim.Tests
         }
 
         [Test]
+        public void ThePoseCarriesTheRotorsAngles()
+        {
+            // w13-props-in-frame: the pose's rotor angles are the state's, and a blend between two steps turns each rotor the
+            // short way across 2π, as the rotor turned.
+            DroneSpec spec = RepositoryDrone.Spec();
+            var core = new FlightCore(ShakeScenario.Setup(spec, 1, 1));
+            for (int k = 0; k < 600; k++)
+                core.Advance(new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 8, Throttle = k < 16 ? 0 : 0.5 });
+            core.GetPose(out PoseFrame pose);
+            for (int c = 0; c < 4; c++)
+            {
+                Assert.That(pose.RotorAngle[c], Is.EqualTo(core.State.RotorAngle[c]), "corner " + c);
+                Assert.That(pose.RotorSpeed[c], Is.GreaterThan(100), "turning");
+            }
+
+            const double TwoPi = 2 * 3.141592653589793;
+            var a = new PoseFrame { Attitude = Quat.Identity, RotorAngle = new Corners { RearRight = TwoPi - 0.2, FrontRight = 1.0, RearLeft = 0.1, FrontLeft = 3.0 } };
+            var b = new PoseFrame { Attitude = Quat.Identity, RotorAngle = new Corners { RearRight = 0.4, FrontRight = 1.6, RearLeft = TwoPi - 0.1, FrontLeft = 3.0 } };
+            PoseFrame.Lerp(a, b, 0.25, out PoseFrame q);
+            Assert.That(q.RotorAngle.RearRight, Is.EqualTo(TwoPi - 0.05).Within(1e-12), "forward across 2π");
+            Assert.That(q.RotorAngle.FrontRight, Is.EqualTo(1.15).Within(1e-12));
+            Assert.That(q.RotorAngle.RearLeft, Is.EqualTo(0.05).Within(1e-12), "the short way back across 0");
+            Assert.That(q.RotorAngle.FrontLeft, Is.EqualTo(3.0), "a rotor at rest");
+            PoseFrame.Lerp(a, b, 0.5, out q);
+            Assert.That(q.RotorAngle.RearRight, Is.EqualTo(0.1).Within(1e-12), "past 2π, wrapped into [0, 2π)");
+        }
+
+        [Test]
         public void TheFieldIsWholeOnceItsLastStepIsPublished()
         {
             Assert.That(FieldCamera.LatestField(0), Is.EqualTo(-1));

@@ -1211,6 +1211,7 @@ namespace Fpv450.Sim.Flight
                 BodyRate = s.BodyRate,
                 RotorSpeed = s.RotorSpeed,
                 RotorThrust = _rotorThrust,
+                RotorAngle = s.RotorAngle, // render-side (w13-props-in-frame)
                 Armed = s.Armed,
                 LegCompression = _trace.LegCompression, // the step's start: one step behind the pose
                 CameraTurn = _modes != null ? _modes.FrameTurn(s.ModeShape) : default,
