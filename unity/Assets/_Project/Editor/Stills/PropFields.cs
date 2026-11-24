@@ -184,6 +184,7 @@ namespace Fpv450
                 var angles = new float[RollingShutter.Samples];
                 var lines = new List<string>();
                 var last = new double[4];
+                var extents = new[] { new List<Vector3>(), new List<Vector3>(), new List<Vector3>(), new List<Vector3>() };
                 int withBlade = 0, topCorner = 0, sides = 0;
                 for (int k = 0; k < fields; k++)
                 {
@@ -214,11 +215,14 @@ namespace Fpv450
                         PropView.Samples(poses, start, pose, r, angles);
                         double turn = k == 0 ? double.NaN : Wrap(pose.RotorAngle[r] - last[r]) * 180 / Math.PI;
                         last[r] = pose.RotorAngle[r];
-                        string seen = Crossing(spec, mount, settings, pose, r, angles);
+                        string seen = Crossing(spec, mount, settings, pose, r, angles, out Vector3 extent);
                         where += seen;
+                        if (extent.x >= 0) extents[r].Add(extent);
                         line.Append(string.Format(CultureInfo.InvariantCulture, "; {0}: {1:0.0}°, {2:0} rpm, turned {3:0.0}° (mod 180° {4:0.0}°), smear {5:0.0}°, blade {6}",
                             r == 1 ? "front right" : "front left", pose.RotorAngle[r] * 180 / Math.PI, pose.RotorSpeed[r] * 60 / (2 * Math.PI),
                             turn, turn % 180, PropView.SmearDeg(pose.RotorSpeed[r], exposure), seen.Length > 0 ? seen : "none"));
+                        if (extent.x >= 0)
+                            line.Append(string.Format(CultureInfo.InvariantCulture, " (rows {0:0}–{1:0} % of the height down, {2:0} % of the width in)", extent.x * 100, extent.y * 100, extent.z * 100));
                     }
                     if (where.Length > 0) withBlade++;
                     if (where.Contains("top")) topCorner++;
@@ -243,6 +247,16 @@ namespace Fpv450
                     "{0} {1}: {2} fields, {3}; exposure {4:0} µs. A front blade in {5} of {2} fields, in a top corner in {6}, at a side edge below the top third in {7}. " +
                     "The reference note's C-H group: none at this scale (D 2 frames, H none); B/G: right about 20 of 24, left about 16 of 24; A: top left 11, top right 12 of 24.",
                     c.Map, c.Light, fields, light, exposure * 1e6, withBlade, topCorner, sides);
+                for (int r = 1; r <= 3; r += 2) // how much of each front prop shows (w19-nose-whiskers 1.2)
+                {
+                    List<Vector3> e = extents[r];
+                    summary += e.Count == 0
+                        ? $" {(r == 1 ? "Front right" : "Front left")}: in no field."
+                        : string.Format(CultureInfo.InvariantCulture,
+                            " {0}: in {1} of {2} fields, its rows from {3:0}–{4:0} % of the height down (median top–bottom; {5:0}–{6:0} % at the extremes), reaching {7:0} % of the width in from its edge (median; {8:0} % at most).",
+                            r == 1 ? "Front right" : "Front left", e.Count, fields, Median(e, 0) * 100, Median(e, 1) * 100,
+                            Sorted(e, 0)[0] * 100, Sorted(e, 1)[e.Count - 1] * 100, Median(e, 2) * 100, Sorted(e, 2)[e.Count - 1] * 100);
+                }
                 lines.Insert(0, summary);
                 File.WriteAllLines(Path.Combine(dir, "fields.txt"), lines);
                 Debug.Log($"{Tag} {summary} In {dir}");
@@ -289,10 +303,13 @@ namespace Fpv450
         /// the sim's straight blade) at the rotor's angle at the row's read, through the feed's pinhole and lens, crossing the
         /// row's line inside the picture. "top-left" / "top-right" for crossings in the top third within a quarter of the
         /// width from a side, "side-left" / "side-right" for crossings below the top third within a quarter of the width from a
-        /// side, "middle" otherwise; empty when no row meets a blade.
+        /// side, "middle" otherwise; empty when no row meets a blade. extent: the rows met, from the picture's top, as shares
+        /// of its height (x first, y last), and the farthest crossing in from the nearer side edge as a share of the width
+        /// (z); all −1 when none.
         /// </summary>
-        static string Crossing(DroneSpec spec, Vector3 mount, FeedSettings settings, in PoseFrame pose, int c, float[] angles)
+        static string Crossing(DroneSpec spec, Vector3 mount, FeedSettings settings, in PoseFrame pose, int c, float[] angles, out Vector3 extent)
         {
+            extent = new Vector3(-1, -1, -1);
             Double3 hub = spec.Motors[c].Position;
             double R = spec.Props.Diameter / 2, r0 = spec.Blade.HubDiameter / 2, s = spec.Motors[c].Clockwise ? -1 : 1;
             int blades = spec.Props.Blades;
@@ -323,6 +340,8 @@ namespace Fpv450
                         double f = ys[j] == ys[j - 1] ? 0 : (line - ys[j - 1]) / (ys[j] - ys[j - 1]);
                         double px = xs[j - 1] + (xs[j] - xs[j - 1]) * f;
                         if (px < -1 || px > 1) continue;
+                        float down = (float)(line / RollingShutter.Rows), inward = (float)((1 - Math.Abs(px)) / 2);
+                        extent = extent.x < 0 ? new Vector3(down, down, inward) : new Vector3(Math.Min(extent.x, down), Math.Max(extent.y, down), Math.Max(extent.z, inward));
                         string side = px < -0.5 ? "left" : px > 0.5 ? "right" : null;
                         found.Add(side == null ? "middle" : (row < RollingShutter.Rows / 3 ? "top-" : "side-") + side);
                     }
@@ -349,6 +368,19 @@ namespace Fpv450
         {
             a %= 2 * Math.PI;
             return a < 0 ? a + 2 * Math.PI : a;
+        }
+
+        static List<float> Sorted(List<Vector3> e, int axis)
+        {
+            List<float> v = e.ConvertAll(x => x[axis]);
+            v.Sort();
+            return v;
+        }
+
+        static float Median(List<Vector3> e, int axis)
+        {
+            List<float> v = Sorted(e, axis);
+            return v.Count % 2 == 1 ? v[v.Count / 2] : (v[v.Count / 2 - 1] + v[v.Count / 2]) / 2;
         }
 
         static Vector3 V(in Double3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
