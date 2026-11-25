@@ -252,5 +252,19 @@ namespace Fpv450.Sim.Tests
             Assert.That(start.LegsOn && !start.Stand);
             Assert.That(start.HeadingDeg, Is.EqualTo(58.948).Within(0.001));
         }
+
+        [Test]
+        public void VillagesMeadowGrassGrowsRoundTheTrackButNotUnderItsObjects()
+        {
+            // Task 3.2a: the package's grass is the sim's stem field. Green blades at the start; none at any object's pivot, which
+            // lies in its own footprint and so in a bare cell. The ribbons' rows stand at the origin, their points in their metadata.
+            var patches = new StemPatch[64];
+            StartPoint start = World.StartPoints.Single();
+            int n = World.StemsNear(new XZ(start.Position.X, start.Position.Z), 0.5, 0, patches);
+            Assert.That(n, Is.GreaterThan(0), "grass at the start");
+            Assert.That(patches.Take(n).Any(p => p.Kind == StemKind.GreenBlade), "Village's green blades at the start");
+            foreach (Row r in Rows.Where(r => !r.Variant.StartsWith("T01_ribbon_tape", StringComparison.Ordinal)))
+                Assert.That(World.StemsNear(new XZ(r.Position.X, r.Position.Z), 0.05, 0, patches), Is.Zero, r.Id + " " + r.Variant);
+        }
     }
 }
