@@ -23,7 +23,10 @@ namespace Fpv450.Input.Radio
 
     public enum ArmControl { None, Axis, Button }
 
-    /// <summary>The arm switch: an axis above or below a threshold, or a button pressed or released.</summary>
+    /// <summary>
+    /// A switch: an axis above or below a threshold, or a button pressed or released. The arm switch, and the restart
+    /// switch (CalibrationProfile.Restart); CalibratedStickMap.Armed reads either as on or off.
+    /// </summary>
     public sealed class ArmCalibration
     {
         public ArmControl Control;
@@ -38,11 +41,14 @@ namespace Fpv450.Input.Radio
         public bool OnHigh = true;
 
         public ArmCalibration Clone() => (ArmCalibration)MemberwiseClone();
+
+        /// <summary>Where the radio sends it, as Calibrate shows it: "channel 6", "button 3" or "no switch".</summary>
+        public string Where => Control == ArmControl.Axis ? "channel " + (Index + 1) : Control == ArmControl.Button ? "button " + (Index + 1) : "no switch";
     }
 
     /// <summary>
-    /// A named calibration profile (INP-02): for each stick, the axis, reversal, endpoints, centre and deadband, and the
-    /// arm switch. CalibrationStore keeps profiles as JSON in the user's profile folder.
+    /// A named calibration profile (INP-02): for each stick, the axis, reversal, endpoints, centre and deadband, the arm
+    /// switch, and the restart switch. CalibrationStore keeps profiles as JSON in the user's profile folder.
     /// </summary>
     public sealed class CalibrationProfile
     {
@@ -50,6 +56,10 @@ namespace Fpv450.Input.Radio
         public StickCalibration Roll = new StickCalibration(), Pitch = new StickCalibration();
         public StickCalibration Yaw = new StickCalibration(), Throttle = new StickCalibration();
         public ArmCalibration Arm = new ArmCalibration();
+
+        /// <summary>The restart switch (the pilot, 2026-11-25): a flip restarts the flight as R does (SwitchFlip). None
+        /// until the pilot chooses one in Calibrate (SwitchChoice).</summary>
+        public ArmCalibration Restart = new ArmCalibration();
 
         /// <summary>The stick channels in report order, Betaflight's letters: "AETR", "TAER" or any other.</summary>
         public string Order
@@ -67,7 +77,7 @@ namespace Fpv450.Input.Radio
         {
             Name = Name, Device = Device,
             Roll = Roll.Clone(), Pitch = Pitch.Clone(), Yaw = Yaw.Clone(), Throttle = Throttle.Clone(),
-            Arm = Arm.Clone(),
+            Arm = Arm.Clone(), Restart = Restart.Clone(),
         };
     }
 

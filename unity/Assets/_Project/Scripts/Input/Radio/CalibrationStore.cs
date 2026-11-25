@@ -72,10 +72,8 @@ namespace Fpv450.Input.Radio
                 Stick(b, "pitch", p.Pitch);
                 Stick(b, "yaw", p.Yaw);
                 Stick(b, "throttle", p.Throttle);
-                ArmCalibration a = p.Arm;
-                b.Append("      \"arm\": { \"control\": ").Append(MiniJson.Quote(a.Control.ToString().ToLowerInvariant()))
-                    .Append(", \"index\": ").Append(I(a.Index)).Append(", \"threshold\": ").Append(I(a.Threshold))
-                    .Append(", \"on_high\": ").Append(a.OnHigh ? "true" : "false").Append(" }\n");
+                Switch(b, "arm", p.Arm).Append(",\n");
+                Switch(b, "restart", p.Restart).Append("\n");
                 b.Append("    }");
             }
             b.Append(Profiles.Count > 0 ? "\n  ]\n}\n" : "]\n}\n");
@@ -90,6 +88,11 @@ namespace Fpv450.Input.Radio
                 .Append(", \"min\": ").Append(I(c.Min)).Append(", \"centre\": ").Append(I(c.Centre)).Append(", \"max\": ").Append(I(c.Max))
                 .Append(", \"deadband\": ").Append(I(c.Deadband)).Append(" },\n");
 
+        static StringBuilder Switch(StringBuilder b, string key, ArmCalibration a) =>
+            b.Append("      \"").Append(key).Append("\": { \"control\": ").Append(MiniJson.Quote(a.Control.ToString().ToLowerInvariant()))
+                .Append(", \"index\": ").Append(I(a.Index)).Append(", \"threshold\": ").Append(I(a.Threshold))
+                .Append(", \"on_high\": ").Append(a.OnHigh ? "true" : "false").Append(" }");
+
         void Read(string json)
         {
             Dictionary<string, object> root = JsonRead.Object(MiniJson.Parse(json), FileName);
@@ -99,7 +102,6 @@ namespace Fpv450.Input.Radio
             foreach (object item in list)
             {
                 Dictionary<string, object> o = JsonRead.Object(item, "a profile");
-                Dictionary<string, object> arm = JsonRead.Object(JsonRead.Member(o, "arm"), "'arm'");
                 Profiles.Add(new CalibrationProfile
                 {
                     Name = JsonRead.Text(o, "name"),
@@ -108,15 +110,23 @@ namespace Fpv450.Input.Radio
                     Pitch = Stick(o, "pitch"),
                     Yaw = Stick(o, "yaw"),
                     Throttle = Stick(o, "throttle"),
-                    Arm = new ArmCalibration
-                    {
-                        Control = (ArmControl)Enum.Parse(typeof(ArmControl), JsonRead.Text(arm, "control"), true),
-                        Index = JsonRead.Int(arm, "index"),
-                        Threshold = JsonRead.Int(arm, "threshold"),
-                        OnHigh = JsonRead.Bool(arm, "on_high"),
-                    },
+                    Arm = Switch(o, "arm"),
+                    // A profile saved before the restart switch (2026-11-25) has none.
+                    Restart = o.ContainsKey("restart") ? Switch(o, "restart") : new ArmCalibration(),
                 });
             }
+        }
+
+        static ArmCalibration Switch(Dictionary<string, object> profile, string key)
+        {
+            Dictionary<string, object> o = JsonRead.Object(JsonRead.Member(profile, key), "'" + key + "'");
+            return new ArmCalibration
+            {
+                Control = (ArmControl)Enum.Parse(typeof(ArmControl), JsonRead.Text(o, "control"), true),
+                Index = JsonRead.Int(o, "index"),
+                Threshold = JsonRead.Int(o, "threshold"),
+                OnHigh = JsonRead.Bool(o, "on_high"),
+            };
         }
 
         static StickCalibration Stick(Dictionary<string, object> profile, string key)
