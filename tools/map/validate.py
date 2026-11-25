@@ -238,7 +238,7 @@ def _check_classes(manifest, contents, errors):
 
 
 def _check_grass(manifest, contents, errors):
-    if "grass" not in manifest:  # a map with no grass yet (hunter-09 until its portion 3)
+    if "grass" not in manifest:  # a package without grass
         return 0
     grass = manifest["grass"]
     tile_ids = {row["id"] for row in manifest.get("tiles", [])}

@@ -49,6 +49,265 @@
       }
     ]
   },
+  "grass": {
+    "tile": "map",
+    "file": "grass/map.raw",
+    "resolution": 1024,
+    "layers": [
+      {
+        "layer": 0,
+        "prefab": "Grass_A",
+        "group": "Green",
+        "width_scale": [
+          2.6,
+          3.4
+        ],
+        "height_scale": [
+          1.8,
+          2.6
+        ],
+        "mesh_y_m": [
+          -0.0423,
+          0.2579
+        ],
+        "instances": 3292397
+      },
+      {
+        "layer": 1,
+        "prefab": "Grass_B",
+        "group": "GreenClump",
+        "width_scale": [
+          1.2,
+          1.7
+        ],
+        "height_scale": [
+          1.3,
+          1.8
+        ],
+        "mesh_y_m": [
+          -0.0436,
+          0.3466
+        ],
+        "instances": 54920
+      },
+      {
+        "layer": 2,
+        "prefab": "Grass_C",
+        "group": "GreenClump",
+        "width_scale": [
+          1,
+          1.4
+        ],
+        "height_scale": [
+          1,
+          1.4
+        ],
+        "mesh_y_m": [
+          -0.0045,
+          0.5964
+        ],
+        "instances": 55619
+      },
+      {
+        "layer": 3,
+        "prefab": "Grass_D",
+        "group": "GreenClump",
+        "width_scale": [
+          0.9,
+          1.3
+        ],
+        "height_scale": [
+          0.9,
+          1.3
+        ],
+        "mesh_y_m": [
+          -0.0151,
+          0.7424
+        ],
+        "instances": 55901
+      },
+      {
+        "layer": 4,
+        "prefab": "GrassDry_A",
+        "group": "Dry",
+        "width_scale": [
+          1.2,
+          1.7
+        ],
+        "height_scale": [
+          1.2,
+          1.7
+        ],
+        "mesh_y_m": [
+          -0.0203,
+          0.5299
+        ],
+        "instances": 115285
+      },
+      {
+        "layer": 5,
+        "prefab": "GrassDry_B",
+        "group": "Dry",
+        "width_scale": [
+          1.6,
+          2.2
+        ],
+        "height_scale": [
+          1.6,
+          2.2
+        ],
+        "mesh_y_m": [
+          -0.0152,
+          0.3658
+        ],
+        "instances": 115195
+      },
+      {
+        "layer": 6,
+        "prefab": "GrassDry_C",
+        "group": "DryClump",
+        "width_scale": [
+          1,
+          1.4
+        ],
+        "height_scale": [
+          1,
+          1.4
+        ],
+        "mesh_y_m": [
+          -0.0266,
+          0.6789
+        ],
+        "instances": 32215
+      },
+      {
+        "layer": 7,
+        "prefab": "GrassBurnt_A",
+        "group": "Burnt",
+        "width_scale": [
+          1.2,
+          1.7
+        ],
+        "height_scale": [
+          1,
+          1.5
+        ],
+        "mesh_y_m": [
+          -0.0203,
+          0.5299
+        ],
+        "instances": 173
+      },
+      {
+        "layer": 8,
+        "prefab": "GrassBurnt_B",
+        "group": "Burnt",
+        "width_scale": [
+          1.6,
+          2.2
+        ],
+        "height_scale": [
+          1.2,
+          1.8
+        ],
+        "mesh_y_m": [
+          -0.0152,
+          0.3658
+        ],
+        "instances": 216
+      },
+      {
+        "layer": 9,
+        "prefab": "GrassBurnt_C",
+        "group": "Burnt",
+        "width_scale": [
+          1,
+          1.6
+        ],
+        "height_scale": [
+          1,
+          1.7
+        ],
+        "mesh_y_m": [
+          -0.0266,
+          0.6789
+        ],
+        "instances": 0
+      },
+      {
+        "layer": 10,
+        "prefab": "Grass_A",
+        "group": "TallGreen",
+        "width_scale": [
+          2.6,
+          3.6
+        ],
+        "height_scale": [
+          3.6,
+          5.2
+        ],
+        "mesh_y_m": [
+          -0.0423,
+          0.2579
+        ],
+        "instances": 120589
+      },
+      {
+        "layer": 11,
+        "prefab": "GrassDry_C",
+        "group": "TallDry",
+        "width_scale": [
+          1.5,
+          2.2
+        ],
+        "height_scale": [
+          1.8,
+          2.6
+        ],
+        "mesh_y_m": [
+          -0.0266,
+          0.6789
+        ],
+        "instances": 23607
+      },
+      {
+        "layer": 12,
+        "prefab": "GrassDry_A",
+        "group": "TallDry",
+        "width_scale": [
+          1.8,
+          2.6
+        ],
+        "height_scale": [
+          2.2,
+          3
+        ],
+        "mesh_y_m": [
+          -0.0203,
+          0.5299
+        ],
+        "instances": 20074
+      },
+      {
+        "layer": 13,
+        "prefab": "GrassBurnt_C",
+        "group": "TallBurnt",
+        "width_scale": [
+          1.5,
+          2.2
+        ],
+        "height_scale": [
+          1.8,
+          2.6
+        ],
+        "mesh_y_m": [
+          -0.0266,
+          0.6789
+        ],
+        "instances": 0
+      }
+    ]
+  },
   "counts": {
     "track": 275
   },
@@ -60,11 +319,12 @@
   },
   "files": {
     "classes/map.raw": "27ecd0a598e76f8a2fd264d427df0a119903e8eae384e478902541756f089dd1",
+    "grass/map.raw": "4baa5c97b1c86a4d9d2714eee96c89e7305ea8e63d6a65930a660f13c1ddcfe7",
     "height_probes.json": "f6cc4acab7cef989cf2f2b12941931cbf635b75a06d287643e15e48ddd46b822",
     "heights/map.r16": "200967b192e96e510e7c3406471b03083ed2f80fa42659e4327e3f0125c2b1ab",
     "layout.json": "6937d6a71638109f3b101cd9d97825c01d27b126e430da74daf4a28934ad005c",
     "outlines.json": "94623f932df82229710b5650349a35d4eb50a4c88036fcedb20593eeda3d33c5",
-    "params.json": "76dda0f94223c222ebaa38757ec19bc79f1b0a3ac1003614350532ffa93cd249",
+    "params.json": "fdad40164db1f05e5bce8ac6317c10cd5035597a5870af33d6c8d2a00ca9421d",
     "placements.json": "4aff99ec66acfbcac7face1b98a0b4ac1ca18189580ccaa177499a626a5f1535"
   }
 }

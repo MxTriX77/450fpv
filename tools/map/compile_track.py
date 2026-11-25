@@ -12,11 +12,17 @@ The ground, in order (design 2, the sheet's "The 11 low objects" and "The ground
 - a smooth correction (Wendland C2, compact) through those feet, the blocks and tyres resting on the ground and points
   along the ribbons' straight runs, so that everything that lies on the ground meets it and none of it is covered;
 - the three arch dips, then each house's level ground with its bank.
+
+The grass (task 3.2a): Village's 14 layers (maps/farmland/map.json's prefabs, groups, scales and mesh tops) at Village's
+meadow density, each layer's mean instances per cell from params.json, drawn per cell in the package's order from a seeded
+stream; none in a cell within grass_clear_m of a placed object's footprint, seen from above (its collision shapes' boxes and
+its snag lines, from the kit's metadata), so none inside the houses either.
 """
 import hashlib
 import json
 import math
 import os
+import random
 import subprocess
 import sys
 from array import array
@@ -29,6 +35,7 @@ CATALOG = REPO / "assets-src" / "catalog.json"
 SURFACES = REPO / "assets-src" / "surfaces.json"
 TRACK_PARAMS = REPO / "assets-src" / "track"
 VENDOR_TRACK = REPO / "assets-src" / "vendor_track.json"
+MODELS = REPO / "unity" / "Assets" / "_Project" / "Art" / "Models"  # MapWorld.ModelsRoot: the kit's metadata
 MAX_SAMPLE = 32766
 FEET = 32        # the spec's distinct upright objects
 DRAWN = 272      # the spec's distinct drawn rows
@@ -315,7 +322,148 @@ def placements_bytes(rows, p, catalog, spawn_id):
     variants = sorted({row["variant"] for row in placed})
     head = {"format": "fpv450-map-placements", "format_version": 1, "map": MAP_ID, "frame": "unity-lh-yup",
             "variants": [{"id": v, "kind": "track"} for v in variants]}
-    return dumps_rows(head, "placements", placed, {"start_points": [start_point(rows, spawn_id, p["start_forward_m"])]}), len(placed)
+    return dumps_rows(head, "placements", placed, {"start_points": [start_point(rows, spawn_id, p["start_forward_m"])]}), placed
+
+
+# ------------------------------------------------------------------------------------------------ the grass
+
+
+def rotate(q, v):
+    """v turned by the unit quaternion q = (x, y, z, w)."""
+    x, y, z, w = q
+    tx, ty, tz = 2 * (y * v[2] - z * v[1]), 2 * (z * v[0] - x * v[2]), 2 * (x * v[1] - y * v[0])
+    return v[0] + w * tx + y * tz - z * ty, v[1] + w * ty + z * tx - x * tz, v[2] + w * tz + x * ty - y * tx
+
+
+def cross(o, a, b):
+    return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+
+def hull(points):
+    """The convex hull of (x, z) points, counter-clockwise (the monotone chain); collinear points give a segment."""
+    pts = sorted(set(points))
+    if len(pts) <= 2:
+        return pts
+
+    def half(seq):
+        out = []
+        for q in seq:
+            while len(out) >= 2 and cross(out[-2], out[-1], q) <= 0:
+                out.pop()
+            out.append(q)
+        return out
+
+    return half(pts)[:-1] + half(reversed(pts))[:-1]
+
+
+def edges(poly):
+    return list(zip(poly, poly[1:] + poly[:1])) if len(poly) > 1 else [(poly[0], poly[0])]
+
+
+def point_segment(q, a, b):
+    dx, dz = b[0] - a[0], b[1] - a[1]
+    length2 = dx * dx + dz * dz
+    t = 0.0 if length2 == 0 else min(max(((q[0] - a[0]) * dx + (q[1] - a[1]) * dz) / length2, 0.0), 1.0)
+    return math.hypot(q[0] - a[0] - t * dx, q[1] - a[1] - t * dz)
+
+
+def poly_distance(a, b):
+    """The least distance between two convex (x, z) polygons (a segment or a point included), 0 where they meet."""
+    for p, inner in ((a[0], b), (b[0], a)):
+        if len(inner) >= 3 and all(cross(u, v, p) >= 0 for u, v in edges(inner)):
+            return 0.0
+    ea, eb = edges(a), edges(b)
+    for p, q in ea:
+        for r, s in eb:
+            if (cross(r, s, p) > 0) != (cross(r, s, q) > 0) and (cross(p, q, r) > 0) != (cross(p, q, s) > 0) \
+                    and 0 not in (cross(r, s, p), cross(r, s, q), cross(p, q, r), cross(p, q, s)):
+                return 0.0
+    return min(min(point_segment(p, r, s) for p in a for r, s in eb), min(point_segment(p, r, s) for p in b for r, s in ea))
+
+
+def footprint(row, meta):
+    """A placed row's outline seen from above, as convex (x, z) pieces with a radius: each collision shape's box (a sphere,
+    cylinder or capsule by the box round it) and each snag line's segments with its radius, at the row's pose."""
+    pos, rot, scale = row["position_m"], row["rotation_xyzw"], row["scale"]
+
+    def place(v):
+        x, y, z = rotate(rot, (v[0] * scale[0], v[1] * scale[1], v[2] * scale[2]))
+        return pos[0] + x, pos[2] + z
+
+    pieces = []
+    for c in meta["collision"]:
+        if c["shape"] == "box":
+            half = [s / 2 for s in c["size"]]
+        elif c["shape"] == "sphere":
+            half = [c["radius"]] * 3
+        else:  # a cylinder or capsule along its local y, its height end to end
+            half = [c["radius"], c["height"] / 2, c["radius"]]
+        turn = c.get("rotation", [0.0, 0.0, 0.0, 1.0])
+        corners = []
+        for k in range(8):
+            local = rotate(turn, tuple(half[i] * (1 if k >> i & 1 else -1) for i in range(3)))
+            corners.append(place(tuple(c["center"][i] + local[i] for i in range(3))))
+        pieces.append((hull(corners), 0.0))
+    for snag in meta.get("snag", []):
+        line = [place(q) for q in snag["points"]]
+        pieces += [(hull([u, v]), snag["radius_m"] * max(abs(s) for s in scale)) for u, v in zip(line, line[1:])]
+    return pieces
+
+
+def bare_cells(placed, p, catalog):
+    """The grass grid's cells (row · res + column, row 0 the northmost) within grass_clear_m of a placed row's footprint."""
+    x0, z0, x1, z1 = p["map_rect_m"]
+    res = p["grass_resolution"]
+    side = (x1 - x0) / res
+    assets = {v: a for a in ("T01", "T02") for v in catalog[a]["variants"]}
+    metas, bare = {}, set()
+    for row in placed:
+        variant = row["variant"]
+        if variant not in metas:
+            path = MODELS / catalog[assets[variant]]["class"] / assets[variant] / f"{variant}.assetmeta.json"
+            metas[variant] = json.loads(path.read_text(encoding="utf-8"))
+        for poly, radius in footprint(row, metas[variant]):
+            reach = radius + p["grass_clear_m"]
+            c0 = max(int(math.floor((min(q[0] for q in poly) - reach - x0) / side)), 0)
+            c1 = min(int(math.floor((max(q[0] for q in poly) + reach - x0) / side)), res - 1)
+            r0 = max(int(math.floor((z1 - max(q[1] for q in poly) - reach) / side)), 0)
+            r1 = min(int(math.floor((z1 - min(q[1] for q in poly) + reach) / side)), res - 1)
+            for r in range(r0, r1 + 1):
+                zn, zs = z1 - r * side, z1 - (r + 1) * side
+                for c in range(c0, c1 + 1):
+                    cell = r * res + c
+                    if cell in bare:
+                        continue
+                    xw, xe = x0 + c * side, x0 + (c + 1) * side
+                    if poly_distance(poly, [(xw, zs), (xe, zs), (xe, zn), (xw, zn)]) <= reach:
+                        bare.add(cell)
+    return sorted(bare)
+
+
+def grass_layers(p, bare):
+    """Village's layers (grass_from's) with this map's counts: the plane bytes and the manifest's layer rows.
+
+    Layer l draws one uniform number per cell from random.Random(grass_seed + l), every cell in the package's order (row 0
+    the northmost, then column), so an object moved changes only its own cells; a cell holds the mean's whole part and one
+    more where the number falls under its fraction, as the farmland's generator scatters (FarmLandBuilder.PaintGrass).
+    """
+    village = json.loads((REPO / p["grass_from"]).read_text(encoding="utf-8"))
+    farm = village["grass"]
+    means = p["grass_per_cell"]
+    if farm["resolution"] != p["grass_resolution"] or village["map_rect_m"] != p["map_rect_m"] or len(means) != len(farm["layers"]):
+        raise SystemExit(f"grass_per_cell is per cell of {p['grass_from']}'s grid and layer: its grid or layers changed")
+    plane = p["grass_resolution"] ** 2
+    data, rows = bytearray(), []
+    for entry, mean in zip(farm["layers"], means):
+        whole = math.floor(mean)
+        fraction = mean - whole
+        draw = random.Random(p["grass_seed"] + entry["layer"]).random
+        counts = bytearray(whole + (draw() < fraction) for _ in range(plane))
+        for cell in bare:
+            counts[cell] = 0
+        data += counts
+        rows.append({**entry, "instances": sum(counts)})
+    return bytes(data), rows
 
 
 def probe_points(rows, p):
@@ -383,12 +531,16 @@ def compile_package(root=ROOT, vendor=VENDOR_TRACK):
     surface_id = surfaces.index(p["ground_surface"]) + 1
     class_res = p["class_resolution"]
     classes = bytes([surface_id]) * (class_res * class_res)
-    placements, placed = placements_bytes(rows, p, catalog, layout["race"]["spawn_point_instance_id"])
+    placements, placed_rows = placements_bytes(rows, p, catalog, layout["race"]["spawn_point_instance_id"])
+    placed = len(placed_rows)
+    bare = bare_cells(placed_rows, p, catalog)
+    grass, grass_rows = grass_layers(p, bare)
     outlines = (json.dumps({"format": "fpv450-map-outlines", "format_version": 1, "map": MAP_ID, "frame": "unity-lh-yup",
                             "fields": []}, indent=2) + "\n").encode("utf-8")
     probes, ready = probes_bytes(root / "height_probes.json", heights_sha, probe_points(rows, p))
 
-    files = {"classes/map.raw": classes, "heights/map.r16": heights, "height_probes.json": probes, "layout.json": layout_data,
+    files = {"classes/map.raw": classes, "grass/map.raw": grass, "heights/map.r16": heights, "height_probes.json": probes,
+             "layout.json": layout_data,
              "outlines.json": outlines, "params.json": (root / "params.json").read_bytes(), "placements.json": placements}
     x0, z0, x1, z1 = p["map_rect_m"]
     tile = {"id": "map", "ring": "map", "position_m": [x0, 0, z0], "size_m": [x1 - x0, p["tile_height_m"], z1 - z0],
@@ -400,6 +552,7 @@ def compile_package(root=ROOT, vendor=VENDOR_TRACK):
                 "ground_classes": {"surface_table": "assets-src/surfaces.json",
                                    "layers": [{"layer": "stand_in", "surface": p["ground_surface"], "id": surface_id,
                                                "note": "assumed: one class until portion 3 dresses the ground"}]},
+                "grass": {"tile": "map", "file": "grass/map.raw", "resolution": p["grass_resolution"], "layers": grass_rows},
                 "counts": {"track": placed}, "height_probes": p["probes"],
                 "files": {name: hashlib.sha256(files[name]).hexdigest() for name in sorted(files)}}
     for name, data in files.items():
@@ -410,7 +563,8 @@ def compile_package(root=ROOT, vendor=VENDOR_TRACK):
     (root / "map.json").write_bytes((json.dumps(manifest, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
     Path(vendor).write_bytes(vendor_bytes(catalog))
     return ready, (f"{root.as_posix()}: {placed} placed, {feet} feet + {resting} resting + "
-                   f"{len(ground.centres) - feet - resting} ribbon samples, heights {min(samples)}..{max(samples)}")
+                   f"{len(ground.centres) - feet - resting} ribbon samples, heights {min(samples)}..{max(samples)}, "
+                   f"{sum(r['instances'] for r in grass_rows)} grass instances, {len(bare)} bare cells")
 
 
 def run_unity():
