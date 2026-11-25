@@ -17,7 +17,8 @@ namespace Fpv450
     /// <summary>
     /// Builds <c>HunterTrack.unity</c> (w20-hunter-track 1.5, the raw map) from <c>maps/hunter-09</c>: every placement as its
     /// prefab at the file's exact pose and scale, the package's terrain tile (MapGround, drawn from its height file at load)
-    /// and the test range's rig, which FlightScene.Attach takes over. The scene is never edited by hand:
+    /// with the package's grass on Village's own detail prototypes (task 3.2a), and the test range's rig, which
+    /// FlightScene.Attach takes over. The scene is never edited by hand:
     /// <c>-batchmode -nographics -quit -executeMethod Fpv450.HunterScene.Build</c> (exit code 1 on any error).
     /// </summary>
     public static class HunterScene
@@ -26,6 +27,9 @@ namespace Fpv450
         const string Tag = "[HunterScene]";
         const string TerrainMaterialPath = "Packages/com.unity.render-pipelines.universal/Runtime/Materials/TerrainLit.mat";
         const float ViewHeightM = 2f; // the noclip rig's start above the spawn, for the scene opened alone
+        const string VillageTerrainData = "Assets/Farm_land/Terrain/FarmLand_TerrainData.asset";
+        const float VillageGrassDistanceM = 200f; // the farmland map tile's detail distance (FarmLand.unity; FarmLandBuilder.Grass)
+        const float ScaleTolerance = 1e-4f;
 
         public static void Build()
         {
@@ -66,6 +70,8 @@ namespace Fpv450
             ground.texture = floor.GetTexture("_BaseMap") as Texture2D
                              ?? throw new InvalidOperationException("the floor material has no base texture");
             ground.tileM = 1f / floor.GetTextureScale("_BaseMap").x;
+            if (manifest.ContainsKey("grass"))
+                Grass(ground, Json.Obj(manifest, "grass", manifestFile), relative);
 
             // --- the placements
             var placed = new GameObject("Placed").transform;
@@ -109,7 +115,42 @@ namespace Fpv450
             if (!EditorBuildSettings.scenes.Any(s => s.path == ScenePath))
                 EditorBuildSettings.scenes = EditorBuildSettings.scenes.Append(new EditorBuildSettingsScene(ScenePath, true)).ToArray();
             AssetDatabase.SaveAssets();
-            Debug.Log($"{Tag} wrote {ScenePath}: {rows} placements, the tile {ground.heightsFile}, start '{view.name}'");
+            Debug.Log($"{Tag} wrote {ScenePath}: {rows} placements, the tile {ground.heightsFile}, " +
+                      $"{(ground.grassLayers?.Length ?? 0)} grass layers {ground.grassFile}, start '{view.name}'");
+        }
+
+        // The package's grass layers on Village's own detail prototypes (the farmland map tile's): each layer's prefab and
+        // settings are Village's, its scales the package's, which must be Village's too.
+        static void Grass(MapGround ground, Dictionary<string, object> grass, string relative)
+        {
+            TerrainData village = AssetDatabase.LoadAssetAtPath<TerrainData>(VillageTerrainData)
+                                  ?? throw new FileNotFoundException($"{VillageTerrainData} is missing");
+            DetailPrototype[] theirs = village.detailPrototypes;
+            List<object> layers = Json.Arr(grass, "layers", "grass");
+            if (layers.Count != theirs.Length)
+                throw new InvalidOperationException($"the package has {layers.Count} grass layers, Village {theirs.Length}");
+            ground.grassFile = relative + Json.Str(grass, "file", "grass");
+            ground.grassLayers = new MapGround.GrassLayer[layers.Count];
+            for (int l = 0; l < layers.Count; l++)
+            {
+                string what = $"grass layer {l}";
+                Dictionary<string, object> layer = Json.Obj(layers[l], what);
+                DetailPrototype v = theirs[l];
+                Vector2 width = Json.Vec2(layer, "width_scale", what), height = Json.Vec2(layer, "height_scale", what);
+                if (v.prototype == null || !v.usePrototypeMesh || v.prototype.name != Json.Str(layer, "prefab", what)
+                    || Mathf.Abs(v.minWidth - width.x) > ScaleTolerance || Mathf.Abs(v.maxWidth - width.y) > ScaleTolerance
+                    || Mathf.Abs(v.minHeight - height.x) > ScaleTolerance || Mathf.Abs(v.maxHeight - height.y) > ScaleTolerance)
+                    throw new InvalidOperationException($"{what}: not Village's {v.prototype?.name} at its scales");
+                ground.grassLayers[l] = new MapGround.GrassLayer
+                {
+                    prefab = v.prototype, minWidth = width.x, maxWidth = width.y, minHeight = height.x, maxHeight = height.y,
+                    noiseSpread = v.noiseSpread, alignToGround = v.alignToGround, positionJitter = v.positionJitter,
+                    healthyColor = v.healthyColor, dryColor = v.dryColor, renderMode = v.renderMode, useInstancing = v.useInstancing,
+                };
+            }
+            ground.grassPerPatch = village.detailResolutionPerPatch;
+            ground.grassScatter = village.detailScatterMode;
+            ground.grassDistanceM = VillageGrassDistanceM;
         }
     }
 }

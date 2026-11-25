@@ -191,6 +191,12 @@ namespace Fpv450.App
                 Debug.Log("[Flight] the scene's camera '" + own.name + "' off; the flight's draws its look: post-processing " +
                           (theirs.renderPostProcessing ? "on" : "off") + ", far plane " + own.farClipPlane + " m");
             }
+            else if (scene.name == PlayMaps.HunterScene)
+            {
+                // w20-hunter-track 3.2a: Village's grass, through the feed and in the flight's air as on the farmland.
+                flight._camera.gameObject.AddComponent<FarmlandFeedDetail>();
+                go.AddComponent<FarmlandPlants>();
+            }
             flight._terrains = Terrain.activeTerrains;
             flight._sceneErrors = Array.ConvertAll(flight._terrains, t => t.heightmapPixelError);
             return flight;
