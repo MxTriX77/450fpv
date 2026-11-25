@@ -201,6 +201,73 @@ namespace Fpv450.Tests.App
             Assert.That(ported, Is.GreaterThan(1000));
         }
 
+        /// <summary>
+        /// The wash's two helpers (1.3: the wash off the frame) each export their nodes' line air from their own grid's instance of
+        /// the line's law, where one instance, the fine grid's, gave both: the fine and the coarse grid's instances, begun from the
+        /// same pose at each tick, give the same bits everywhere round the drone. Over the farmland in Windy, a hover 1 m over the
+        /// fields' grass for 2 s, then a pass 1 m up at 6 m/s for 2 s; every tick, a 33 × 33 grid over 5 × 5 m at the grass bands'
+        /// load heights. No GPU.
+        /// </summary>
+        [Test]
+        public void EachWashGridsLineIsTheSame()
+        {
+            MapWorld map = MapWorld.Load(AppData.Root, FlightWorlds.FarmlandMap);
+            var world = new FlightWorld(map);
+            using var wind = new WindField(WindSetup.ForMap(map, WindLevel.Windy), new FlightRandom(0x16B3), world.Hills);
+            SurfaceTable surfaces = SurfaceTable.Parse(File.ReadAllText(AppData.File(SurfaceTable.RelativePath)));
+            TetherTable table = TetherTable.Parse(File.ReadAllText(AppData.File(TetherTable.RelativePath)));
+            PropulsionSpec propulsion = DroneSpec.Parse(File.ReadAllText(AppData.File(AppData.DroneFile))).BuildPropulsion();
+            PlantMechanics[] bands = PlantBands.Mechanics(k => surfaces.Cover[(int)k].Set(Moisture.Dry), table.Number("fiber.air_density_kg_m3"));
+            var grass = PlantBands.Washed.Select(b => bands[b]).ToArray();
+            var motors = propulsion.Motors.Select(m => m.Position).ToArray();
+            double radius = propulsion.Props.Diameter / 2;
+            var washAir = new PlantAir(wind);
+            var fine = new PlantWash(table, radius, motors, map, washAir, grass, surfaces, Moisture.Dry, PlantField.LevelSize[0], PlantField.LevelCell[0]);
+            var coarse = new PlantWash(table, radius, motors, map, washAir, grass, surfaces, Moisture.Dry, PlantField.LevelSize[1], PlantField.LevelCell[1]);
+
+            var poses = new PoseBuffer();
+            double thrust = Mass * 9.80665 / 4;
+            PoseFrame Pose(long step)
+            {
+                double pass = Math.Max(0, step - 2000) * FlightCore.Dt, x = Where.X + 6 * pass;
+                return new PoseFrame
+                {
+                    Step = step, Position = new Double3(x, Ground(map, x, Where.Z) + Hover, Where.Z), Velocity = new Double3(step > 2000 ? 6 : 0, 0, 0),
+                    Attitude = new Quat(0, 0, 0, 1), Armed = true,
+                    RotorThrust = new Corners { RearRight = thrust, FrontRight = thrust, RearLeft = thrust, FrontLeft = thrust },
+                };
+            }
+            poses.Begin(0, Pose(0), default);
+            int compared = 0, moving = 0;
+            for (long step = 1; step <= 4000; step++)
+            {
+                poses.Publish(Pose(step), default);
+                if (step % 40 != 0) continue;
+                fine.Advance(poses);
+                coarse.Advance(poses);
+                Assert.That(coarse.LastTick, Is.EqualTo(fine.LastTick), "both grids at the tick");
+                PoseFrame pose = Pose(step);
+                for (int a = 0; a <= 32; a++)
+                    for (int b = 0; b <= 32; b++)
+                    {
+                        double x = pose.Position.X - 2.5 + a * 5.0 / 32, z = pose.Position.Z - 2.5 + b * 5.0 / 32, ground = Ground(map, x, z);
+                        for (int band = 0; band < PlantBands.Grass; band++)
+                        {
+                            var load = new Double3(x, ground + PlantBands.Elevation(band) + bands[band].LoadPoint, z);
+                            Double3 f = fine.Rotors.At(load, ground, out _), c = coarse.Rotors.At(load, ground, out _);
+                            Assert.That(BitConverter.DoubleToInt64Bits(c.X) == BitConverter.DoubleToInt64Bits(f.X)
+                                        && BitConverter.DoubleToInt64Bits(c.Y) == BitConverter.DoubleToInt64Bits(f.Y)
+                                        && BitConverter.DoubleToInt64Bits(c.Z) == BitConverter.DoubleToInt64Bits(f.Z),
+                                $"tick {step}, ({x:0.000}, {z:0.000}) band {band}: coarse {c} fine {f}");
+                            compared++;
+                            if (f.Length() > PlantField.SteadyMin(band)) moving++;
+                        }
+                    }
+            }
+            TestContext.WriteLine($"{compared} airs compared over 100 ticks, {moving} of them moving a culm: the same bits");
+            Assert.That(moving, Is.GreaterThan(compared / 10), "the wash blows over the grid");
+        }
+
         static string Stats(List<double> e)
         {
             if (e.Count == 0) return "none";

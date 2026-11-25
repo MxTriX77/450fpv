@@ -20,7 +20,7 @@ namespace Fpv450.Tests.App
     /// <summary>
     /// The plants' drawing leaves the flight as it was (w16-plants-in-the-air 1.3; PLT-04, the sim core's determinism): the same
     /// flight, headless on the development keyboard (the seed, the keys, the clock), over the farmland in Windy from the village's
-    /// start, flown twice: once alone, once with the plants' CPU side reading it all the while on two threads of their own as
+    /// start, flown twice: once alone, once with the plants' CPU side reading it all the while on three threads of their own as
     /// PlantField's helpers do (the wash grids ticked from its published poses on its wind field and world, and the wind's mean
     /// on a grid round the drone, each frame's samples beside them; the samples that read the wash grids run on the wash's thread, as PlantField exports them). The two logs are the same byte for byte. (The GPU side draws
     /// only; nothing it writes is read by anything but the plants' shaders.)
@@ -135,18 +135,26 @@ namespace Fpv450.Tests.App
             var washAir = new PlantAir(core.Wind);
             var fine = new PlantWash(setup.Tether, radius, motors, core.World.Query, washAir, grass, inputs.Surfaces, moisture, 32, 0.05);
             var coarse = new PlantWash(setup.Tether, radius, motors, core.World.Query, washAir, grass, inputs.Surfaces, moisture, 32, 0.15);
-            var wash = new Thread(() =>
+            // The wash's two helpers, as PlantField's: the fine grid on one, the coarse on the other, at once.
+            var fineWash = new Thread(() =>
             {
                 while (!stop.IsSet)
                 {
                     long before = fine.LastTick;
                     fine.Advance(session.Poses);
-                    coarse.Advance(session.Poses);
                     if (fine.LastTick != before) ticked();
                     for (int i = 0; i < 64; i++) fine.DustAt(i * 0.01, 0, out _);
                     Thread.Sleep(1);
                 }
-            }) { IsBackground = true, Name = "plants: the wash (test)" };
+            }) { IsBackground = true, Name = "plants: the fine wash (test)" };
+            var coarseWash = new Thread(() =>
+            {
+                while (!stop.IsSet)
+                {
+                    coarse.Advance(session.Poses);
+                    Thread.Sleep(1);
+                }
+            }) { IsBackground = true, Name = "plants: the coarse wash (test)" };
             var mean = new Thread(() =>
             {
                 var plants = new PlantAir(core.Wind);
@@ -171,9 +179,10 @@ namespace Fpv450.Tests.App
                     k++;
                 }
             }) { IsBackground = true, Name = "plants: the wind's mean (test)" };
-            wash.Start();
+            fineWash.Start();
+            coarseWash.Start();
             mean.Start();
-            return new List<Thread> { wash, mean };
+            return new List<Thread> { fineWash, coarseWash, mean };
         }
 
         sealed class ManualClock : IHostClock
