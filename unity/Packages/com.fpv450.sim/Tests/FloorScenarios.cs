@@ -6,7 +6,7 @@ using Fpv450.Sim.Flight;
 namespace Fpv450.Sim.Tests
 {
     /// <summary>
-    /// The pilot's "fly underneath a house and go full throttle" (w20-hunter-track, D-122): a pilot's flight (the airframe's
+    /// The pilot's "fly underneath a house and go full throttle" (w20-hunter-track design 11): a pilot's flight (the airframe's
     /// effects, the ground and ceiling effect, the rotors' interference) armed in the air 60 m over the test range under a timber
     /// slab the size and thickness of T02's floor (6 × 6 × 0.06 m, its underside 0.15 m over the drone's top), hovered 1 s by
     /// SimPilot, then at full throttle held for the rest (SimPilot holding still; or, from 3 s, pinned, a roll stick held: the pilot

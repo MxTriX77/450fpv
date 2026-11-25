@@ -3,7 +3,7 @@ using NUnit.Framework;
 namespace Fpv450.Sim.Tests
 {
     /// <summary>
-    /// The pilot's "fly underneath a house and go full throttle" (w20-hunter-track, D-122) on FloorScenarios' timber floor: what
+    /// The pilot's "fly underneath a house and go full throttle" (w20-hunter-track design 11) on FloorScenarios' timber floor: what
     /// meets the floor is the drone's own top, so with the bottle strapped on top (D-050) the props stay off it and full throttle
     /// only pins the drone and heats its motors until one fails, in about a minute and a half; without the
     /// bottle, or leaned about it, the props reach the floor and the blades, the rotors and the motors pay within seconds. The

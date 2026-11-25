@@ -4,7 +4,7 @@ using Fpv450.Sim.Tests;
 
 namespace Fpv450.FlightBench
 {
-    // w20-hunter-track (D-122), `--floor`: the pilot's "fly underneath a house and go full throttle" on FloorScenarios' timber floor,
+    // w20-hunter-track design 11, `--floor`: the pilot's "fly underneath a house and go full throttle" on FloorScenarios' timber floor,
     // run until something gives. With drone.json's 2 kg bottle on top (D-050) the bottle is pinned to the floor and the props stay
     // under it: the motors run at full duty until one fails by heat (MotorHealth), the drone falls and the props meet what they
     // fall onto. Without the bottle, and leaned about it, the props reach the floor within the first seconds. Fails on a tunnel,

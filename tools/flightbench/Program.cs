@@ -13,7 +13,7 @@ namespace Fpv450.FlightBench
     // mechanics (1.6c, D-067). `--factory [seeds] [first]` flies the factory imbalance's baseline shake on 20 000 seeds by
     // default (p7f-damage 1.2). `--damage [seeds]` flies the damage harness's first cells along H01_D's wall, 8 seeds a cell by
     // default (p7f-damage 1.3). `--floor [seconds]` flies full throttle under a timber floor until a motor fails, 180 s by default
-    // (w20-hunter-track, D-122). `--legs [seeds]` flies the legs' outcomes over touchdown speed, roll and drift, 40 seeds a
+    // (w20-hunter-track design 11). `--legs [seeds]` flies the legs' outcomes over touchdown speed, roll and drift, 40 seeds a
     // cell by default, with the clamp's preload and the tube's yield held at their bounds and the known-wrong models
     // (p7g-legs 1.4). `--probe` runs the world-query contact probe (p6-world-query-gallery 1.2); `--probe
     // --break <piece>` runs it with a known-wrong piece, which must fail. `--rate-tracking` flies stick steps on the session's
@@ -145,7 +145,7 @@ namespace Fpv450.FlightBench
                 double seconds = 180;
                 if (args.Length < 2 || double.TryParse(args[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out seconds) && seconds >= 10)
                 {
-                    Console.WriteLine("flightbench: full throttle under a timber floor (w20-hunter-track, D-122), " + seconds + " s");
+                    Console.WriteLine("flightbench: full throttle under a timber floor (w20-hunter-track design 11), " + seconds + " s");
                     return FloorCase.Run(seconds) ? 0 : 1;
                 }
             }
