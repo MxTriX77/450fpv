@@ -28,6 +28,7 @@ Work branch: `unity/world/w20-hunter-track`, from the build branch. One fresh ag
 
 - [ ] 3.1 [world-builder] Add the surround and far ground with gentle relief outside the layout, leaving the ground under it unchanged. Verify: the validator passes and the ground scenario still holds.
 - [ ] 3.2 [world-builder] Dress the ground as our own autumn field, with surfaces and grass from the existing materials. Verify: views from the track at the four review distances, and the map's ground classes load in the sim.
+- [ ] 3.2a [world-builder] Raw grass now, at the pilot's word (2026-11-25, "grass for hunter"): Village's meadow grass, drawn and in the sim, over the field round the track, none inside the houses or under the objects. Verify: the validator, the sim loads it, House and Village unchanged, and a 20 s headless flight on the fiber from the start stays whole.
 - [ ] 3.3 [tech-artist] Check the map's light and feed, and run the PLT-07 benchmark on AC power. Verify: the 1 % low is at least 60 fps and load is at most 20 s, with the power mode printed.
 - [ ] 3.4 [user-review] Build it, update the build pointer, and the pilot flies the finished map. Verify: the pilot's notes are recorded.
 
