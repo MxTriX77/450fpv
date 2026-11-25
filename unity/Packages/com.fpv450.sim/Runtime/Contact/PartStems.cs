@@ -284,6 +284,10 @@ namespace Fpv450.Sim.Contact
                         for (int l = 0; l < Layers; l++)
                         {
                             double density = _qDensity[q * Layers + l] * StemDensityScale;
+                            // A layer with no stems here, reaching h_ref or (the drone low) shorter, places none.
+                            bool tall = density > 0 && _layerReach[l];
+                            double extra = shortToo && _layerShort[l] ? (_qDensity0[q * Layers + l] - _qDensity[q * Layers + l]) * StemDensityScale : 0;
+                            if (!tall && !(extra > 0)) continue;
                             int k = (int)_layerKind[l] + (int)CoverKind.GrassBlade - 1;
                             if (k < (int)CoverKind.GrassBlade || k > (int)CoverKind.BurntCulm) continue;
                             CoverSet set = _coverSets[k];
@@ -294,7 +298,7 @@ namespace Fpv450.Sim.Contact
                             ulong cell = FlightRandom.Mix64(unchecked(((ulong)(uint)ix << 32) ^ (uint)iz ^ ((ulong)l << 59)));
                             // The props' own stems (PropStems' Cache, the same hash and order: the tallest first), from the square's
                             // store: those whose base is within the layer's reach, down to the first too short to reach.
-                            if (density > 0 && _layerReach[l])
+                            if (tall)
                             {
                                 int K = (int)(density * StemSquare * StemSquare + Uniform(cell, 0));
                                 int run = Run(q, l, 0, K, k);
@@ -309,8 +313,6 @@ namespace Fpv450.Sim.Contact
                                 }
                             }
                             // The shorter ones (the field's at 0 m less at h_ref), by the same law from their own hash.
-                            if (!shortToo || !_layerShort[l]) continue;
-                            double extra = (_qDensity0[q * Layers + l] - _qDensity[q * Layers + l]) * StemDensityScale;
                             if (!(extra > 0)) continue;
                             ulong low0 = FlightRandom.Mix64(cell ^ 0x5348_4F52_5453_5445UL);
                             int Ks = (int)(extra * StemSquare * StemSquare + Uniform(low0, 0));
