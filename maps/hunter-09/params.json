@@ -35,6 +35,8 @@
     "grass_resolution": {"value": 1024, "label": "derived", "why": "Village's detail grid on the same 1000 m tile: cells of 0.977 m, so grass_per_cell carries over cell for cell"},
     "grass_per_cell": {"value": [3.1440, 0.0526, 0.0529, 0.0534, 0.1101, 0.1101, 0.0307, 0.0002, 0.0002, 0.0, 0.1154, 0.0227, 0.0192, 0.0], "label": "measured", "why": "Village's meadow, layer by layer (Grass_A … the tall burnt): the mean instances per cell over the farmland's 349,908 meadow_sod cells (maps/farmland grass/map.raw, each cell's class at its centre), 3.71 in all, 3.89 per m2; not its fields' weeds"},
     "grass_seed": {"value": 5309, "label": "assumed", "why": "layer l draws from random.Random(grass_seed + l) cell by cell in the package's order; the farmland generator's own grass seed"},
-    "grass_clear_m": {"value": 0.3, "label": "assumed", "why": "the brief: no grass in a cell any part of which lies within this of a placed object's footprint seen from above (its collision boxes and snag lines), the houses' included"}
+    "grass_clear_m": {"value": 0.3, "label": "assumed", "why": "the brief: no grass in a cell any part of which lies within this of a placed object's footprint seen from above (its collision boxes and snag lines), the houses' included"},
+    "grass_full_m": {"value": 60.0, "label": "assumed", "why": "task 3.2b, the map ran slowly with grass over the whole tile: full meadow density in a cell whose centre lies within this of the placed objects' extent, the box round every footprint seen from above (the ribbons' and the houses' included)"},
+    "grass_fade_m": {"value": 60.0, "label": "assumed", "why": "task 3.2b: past grass_full_m a cell's mean falls linearly to none over this distance, and the ground beyond is bare; every cell keeps its own draw, so the cells within grass_full_m are 3.2a's"}
   }
 }

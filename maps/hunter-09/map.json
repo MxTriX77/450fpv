@@ -70,7 +70,7 @@
           -0.0423,
           0.2579
         ],
-        "instances": 3292397
+        "instances": 350882
       },
       {
         "layer": 1,
@@ -88,7 +88,7 @@
           -0.0436,
           0.3466
         ],
-        "instances": 54920
+        "instances": 5888
       },
       {
         "layer": 2,
@@ -106,7 +106,7 @@
           -0.0045,
           0.5964
         ],
-        "instances": 55619
+        "instances": 5988
       },
       {
         "layer": 3,
@@ -124,7 +124,7 @@
           -0.0151,
           0.7424
         ],
-        "instances": 55901
+        "instances": 5914
       },
       {
         "layer": 4,
@@ -142,7 +142,7 @@
           -0.0203,
           0.5299
         ],
-        "instances": 115285
+        "instances": 12319
       },
       {
         "layer": 5,
@@ -160,7 +160,7 @@
           -0.0152,
           0.3658
         ],
-        "instances": 115195
+        "instances": 12136
       },
       {
         "layer": 6,
@@ -178,7 +178,7 @@
           -0.0266,
           0.6789
         ],
-        "instances": 32215
+        "instances": 3414
       },
       {
         "layer": 7,
@@ -196,7 +196,7 @@
           -0.0203,
           0.5299
         ],
-        "instances": 173
+        "instances": 22
       },
       {
         "layer": 8,
@@ -214,7 +214,7 @@
           -0.0152,
           0.3658
         ],
-        "instances": 216
+        "instances": 25
       },
       {
         "layer": 9,
@@ -250,7 +250,7 @@
           -0.0423,
           0.2579
         ],
-        "instances": 120589
+        "instances": 12958
       },
       {
         "layer": 11,
@@ -268,7 +268,7 @@
           -0.0266,
           0.6789
         ],
-        "instances": 23607
+        "instances": 2474
       },
       {
         "layer": 12,
@@ -286,7 +286,7 @@
           -0.0203,
           0.5299
         ],
-        "instances": 20074
+        "instances": 2119
       },
       {
         "layer": 13,
@@ -319,12 +319,12 @@
   },
   "files": {
     "classes/map.raw": "27ecd0a598e76f8a2fd264d427df0a119903e8eae384e478902541756f089dd1",
-    "grass/map.raw": "4baa5c97b1c86a4d9d2714eee96c89e7305ea8e63d6a65930a660f13c1ddcfe7",
+    "grass/map.raw": "cf03d1c91bd5c841125557802b82f76e20be3b5743b563fdab06d60e116e505d",
     "height_probes.json": "f6cc4acab7cef989cf2f2b12941931cbf635b75a06d287643e15e48ddd46b822",
     "heights/map.r16": "200967b192e96e510e7c3406471b03083ed2f80fa42659e4327e3f0125c2b1ab",
     "layout.json": "6937d6a71638109f3b101cd9d97825c01d27b126e430da74daf4a28934ad005c",
     "outlines.json": "94623f932df82229710b5650349a35d4eb50a4c88036fcedb20593eeda3d33c5",
-    "params.json": "fdad40164db1f05e5bce8ac6317c10cd5035597a5870af33d6c8d2a00ca9421d",
+    "params.json": "8af047330471cec196abaad1cda1359565d49ac7fa6b6698fd6c65b275418e7d",
     "placements.json": "4aff99ec66acfbcac7face1b98a0b4ac1ca18189580ccaa177499a626a5f1535"
   }
 }

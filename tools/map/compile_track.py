@@ -16,7 +16,9 @@ The ground, in order (design 2, the sheet's "The 11 low objects" and "The ground
 The grass (task 3.2a): Village's 14 layers (maps/farmland/map.json's prefabs, groups, scales and mesh tops) at Village's
 meadow density, each layer's mean instances per cell from params.json, drawn per cell in the package's order from a seeded
 stream; none in a cell within grass_clear_m of a placed object's footprint, seen from above (its collision shapes' boxes and
-its snag lines, from the kit's metadata), so none inside the houses either.
+its snag lines, from the kit's metadata), so none inside the houses either. Task 3.2b keeps it round the track: full
+density within grass_full_m of the placed objects' extent, each cell's mean falling linearly to none over grass_fade_m past
+that, and bare ground beyond; every cell keeps its draw, so the cells round the track are 3.2a's.
 """
 import hashlib
 import json
@@ -410,42 +412,78 @@ def footprint(row, meta):
     return pieces
 
 
-def bare_cells(placed, p, catalog):
-    """The grass grid's cells (row · res + column, row 0 the northmost) within grass_clear_m of a placed row's footprint."""
-    x0, z0, x1, z1 = p["map_rect_m"]
-    res = p["grass_resolution"]
-    side = (x1 - x0) / res
+def footprints(placed, catalog):
+    """Every placed row's footprint pieces (footprint()), the kit's metadata read once a variant."""
     assets = {v: a for a in ("T01", "T02") for v in catalog[a]["variants"]}
-    metas, bare = {}, set()
+    metas, pieces = {}, []
     for row in placed:
         variant = row["variant"]
         if variant not in metas:
             path = MODELS / catalog[assets[variant]]["class"] / assets[variant] / f"{variant}.assetmeta.json"
             metas[variant] = json.loads(path.read_text(encoding="utf-8"))
-        for poly, radius in footprint(row, metas[variant]):
-            reach = radius + p["grass_clear_m"]
-            c0 = max(int(math.floor((min(q[0] for q in poly) - reach - x0) / side)), 0)
-            c1 = min(int(math.floor((max(q[0] for q in poly) + reach - x0) / side)), res - 1)
-            r0 = max(int(math.floor((z1 - max(q[1] for q in poly) - reach) / side)), 0)
-            r1 = min(int(math.floor((z1 - min(q[1] for q in poly) + reach) / side)), res - 1)
-            for r in range(r0, r1 + 1):
-                zn, zs = z1 - r * side, z1 - (r + 1) * side
-                for c in range(c0, c1 + 1):
-                    cell = r * res + c
-                    if cell in bare:
-                        continue
-                    xw, xe = x0 + c * side, x0 + (c + 1) * side
-                    if poly_distance(poly, [(xw, zs), (xe, zs), (xe, zn), (xw, zn)]) <= reach:
-                        bare.add(cell)
+        pieces += footprint(row, metas[variant])
+    return pieces
+
+
+def extent(pieces):
+    """The placed objects' extent seen from above: the box (x0, z0, x1, z1) round every footprint piece and its radius."""
+    return (min(q[0] - r for poly, r in pieces for q in poly), min(q[1] - r for poly, r in pieces for q in poly),
+            max(q[0] + r for poly, r in pieces for q in poly), max(q[1] + r for poly, r in pieces for q in poly))
+
+
+def bare_cells(pieces, p):
+    """The grass grid's cells (row · res + column, row 0 the northmost) within grass_clear_m of a placed row's footprint."""
+    x0, z0, x1, z1 = p["map_rect_m"]
+    res = p["grass_resolution"]
+    side = (x1 - x0) / res
+    bare = set()
+    for poly, radius in pieces:
+        reach = radius + p["grass_clear_m"]
+        c0 = max(int(math.floor((min(q[0] for q in poly) - reach - x0) / side)), 0)
+        c1 = min(int(math.floor((max(q[0] for q in poly) + reach - x0) / side)), res - 1)
+        r0 = max(int(math.floor((z1 - max(q[1] for q in poly) - reach) / side)), 0)
+        r1 = min(int(math.floor((z1 - min(q[1] for q in poly) + reach) / side)), res - 1)
+        for r in range(r0, r1 + 1):
+            zn, zs = z1 - r * side, z1 - (r + 1) * side
+            for c in range(c0, c1 + 1):
+                cell = r * res + c
+                if cell in bare:
+                    continue
+                xw, xe = x0 + c * side, x0 + (c + 1) * side
+                if poly_distance(poly, [(xw, zs), (xe, zs), (xe, zn), (xw, zn)]) <= reach:
+                    bare.add(cell)
     return sorted(bare)
 
 
-def grass_layers(p, bare):
+def meadow(box, p):
+    """The cells that grow grass, in the package's order, each with its share of the meadow's mean (task 3.2b): 1 where
+    the cell's centre lies within grass_full_m of the placed objects' extent `box`, falling linearly to 0 over the next
+    grass_fade_m; the cells past that are bare."""
+    x0, z0, x1, z1 = p["map_rect_m"]
+    res = p["grass_resolution"]
+    side = (x1 - x0) / res
+    bx0, bz0, bx1, bz1 = box
+    full, fade = p["grass_full_m"], p["grass_fade_m"]
+    cells = []
+    for r in range(res):
+        zc = z1 - (r + 0.5) * side
+        dz = max(bz0 - zc, 0.0, zc - bz1)
+        for c in range(res):
+            xc = x0 + (c + 0.5) * side
+            dx = max(bx0 - xc, 0.0, xc - bx1)
+            d = math.sqrt(dx * dx + dz * dz)
+            if d < full + fade:
+                cells.append((r * res + c, 1.0 if d <= full else 1.0 - (d - full) / fade))
+    return cells
+
+
+def grass_layers(p, bare, cells):
     """Village's layers (grass_from's) with this map's counts: the plane bytes and the manifest's layer rows.
 
     Layer l draws one uniform number per cell from random.Random(grass_seed + l), every cell in the package's order (row 0
-    the northmost, then column), so an object moved changes only its own cells; a cell holds the mean's whole part and one
-    more where the number falls under its fraction, as the farmland's generator scatters (FarmLandBuilder.PaintGrass).
+    the northmost, then column), so an object moved changes only its own cells; a growing cell (meadow()'s) holds its mean's
+    whole part and one more where the number falls under its fraction, as the farmland's generator scatters
+    (FarmLandBuilder.PaintGrass), its mean the layer's times the cell's share.
     """
     village = json.loads((REPO / p["grass_from"]).read_text(encoding="utf-8"))
     farm = village["grass"]
@@ -455,10 +493,13 @@ def grass_layers(p, bare):
     plane = p["grass_resolution"] ** 2
     data, rows = bytearray(), []
     for entry, mean in zip(farm["layers"], means):
-        whole = math.floor(mean)
-        fraction = mean - whole
         draw = random.Random(p["grass_seed"] + entry["layer"]).random
-        counts = bytearray(whole + (draw() < fraction) for _ in range(plane))
+        number = [draw() for _ in range(plane)]
+        counts = bytearray(plane)
+        for cell, share in cells:
+            m = mean * share
+            whole = math.floor(m)
+            counts[cell] = whole + (number[cell] < m - whole)
         for cell in bare:
             counts[cell] = 0
         data += counts
@@ -533,8 +574,10 @@ def compile_package(root=ROOT, vendor=VENDOR_TRACK):
     classes = bytes([surface_id]) * (class_res * class_res)
     placements, placed_rows = placements_bytes(rows, p, catalog, layout["race"]["spawn_point_instance_id"])
     placed = len(placed_rows)
-    bare = bare_cells(placed_rows, p, catalog)
-    grass, grass_rows = grass_layers(p, bare)
+    pieces = footprints(placed_rows, catalog)
+    bare = bare_cells(pieces, p)
+    cells = meadow(extent(pieces), p)
+    grass, grass_rows = grass_layers(p, bare, cells)
     outlines = (json.dumps({"format": "fpv450-map-outlines", "format_version": 1, "map": MAP_ID, "frame": "unity-lh-yup",
                             "fields": []}, indent=2) + "\n").encode("utf-8")
     probes, ready = probes_bytes(root / "height_probes.json", heights_sha, probe_points(rows, p))
@@ -564,7 +607,7 @@ def compile_package(root=ROOT, vendor=VENDOR_TRACK):
     Path(vendor).write_bytes(vendor_bytes(catalog))
     return ready, (f"{root.as_posix()}: {placed} placed, {feet} feet + {resting} resting + "
                    f"{len(ground.centres) - feet - resting} ribbon samples, heights {min(samples)}..{max(samples)}, "
-                   f"{sum(r['instances'] for r in grass_rows)} grass instances, {len(bare)} bare cells")
+                   f"{sum(r['instances'] for r in grass_rows)} grass instances on {len(cells)} cells, {len(bare)} of them bare")
 
 
 def run_unity():

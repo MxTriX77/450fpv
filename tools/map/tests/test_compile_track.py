@@ -3,6 +3,7 @@ on the committed package, and a byte-identical recompile. The loaded world's sce
 houses) are the sim's: unity/Packages/com.fpv450.sim/Tests/World/HunterTrackTests.cs."""
 import json
 import math
+import random
 import shutil
 import sys
 from array import array
@@ -147,7 +148,7 @@ def test_the_start_stands_clear_of_every_concrete_block(package):
         assert math.sqrt(sum(d * d for d in outside)) > PROP_REACH_M, f"block {block['instance_id']}"
 
 
-# ---- the grass (task 3.2a)
+# ---- the grass (tasks 3.2a and 3.2b)
 
 
 @pytest.fixture(scope="module")
@@ -156,24 +157,45 @@ def grass():
     return manifest["grass"], (ct.ROOT / manifest["grass"]["file"]).read_bytes()
 
 
-def test_the_grass_is_villages_layers_at_its_meadow_density(package, grass):
-    """Village's 14 layers as its package lists them, and each layer's mean over the cells that grow grass is the
-    params' measured meadow mean (a cell holds the whole part and one more with the fraction's chance)."""
+def test_the_meadow_grows_round_the_track_and_fades_to_bare(package, grass):
+    """Village's 14 layers as its package lists them, at the params' measured meadow mean round the track (task 3.2b):
+    each cell keeps 3.2a's draw, one number from random.Random(grass_seed + layer) per cell in the package's order, and
+    holds its mean's whole part and one more where the number falls under its fraction, its mean the layer's times the
+    cell's share: 1 where the cell's centre lies within grass_full_m of the placed objects' extent, falling linearly to 0
+    over grass_fade_m, 0 beyond. The only other cells are the bare ones round the objects, all at full share."""
     entry, data = grass
-    village = json.loads((ct.REPO / package["params"]["grass_from"]).read_text(encoding="utf-8"))["grass"]
-    assert entry["resolution"] == village["resolution"] == package["params"]["grass_resolution"]
+    params = package["params"]
+    village = json.loads((ct.REPO / params["grass_from"]).read_text(encoding="utf-8"))["grass"]
+    assert entry["resolution"] == village["resolution"] == params["grass_resolution"]
     assert [{k: v for k, v in e.items() if k != "instances"} for e in entry["layers"]] == \
            [{k: v for k, v in e.items() if k != "instances"} for e in village["layers"]]
-    plane = entry["resolution"] ** 2
-    bare = [cell for cell in range(plane) if not any(data[l * plane + cell] for l in range(len(entry["layers"])))]
-    assert len(bare) < plane // 500, "grass grows everywhere but round the objects"
-    growing = plane - len(bare)
-    for layer, mean in enumerate(package["params"]["grass_per_cell"]):
-        counts = data[layer * plane:(layer + 1) * plane]
-        whole = math.floor(mean)
-        assert sum(counts) == entry["layers"][layer]["instances"]
-        assert all(whole <= counts[cell] <= whole + 1 for cell in range(0, plane, 997) if cell not in bare)
-        assert sum(counts) / growing == pytest.approx(mean, abs=0.002), f"layer {layer}"
+    res, plane = entry["resolution"], entry["resolution"] ** 2
+    side = 1000 / res
+    placed = package["placements"]["placements"]
+    bx0, bz0, bx1, bz1 = ct.extent(ct.footprints(placed, json.loads(ct.CATALOG.read_text(encoding="utf-8"))["assets"]))
+    for row in placed:  # the extent holds every pivot but the ribbons', which stand at the origin
+        if not row["variant"].startswith("T01_ribbon_tape"):
+            assert bx0 <= row["position_m"][0] <= bx1 and bz0 <= row["position_m"][2] <= bz1, row["id"]
+    full, fade = params["grass_full_m"], params["grass_fade_m"]
+    share = []
+    for r in range(res):
+        dz = max(bz0 - (1000 - (r + 0.5) * side), 0.0, 1000 - (r + 0.5) * side - bz1)
+        for c in range(res):
+            d = math.hypot(max(bx0 - (c + 0.5) * side, 0.0, (c + 0.5) * side - bx1), dz)
+            share.append(min(1.0, max(0.0, 1.0 - (d - full) / fade)))
+    assert sum(s > 0 for s in share) < plane // 6, "the meadow keeps to the track"
+    others = set()
+    for layer, mean in zip(entry["layers"], params["grass_per_cell"]):
+        draw = random.Random(params["grass_seed"] + layer["layer"]).random
+        counts = data[layer["layer"] * plane:(layer["layer"] + 1) * plane]
+        assert sum(counts) == layer["instances"]
+        for cell in range(plane):
+            number, m = draw(), mean * share[cell]
+            if counts[cell] != math.floor(m) + (number < m - math.floor(m)):
+                others.add(cell)
+    assert len(others) < plane // 500
+    for cell in others:
+        assert share[cell] == 1.0 and not any(data[l * plane + cell] for l in range(len(entry["layers"]))), cell
 
 
 def test_no_grass_inside_the_houses(package, grass):
