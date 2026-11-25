@@ -9,6 +9,7 @@
         "Fpv450.Feed.Core",
         "Fpv450.Input",
         "Fpv450.World",
+        "Fpv450.Sim",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Universal.Runtime"
     ],
