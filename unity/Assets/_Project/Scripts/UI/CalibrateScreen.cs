@@ -16,6 +16,9 @@ namespace Fpv450.UI
     /// profile and put into the reader's map at once; one with an axis too narrow is not saved. Profiles are listed to
     /// pick the active one, and renamed with the keyboard if the pilot wants to, after the calibration. The Rates tab
     /// (1.3) edits the rates and the throttle curve (RatesPanel); it is offered whenever the wizard is not running.
+    /// The restart switch (the pilot, 2026-11-25) is chosen on the radio for the active profile (SwitchChoice: flip it on,
+    /// then off), shown beside the channels and the arm switch, and kept by a new calibration of the same radio when it
+    /// is still free.
     /// </summary>
     public sealed class CalibrateScreen : MonoBehaviour
     {
@@ -32,6 +35,7 @@ namespace Fpv450.UI
         CalibrationStore _store;
         string _storeError;
         CalibrationWizard _wizard;
+        SwitchChoice _switch;
         ReportTap _tap;
         RadioReport _report, _latest = new RadioReport(0);
         bool _saved;
@@ -102,9 +106,22 @@ namespace Fpv450.UI
         {
             RadioReader r = Radio;
             _wizard = new CalibrationWizard(r.DeviceName, r.Source, r.Axes);
+            _saved = false;
+            Listen(r);
+        }
+
+        // The restart switch's choice, for the active profile.
+        void ChooseSwitch()
+        {
+            RadioReader r = Radio;
+            _switch = new SwitchChoice(_store.ActiveProfile, r.Axes);
+            Listen(r);
+        }
+
+        void Listen(RadioReader r)
+        {
             _tap = new ReportTap(r.Axes.Length);
             _report = new RadioReport(r.Axes.Length);
-            _saved = false;
             r.Tap = _tap;
         }
 
@@ -117,17 +134,28 @@ namespace Fpv450.UI
 
         void Update()
         {
-            if (_wizard == null || _tap == null) return;
+            if ((_wizard == null && _switch == null) || _tap == null) return;
             if (!Radio.Connected)
             {
                 Stop();
                 _wizard = null;
+                _switch = null;
+                return;
+            }
+            if (_switch != null)
+            {
+                while (_tap.TryRead(_report)) _switch.Feed(_report);
+                if (_switch.Step == SwitchStep.Done) SwitchChosen();
                 return;
             }
             while (_tap.TryRead(_report)) _wizard.Feed(_report);
             if (_wizard.Step != CalibrationStep.Done) return;
             Stop();
             if (_wizard.Failed) return;
+            // The same radio's restart switch carries over, if the new calibration left it free.
+            CalibrationProfile last = _store.ActiveProfile;
+            if (last != null && last.Device == _wizard.Profile.Device && SwitchChoice.Free(_wizard.Profile, last.Restart))
+                _wizard.Profile.Restart = last.Restart.Clone();
             _store.Put(_wizard.Profile);
             try
             {
@@ -141,6 +169,17 @@ namespace Fpv450.UI
             Radio.Map = new CalibratedStickMap(_wizard.Profile);
             _rename = _wizard.Profile.Name;
             _saved = true;
+        }
+
+        // The chosen switch into the active profile (and the finished wizard's copy of it, which a rename puts back), saved.
+        void SwitchChosen()
+        {
+            Stop();
+            CalibrationProfile p = _store.ActiveProfile;
+            p.Restart = _switch.Result.Clone();
+            if (_wizard != null && _wizard.Profile.Name == p.Name) _wizard.Profile.Restart = _switch.Result.Clone();
+            _switch = null;
+            Save();
         }
 
         // ---- Drawing ----
@@ -164,7 +203,7 @@ namespace Fpv450.UI
             float w = Mathf.Min(900, Screen.width - 32);
             GUILayout.BeginArea(new Rect((Screen.width - w) / 2, 24, w, Screen.height - 48));
             GUILayout.Label("Calibrate", _title);
-            if (_wizard != null && _wizard.Step != CalibrationStep.Done) _tab = 0;
+            if ((_wizard != null && _wizard.Step != CalibrationStep.Done) || _switch != null) _tab = 0;
             else
             {
                 GUILayout.BeginHorizontal(GUILayout.Width(320));
@@ -184,7 +223,8 @@ namespace Fpv450.UI
                 {
                     GUILayout.Label(r.DeviceName, _small);
                     GUILayout.Space(12);
-                    if (_wizard == null) Idle();
+                    if (_switch != null) Choosing();
+                    else if (_wizard == null) Idle();
                     else if (_wizard.Step != CalibrationStep.Done) Running();
                     else Finished();
                     GUILayout.Space(16);
@@ -201,6 +241,7 @@ namespace Fpv450.UI
         public void Back()
         {
             _wizard = null;
+            _switch = null;
             Stop();
             _rates.Save();
             Closed?.Invoke();
@@ -208,8 +249,32 @@ namespace Fpv450.UI
 
         void Idle()
         {
+            GUILayout.BeginHorizontal();
             if (GUILayout.Button("Start", GUILayout.Width(160), GUILayout.Height(40))) Begin();
+            SwitchButton(40);
+            GUILayout.EndHorizontal();
             Profiles();
+        }
+
+        // The restart switch's button, for the active profile (none before the first calibration).
+        void SwitchButton(float height)
+        {
+            if (_store.ActiveProfile == null) return;
+            GUILayout.Space(12);
+            if (GUILayout.Button("Restart switch", GUILayout.Width(200), GUILayout.Height(height))) ChooseSwitch();
+        }
+
+        void Choosing()
+        {
+            GUILayout.Label("Restart switch", _small);
+            GUILayout.Label(_switch.Prompt, _title);
+            GUILayout.Label("Only a switch the radio sends on a channel shows here: if yours does nothing, give it a channel in the radio's mixer.", _small);
+            GUILayout.Space(8);
+            if (GUILayout.Button("Cancel", GUILayout.Width(160), GUILayout.Height(36)))
+            {
+                Stop();
+                _switch = null;
+            }
         }
 
         void Running()
@@ -223,7 +288,7 @@ namespace Fpv450.UI
         {
             GUILayout.Label(_wizard.Prompt, _title);
             CalibrationProfile p = _wizard.Profile;
-            GUILayout.Label("Channels " + p.Order + ", arm on " + (p.Arm.Control == ArmControl.Axis ? "channel " + (p.Arm.Index + 1) : "button " + (p.Arm.Index + 1)) + ".", _text);
+            GUILayout.Label("Channels " + p.Order + ", arm on " + p.Arm.Where + ", " + RestartOn(p) + ".", _text);
             foreach (CalibrationFinding f in _wizard.Findings) GUILayout.Label("• " + f.Message, _text);
             string slow = SlowRadioNote(_wizard.UpdateUs);
             if (slow != null) GUILayout.Label("• " + slow, _text);
@@ -241,8 +306,13 @@ namespace Fpv450.UI
                 }
                 GUILayout.EndHorizontal();
             }
+            GUILayout.BeginHorizontal();
             if (GUILayout.Button("Calibrate again", GUILayout.Width(200), GUILayout.Height(36))) Begin();
+            if (_saved) SwitchButton(36);
+            GUILayout.EndHorizontal();
         }
+
+        static string RestartOn(CalibrationProfile p) => p.Restart.Control == ArmControl.None ? "no restart switch" : "restart on " + p.Restart.Where;
 
         void Profiles()
         {
@@ -252,7 +322,7 @@ namespace Fpv450.UI
             foreach (CalibrationProfile p in _store.Profiles)
             {
                 bool active = p.Name == _store.Active;
-                if (GUILayout.Toggle(active, " " + p.Name + "  (" + p.Order + ")", GUILayout.Height(26)) && !active)
+                if (GUILayout.Toggle(active, " " + p.Name + "  (" + p.Order + ", arm on " + p.Arm.Where + ", " + RestartOn(p) + ")", GUILayout.Height(26)) && !active)
                 {
                     _store.Active = p.Name;
                     Radio.Map = new CalibratedStickMap(p);
