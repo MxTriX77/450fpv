@@ -34,6 +34,10 @@ namespace Fpv450.App
         /// <summary>The flight's field, or null.</summary>
         public PlantField Field => _field;
 
+        /// <summary>The main thread's time in the field's Draw, ms, and the frame it was drawn in (the plant bench's).</summary>
+        public double DrawMs { get; private set; }
+        public int DrawFrame { get; private set; } = -1;
+
         static bool Arg()
         {
             string[] args = Environment.GetCommandLineArgs();
@@ -63,7 +67,10 @@ namespace Fpv450.App
             Transform eye = _flight.Eye;
             Camera camera = eye != null ? eye.GetComponent<Camera>() : null;
             if (camera == null || !camera.enabled) return; // a held field: nothing is drawn this frame
+            long start = System.Diagnostics.Stopwatch.GetTimestamp();
             bool drawing = _field.Draw(_flight.DrawnStep * FlightCore.Dt, eye.position);
+            DrawMs = (System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+            DrawFrame = Time.frameCount;
             if (drawing && !_drawing)
                 Debug.Log($"[Plants] the plants move in the flight's air: the wind's mean {_field.MeanMsPerSecond:0} ms a second of flight, the wash in {_field.WashTickMs:0.0} ms a tick");
             _drawing = drawing;

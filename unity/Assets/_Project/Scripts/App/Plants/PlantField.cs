@@ -290,7 +290,17 @@ namespace Fpv450.App
             }
         }
 
-        public double WashTickMs => (_washFine?.LastMs ?? 0) + (_washCoarse?.LastMs ?? 0);
+        public double WashTickMs { get; private set; }
+
+        /// <summary>The wash's last tick by part, ms: the fine grid's tick and export, the steady air, the coarse grid's tick and
+        /// export (a tick that catches up on several steps' ticks counts them all).</summary>
+        public double WashPartMs(int part) => _washParts[part];
+        readonly double[] _washParts = new double[5];
+
+        /// <summary>The flight time (s) of the wash state a wash level drew in the last frame (its tick's two states interpolated),
+        /// NaN before its first.</summary>
+        public double WashShown(int level) => _shown[level];
+        readonly double[] _shown = { double.NaN, double.NaN };
 
         /// <summary>
         /// The frame (render thread): the bends at flight time t (s), the near levels round the camera (world m), written to the
@@ -386,6 +396,7 @@ namespace Fpv450.App
                 }
                 double fraction = (t - (washes[l].Tick * FlightCore.Dt - washes[l].TickSeconds)) / washes[l].TickSeconds;
                 _fractions[l] = fraction < 0 ? 0 : fraction > 1 ? 1 : fraction;
+                _shown[l] = washes[l].Tick * FlightCore.Dt - washes[l].TickSeconds + _fractions[l] * washes[l].TickSeconds;
                 _starts[l] = (washes[l].StartI, washes[l].StartJ);
                 _boxes[l] = new Vector4((float)(washes[l].StartI * LevelCell[l]), (float)(washes[l].StartJ * LevelCell[l]), (float)LevelCell[l], LevelSize[l]);
             }
@@ -703,7 +714,6 @@ namespace Fpv450.App
             public readonly int Size;
             public readonly double Cell;
             public readonly ComputeBuffer Buffer;
-            public double LastMs;
             WashSnapshot _back, _ready, _front;
             bool _fresh, _shown;
             public WashSnapshot Shown => _front;
@@ -733,7 +743,6 @@ namespace Fpv450.App
             public void Export(PoseBuffer poses, IWorldQuery world, RotorAir line)
             {
                 if (!poses.TryRead(Grid.LastTick, out PoseFrame pose)) return;
-                var clock = Stopwatch.StartNew();
                 WashSnapshot s = _back;
                 s.Tick = Grid.LastTick;
                 s.TickSeconds = Grid.Tick;
@@ -786,7 +795,6 @@ namespace Fpv450.App
                     (_back, _ready) = (_ready, _back);
                     _fresh = true;
                 }
-                LastMs = clock.Elapsed.TotalMilliseconds;
             }
 
             // The render thread: the newest tick (a triple buffer: the helper never waits), uploaded once; null before the first.
@@ -923,20 +931,34 @@ namespace Fpv450.App
             }
         }
 
-        // The wash grids ticked to the newest published step, and a new tick's stands exported.
+        // The wash grids ticked to the newest published step, and a new tick's stands exported; each part timed.
         void WashStep(ref long last)
         {
             if (_fine == null && _coarse == null) return;
+            long t0 = Stopwatch.GetTimestamp();
             _fine?.Advance(_poses);
+            long t1 = Stopwatch.GetTimestamp();
             _coarse?.Advance(_poses);
+            long t2 = Stopwatch.GetTimestamp();
             long tick = (_fine ?? _coarse).LastTick;
             if (tick == last || tick < 0) return;
             RotorAir line = (_fine ?? _coarse).Rotors;
             _washFine?.Export(_poses, _world, line);
+            long t3 = Stopwatch.GetTimestamp();
             _washCoarse?.Export(_poses, _world, line);
+            long t4 = Stopwatch.GetTimestamp();
             _steady?.Export(_poses, _world);
+            long t5 = Stopwatch.GetTimestamp();
             last = tick;
+            _washParts[0] = Ms(t1 - t0);
+            _washParts[1] = Ms(t3 - t2);
+            _washParts[2] = Ms(t5 - t4);
+            _washParts[3] = Ms(t2 - t1);
+            _washParts[4] = Ms(t4 - t3);
+            WashTickMs = Ms(t5 - t0);
         }
+
+        static double Ms(long ticks) => ticks * 1000.0 / Stopwatch.Frequency;
 
         void WashLoop()
         {
