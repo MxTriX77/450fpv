@@ -19,6 +19,36 @@
       "scene": "Assets/Farm_land/Scenes/FarmLand.unity",
       "pose": "explore",
       "why": "the pilot asked for exactly Explore's spawn frame, so the pose is FarmlandExplore.Open's own and nothing here can drift from it"
+    },
+    {
+      "id": "hunter-09",
+      "scene": "Assets/_Project/Scenes/HunterTrack.unity",
+      "pose": "params",
+      "candidate": "A",
+      "why": "three candidates for the pilot to pick from (w20-hunter-track 1.5b, each looked at through the feed); the build shows A until they pick",
+      "candidates": [
+        {
+          "name": "A",
+          "position_m": [401.45, 22.2, 466.7],
+          "yaw_deg": 50.0,
+          "pitch_deg": 5.0,
+          "why": "the flight's start (1 m along the spawn's heading), 2.3 m up, looking down the line: the start's light gate 11 m ahead with the slalom of pylon pairs through it and the houses on the horizon (chosen over 3 trials lower, flatter or further back)"
+        },
+        {
+          "name": "B",
+          "position_m": [546.0, 34.0, 377.0],
+          "yaw_deg": 358.0,
+          "pitch_deg": 22.0,
+          "why": "14 m up, 27 m south-south-west of the stacked concrete towers: the towers at the right, the three ground frames at the lower left, the south house 66 m beyond them and the north houses on the horizon (chosen over 4 trials: further off, higher, and from the east and the south-east)"
+        },
+        {
+          "name": "C",
+          "position_m": [496.2, 24.4, 507.3],
+          "yaw_deg": 8.0,
+          "pitch_deg": 0.0,
+          "why": "4 m short of the raised square frame 31 m south of the north house, at its opening's height (4.4 m up), looking north through it: the north house 35 m away fills the frame, the north-east house with the tent and the tyres at the right (chosen over a frame at 1.9 m, whose houses read too small, and an arch towards the south house, half hidden by blocks)"
+        }
+      ]
     }
   ]
 }

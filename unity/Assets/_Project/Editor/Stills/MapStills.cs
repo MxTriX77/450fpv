@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Fpv450.App;
 using Fpv450.Assets;
 using Fpv450.Feed;
@@ -22,8 +23,10 @@ namespace Fpv450
     /// begins on). The feed's look is the rig's own (D-026). House (<c>test-range</c>) takes its pose from the
     /// params, under the range's start light (LookSetup's start preset, as its Start applies it). Village (<c>farmland</c>,
     /// pose <c>explore</c>) is Explore's spawn frame: <see cref="FarmlandExplore.Open"/> itself sets the scene and the
-    /// camera up, and the grass through the feed is FarmlandFeedDetail's. Each is drawn twice (the first warms the trees
-    /// and the shaders up) and read after the second.
+    /// camera up, and the grass through the feed is FarmlandFeedDetail's. ХАНТЕР-09 (<c>hunter-09</c>, w20-hunter-track
+    /// 1.5b) has several candidate poses for the pilot to pick from, under its rig's start light, its ground drawn as MapGround
+    /// draws it in play; the still is the candidate the params name. Each is drawn twice (the first warms the trees and the
+    /// shaders up) and read after the second.
     /// <para>
     /// <see cref="Build.Windows"/> renders them before it builds, into <c>unity/Generated/stills/&lt;id&gt;.png</c>,
     /// git-ignored and never pushed (D-089), and carries them into the player's <c>StreamingAssets/generated/stills/</c>,
@@ -51,9 +54,10 @@ namespace Fpv450
 
         sealed class MapParams
         {
-            public string Id, Scene, Pose;
+            public string Id, Scene, Pose, Name; // Name: the candidate's, when the pose is one of several
             public Vector3 Position;
             public float YawDeg, PitchDeg;
+            public readonly List<MapParams> Candidates = new List<MapParams>();
         }
 
         /// <summary>What a still was drawn from, and the image.</summary>
@@ -75,27 +79,45 @@ namespace Fpv450
         {
             string[] args = Environment.GetCommandLineArgs();
             int at = Array.IndexOf(args, "-out");
-            if (!RenderAll(at >= 0 && at + 1 < args.Length ? Path.GetFullPath(args[at + 1]) : Folder))
+            if (!RenderAll(at >= 0 && at + 1 < args.Length ? Path.GetFullPath(args[at + 1]) : Folder, false))
+                EditorApplication.Exit(1);
+        }
+
+        /// <summary>
+        /// Renders every candidate pose of the maps that have several (w20-hunter-track 1.5b, for the pilot to pick one)
+        /// into the folder after <c>-out</c>, as <c>&lt;id&gt;-&lt;name&gt;.png</c>:
+        /// <c>-batchmode -quit -executeMethod Fpv450.MapStills.Candidates -out &lt;folder&gt;</c>.
+        /// </summary>
+        public static void Candidates()
+        {
+            string[] args = Environment.GetCommandLineArgs();
+            int at = Array.IndexOf(args, "-out");
+            if (at < 0 || at + 1 >= args.Length)
+            {
+                Debug.LogError($"{Tag} usage: -executeMethod Fpv450.MapStills.Candidates -out <folder>");
+                EditorApplication.Exit(1);
+            }
+            else if (!RenderAll(Path.GetFullPath(args[at + 1]), true))
                 EditorApplication.Exit(1);
         }
 
         /// <summary>Renders every map's still into <see cref="Folder"/>; false, with the error logged, on any failure.
         /// Leaves an empty scene open.</summary>
-        public static bool RenderAll() => RenderAll(Folder);
+        public static bool RenderAll() => RenderAll(Folder, false);
 
-        static bool RenderAll(string folder)
+        static bool RenderAll(string folder, bool candidates)
         {
             try
             {
                 Params p = Load();
                 Directory.CreateDirectory(folder);
-                foreach (MapParams map in p.Maps)
+                foreach (MapParams map in candidates ? p.Maps.SelectMany(m => m.Candidates) : p.Maps)
                 {
                     Shot shot = Render(p, map);
-                    string png = Path.Combine(folder, map.Id + ".png");
+                    string png = Path.Combine(folder, (candidates ? map.Id + "-" + map.Name : map.Id) + ".png");
                     File.WriteAllBytes(png, shot.Image.EncodeToPNG());
                     Object.DestroyImmediate(shot.Image);
-                    Debug.Log($"{Tag} {map.Id}: {png} ({new FileInfo(png).Length} bytes), {p.Width}x{p.Height}, {Describe(shot)}");
+                    Debug.Log($"{Tag} {map.Id}{(map.Name != null ? " " + map.Name : "")}: {png} ({new FileInfo(png).Length} bytes), {p.Width}x{p.Height}, {Describe(shot)}");
                 }
                 return true;
             }
@@ -208,18 +230,40 @@ namespace Fpv450
                 Dictionary<string, object> m = Json.Obj(entry, ParamsPath + " maps[]");
                 string what = $"{ParamsPath} {Json.Str(m, "id", ParamsPath)}";
                 var map = new MapParams { Id = Json.Str(m, "id", what), Scene = Json.Str(m, "scene", what), Pose = Json.Str(m, "pose", what) };
-                if (map.Pose == ParamsPose)
+                if (map.Pose == ParamsPose && m.ContainsKey("candidates"))
                 {
-                    map.Position = Json.Vec3(m, "position_m", what);
-                    map.YawDeg = Json.Num(m, "yaw_deg", what);
-                    map.PitchDeg = Json.Num(m, "pitch_deg", what);
+                    // Several poses, each saying why; the still is the one "candidate" names (the pilot's pick).
+                    foreach (object item in Json.Arr(m, "candidates", what))
+                    {
+                        Dictionary<string, object> row = Json.Obj(item, what + " candidates[]");
+                        var candidate = new MapParams { Id = map.Id, Scene = map.Scene, Pose = ParamsPose, Name = Json.Str(row, "name", what) };
+                        ReadPose(row, candidate, $"{what} candidate {candidate.Name}");
+                        Json.Str(row, "why", $"{what} candidate {candidate.Name}");
+                        map.Candidates.Add(candidate);
+                    }
+                    string use = Json.Str(m, "candidate", what);
+                    MapParams chosen = map.Candidates.Find(c => c.Name == use)
+                                       ?? throw new FormatException($"{what}: no candidate '{use}'");
+                    map.Name = use;
+                    map.Position = chosen.Position;
+                    map.YawDeg = chosen.YawDeg;
+                    map.PitchDeg = chosen.PitchDeg;
                 }
+                else if (map.Pose == ParamsPose)
+                    ReadPose(m, map, what);
                 else if (map.Pose != ExplorePose)
                     throw new FormatException($"{what}: pose '{map.Pose}' is neither '{ParamsPose}' nor '{ExplorePose}'");
                 Json.Str(m, "why", what); // each pose says why
                 p.Maps.Add(map);
             }
             return p;
+        }
+
+        static void ReadPose(Dictionary<string, object> row, MapParams map, string what)
+        {
+            map.Position = Json.Vec3(row, "position_m", what);
+            map.YawDeg = Json.Num(row, "yaw_deg", what);
+            map.PitchDeg = Json.Num(row, "pitch_deg", what);
         }
 
         /// <summary>The map's still: its scene opened alone, the camera at the map's pose, through the noclip rig.</summary>
@@ -233,6 +277,9 @@ namespace Fpv450
                     throw new InvalidOperationException("FarmlandExplore.Open failed");
                 return Camera.main;
             }
+            // A map package's tile (ХАНТЕР-09's) builds its ground and grass in Awake, which edit mode never calls.
+            foreach (MapGround ground in Object.FindObjectsByType<MapGround>(FindObjectsSortMode.None))
+                ground.Draw();
             LookSetup look = Object.FindFirstObjectByType<LookSetup>();
             if (look != null)
                 look.Select(look.startPreset); // the range's light as its Start applies it

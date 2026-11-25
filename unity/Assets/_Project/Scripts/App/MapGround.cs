@@ -42,7 +42,11 @@ namespace Fpv450.App
         TerrainData _data;
         TerrainLayer _layer;
 
-        void Awake()
+        void Awake() => Draw();
+
+        /// <summary>Builds the tile: Awake in play, and MapStills for the still of a scene opened in edit mode, which
+        /// calls no Awake.</summary>
+        public void Draw()
         {
             byte[] bytes = File.ReadAllBytes(AppData.File(heightsFile));
             int res = Mathf.RoundToInt(Mathf.Sqrt(bytes.Length / 2));
