@@ -190,8 +190,10 @@ namespace Fpv450.Sim.Contact
 
         readonly StemState[] _st = new StemState[StateSlots];
 
-        // The field's squares: key, the ground's height and normal at the centre, the stems per m² reaching h_ref per layer.
-        readonly long[] _qKey = new long[SquareSlots];
+        // The field's squares: key, the ground's height and normal at the centre, the stems per m² reaching h_ref per layer; when
+        // each was last asked for (a count of the asks), so a full probe takes the one asked for longest ago.
+        readonly long[] _qKey = new long[SquareSlots], _qAsked = new long[SquareSlots];
+        long _qAsks;
         readonly double[] _qGround = new double[SquareSlots], _qNx = new double[SquareSlots], _qNz = new double[SquareSlots], _qNy = new double[SquareSlots];
         readonly double[] _qDensity = new double[SquareSlots * Layers];
 
@@ -356,25 +358,35 @@ namespace Fpv450.Sim.Contact
         // ---- the field's squares and layers ---------------------------------------------------------------------------------
 
         // The square (ix, iz)'s slot, asked of the world if not yet known: its ground and the stems per m² reaching h_ref per layer.
+        // A full probe gives up the square asked for longest ago (one still about the drone is asked for at every rebuild). Which
+        // square a slot holds changes no value: a square's are functions of (ix, iz) alone, the layers' kind and tallest it writes
+        // are the field's per layer, and its asks after the first meet no layer that is new.
         int Square(int ix, int iz)
         {
             long key = ((long)ix << 32) ^ (uint)iz;
             int home = (int)(FlightRandom.Mix64((ulong)key) & (SquareSlots - 1));
             int at = home;
+            _qAsks++;
             for (int p = 0; p < SquareProbe; p++)
             {
                 int i = (home + p) & (SquareSlots - 1);
-                if (_qKey[i] == key) return i;
+                if (_qKey[i] == key)
+                {
+                    _qAsked[i] = _qAsks;
+                    return i;
+                }
                 if (_qKey[i] == long.MinValue)
                 {
                     at = i;
                     break;
                 }
+                if (_qAsked[i] < _qAsked[at]) at = i;
             }
             var centre = new XZ((ix + 0.5) * StemSquare, (iz + 0.5) * StemSquare);
             _point[0] = centre;
             _world.SampleGround(_point, _pointGround);
             _qKey[at] = key;
+            _qAsked[at] = _qAsks;
             _qGround[at] = _pointGround[0].Height;
             Double3 n = _pointGround[0].Normal;
             bool flat = !(n.Y > 0.1);
