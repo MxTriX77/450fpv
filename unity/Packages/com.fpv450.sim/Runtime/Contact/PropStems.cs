@@ -195,6 +195,24 @@ namespace Fpv450.Sim.Contact
         readonly double[] _qGround = new double[SquareSlots], _qNx = new double[SquareSlots], _qNz = new double[SquareSlots], _qNy = new double[SquareSlots];
         readonly double[] _qDensity = new double[SquareSlots * Layers];
 
+        // The squares' placed stems (w16-plants-in-the-air 1.5's follow-up): each square's field stems as the caches place them,
+        // kept with its slot, so a rebuild copies them instead of placing them again. Per square and layer two runs in the pool,
+        // its stems reaching h_ref and its shorter ones (the parts'), each in its square's order: the candidates a cache has
+        // visited (hash, base x and z, drawn length), and each one's stalk and natural tip once a cache has kept it (Id 0 before).
+        // An entry is the placing's own function of the same inputs (the square's ground and stems per m², the layer's tables,
+        // fixed once met), so a cache built from the store is the one placed, bit for bit. The pool is emptied whole when a run
+        // does not fit; a square given another key drops its runs. PlacedSlots is numerical (two parts' caches' worth of the
+        // densest cells' squares); the last slot is the spare a run larger than the pool passes through.
+        const int PlacedSlots = 16384;
+        Stalk[] _plStalk;
+        Double3[] _plTip;
+        ulong[] _plId;
+        double[] _plX, _plZ, _plLength;
+        int[] _qStore;                                // the pool's generation the square's runs are of (0 none)
+        int[] _runAt, _runCount, _runFill, _runKind;  // per (square, layer, run): first entry, stems, entries filled, cover kind
+        int _plUsed, _plGeneration = 1;
+        double _plDiameterScale = double.NaN;
+
         // The layers: kind, tallest top, and the share of stems at h_ref still reaching h_ref + j·StemReachStep.
         readonly StemKind[] _layerKind = new StemKind[Layers];
         readonly double[] _layerTop = new double[Layers];
@@ -226,6 +244,17 @@ namespace Fpv450.Sim.Contact
             for (int i = 0; i < SquareSlots; i++) _qKey[i] = long.MinValue;
             InitParts();
             if (!_stemsOn) return;
+            _plStalk = new Stalk[PlacedSlots + 1];
+            _plTip = new Double3[PlacedSlots + 1];
+            _plId = new ulong[PlacedSlots + 1];
+            _plX = new double[PlacedSlots + 1];
+            _plZ = new double[PlacedSlots + 1];
+            _plLength = new double[PlacedSlots + 1];
+            _qStore = new int[SquareSlots];
+            _runAt = new int[SquareSlots * Layers * 2];
+            _runCount = new int[SquareSlots * Layers * 2];
+            _runFill = new int[SquareSlots * Layers * 2];
+            _runKind = new int[SquareSlots * Layers * 2];
             CoverRow[] rows = _spec.Surfaces.Cover;
             for (int k = 0; k < rows.Length && k < _coverSets.Length; k++) _coverSets[k] = _contacts.Cover((CoverKind)k);
         }
@@ -353,6 +382,7 @@ namespace Fpv450.Sim.Contact
             _qNz[at] = flat ? 0 : n.Z;
             _qNy[at] = flat ? 1 : n.Y;
             _qHas0[at] = false; // its stems from the ground up are asked for only by the parts (PartStems)
+            _qStore[at] = 0; // and its placed stems are another square's
             for (int l = 0; l < Layers; l++) _qDensity[at * Layers + l] = 0;
             int count = _world.StemsNear(centre, PointRadius, StemReference, _patches);
             if (count > _patches.Length) count = _patches.Length;
@@ -417,6 +447,97 @@ namespace Fpv450.Sim.Contact
             return StemReference + (ReachEntries - 1) * StemReachStep;
         }
 
+        // ---- the squares' placed stems ----------------------------------------------------------------------------------------
+
+        // Square q's run of layer l (r 0: its stems reaching h_ref; 1: its shorter ones) of K stems of cover kind k: its index, its
+        // entries reserved in the pool now if it has none of this pool's, or of another count or kind; −1 for a run larger than
+        // the pool. A sweep's diameter scale other than the pool's empties it (its density scale enters by K).
+        int Run(int q, int l, int r, int K, int k)
+        {
+            if (StemDiameterScale != _plDiameterScale)
+            {
+                _plDiameterScale = StemDiameterScale;
+                _plGeneration++;
+                _plUsed = 0;
+            }
+            if (_qStore[q] != _plGeneration) Forget(q);
+            int i = (q * Layers + l) * 2 + r;
+            if (_runCount[i] == K && _runKind[i] == k) return i;
+            if (K > PlacedSlots) return -1;
+            if (_plUsed + K > PlacedSlots)
+            {
+                _plGeneration++;
+                _plUsed = 0;
+                Forget(q);
+            }
+            _runAt[i] = _plUsed;
+            _runCount[i] = K;
+            _runKind[i] = k;
+            _runFill[i] = 0;
+            _plUsed += K;
+            return i;
+        }
+
+        // Square q's runs dropped, of the pool's generation now.
+        void Forget(int q)
+        {
+            _qStore[q] = _plGeneration;
+            for (int i = q * Layers * 2; i < (q + 1) * Layers * 2; i++) _runCount[i] = -1;
+        }
+
+        // Run i's entry s, filled now if the run has not reached it (a cache visits a run's stems in order, so s is at most its
+        // fill): stem s of the K of layer l in the square (ix, iz) from the hash seed, its base's x and z and its drawn length
+        // (shortStem: one under h_ref, PartStems.ShortLengthAt), as PropStems places it. A run the pool cannot hold (i −1) passes
+        // each of its stems through the spare slot.
+        int Entry(int i, int s, ulong seed, int ix, int iz, int l, int K, bool shortStem)
+        {
+            int e = PlacedSlots;
+            if (i >= 0)
+            {
+                e = _runAt[i] + s;
+                if (s < _runFill[i]) return e;
+                _runFill[i] = s + 1;
+            }
+            ulong id = FlightRandom.Mix64(unchecked(seed + (ulong)(s + 1) * 0xD1B54A32D192ED03UL)) | 1;
+            _plId[e] = id;
+            _plX[e] = (ix + Uniform(id, 0)) * StemSquare;
+            _plZ[e] = (iz + Uniform(id, 1)) * StemSquare;
+            _plLength[e] = shortStem ? ShortLengthAt(l, (s + Uniform(id, 2)) / K) : LengthAt(l, (s + Uniform(id, 2)) / K);
+            _plStalk[e].Id = 0;
+            return e;
+        }
+
+        // Entry e's stalk, a field stem of the square (ix, iz) (slot q) of cover kind k, placed now if it is not yet, as the caches
+        // place it (its state's slot −1); its natural link's tip with it.
+        ref Stalk Placed(int e, int q, int ix, int iz, int k)
+        {
+            ref Stalk st = ref _plStalk[e];
+            if (st.Id != 0) return ref st;
+            CoverSet set = _coverSets[k];
+            ulong id = _plId[e];
+            double x = _plX[e], z = _plZ[e], length = _plLength[e];
+            double phi0 = StemNaturalLean * Uniform(id, 3), azimuth = TwoPi * Uniform(id, 4);
+            double cx = (ix + 0.5) * StemSquare, cz = (iz + 0.5) * StemSquare;
+            double y = _qGround[q] - (_qNx[q] * (x - cx) + _qNz[q] * (z - cz)) / _qNy[q];
+            // d = d₁·L^(1/1.53): the kind's 1 m stem's diameter (the row's diameter_m) at the stem's own length.
+            double d = set.Diameter * StemDiameterScale * DetMath.Exp(StemAllometry * DetMath.Log(length));
+            DetMath.SinCos(azimuth, out double sa, out double ca);
+            Tissue t = TissueOf(set, d, 0.5 * (set.ModulusMin + set.ModulusMax), (ushort)(k + 1));
+            st.Base = new Double3(x, y, z);
+            st.Lean = new Double3(ca, 0, sa);
+            st.Length = length;
+            st.Rise = length;
+            st.Phi0 = phi0;
+            DetMath.SinCos(phi0, out double sp, out st.CosPhi0);
+            st.T = t;
+            st.MuG8 = t.Mu * Gravity / (8 * t.EI);
+            st.Tau0 = 1 / (1.875 * 1.875 * DetMath.Sqrt(t.EI / t.Mu));
+            st.Id = id;
+            st.Slot = -1;
+            _plTip[e] = st.Base + new Double3(ca * sp * length, st.CosPhi0 * length, sa * sp * length);
+            return ref st;
+        }
+
         // ---- the caches -------------------------------------------------------------------------------------------------------
 
         // Rotor c's cache about hub: the field's stems based within the disc and the refresh's margin (where the world has a
@@ -444,21 +565,16 @@ namespace Fpv450.Sim.Contact
                         ulong cell = FlightRandom.Mix64(unchecked(((ulong)(uint)ix << 32) ^ (uint)iz ^ ((ulong)l << 59)));
                         double count = density * StemSquare * StemSquare;
                         int K = (int)(count + Uniform(cell, 0));
+                        // The square's stems as placed (its store), each kept here with its state's slot.
+                        int run = Run(q, l, 0, K, k);
                         for (int s = 0; s < K && m < StemCacheSize; s++)
                         {
-                            ulong id = FlightRandom.Mix64(unchecked(cell + (ulong)(s + 1) * 0xD1B54A32D192ED03UL)) | 1;
-                            double x = (ix + Uniform(id, 0)) * StemSquare, z = (iz + Uniform(id, 1)) * StemSquare;
-                            double dx = x - hub.X, dz = z - hub.Z;
+                            int e = Entry(run, s, cell, ix, iz, l, K, false);
+                            double dx = _plX[e] - hub.X, dz = _plZ[e] - hub.Z;
                             if (dx * dx + dz * dz > reach2) continue;
-                            double length = LengthAt(l, (s + Uniform(id, 2)) / K);
-                            double phi0 = StemNaturalLean * Uniform(id, 3), azimuth = TwoPi * Uniform(id, 4);
-                            double cx = (ix + 0.5) * StemSquare, cz = (iz + 0.5) * StemSquare;
-                            double y = _qGround[q] - (_qNx[q] * (x - cx) + _qNz[q] * (z - cz)) / _qNy[q];
-                            // d = d₁·L^(1/1.53): the kind's 1 m stem's diameter (the row's diameter_m) at the stem's own length.
-                            double d = set.Diameter * StemDiameterScale * DetMath.Exp(StemAllometry * DetMath.Log(length));
-                            DetMath.SinCos(azimuth, out double sa, out double ca);
-                            Add(ref _stalks[at + m++], id, new Double3(x, y, z), new Double3(ca, 0, sa), length, length, phi0,
-                                TissueOf(set, d, 0.5 * (set.ModulusMin + set.ModulusMax), (ushort)(k + 1)), step);
+                            ref Stalk st = ref _stalks[at + m++];
+                            st = Placed(e, q, ix, iz, k);
+                            st.Slot = State(st.Id, st.Length, st.Phi0, step);
                         }
                     }
                 }

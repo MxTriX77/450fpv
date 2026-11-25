@@ -292,17 +292,20 @@ namespace Fpv450.Sim.Contact
                             double reachLayer = near + DetMath.Max(_layerTop[l], StemReference) * lean;
                             if (off2 > reachLayer * reachLayer) continue;
                             ulong cell = FlightRandom.Mix64(unchecked(((ulong)(uint)ix << 32) ^ (uint)iz ^ ((ulong)l << 59)));
-                            // The props' own stems (PropStems' Cache, the same hash and order: the tallest first).
+                            // The props' own stems (PropStems' Cache, the same hash and order: the tallest first), from the square's
+                            // store: those whose base is within the layer's reach, down to the first too short to reach.
                             if (density > 0 && _layerReach[l])
                             {
                                 int K = (int)(density * StemSquare * StemSquare + Uniform(cell, 0));
+                                int run = Run(q, l, 0, K, k);
                                 for (int s = 0; s < K && m < PartCacheSize; s++)
                                 {
-                                    ulong id = FlightRandom.Mix64(unchecked(cell + (ulong)(s + 1) * 0xD1B54A32D192ED03UL)) | 1;
-                                    if (!Within(id, ix, iz, centre, reachLayer)) continue;
-                                    double length = LengthAt(l, (s + Uniform(id, 2)) / K);
+                                    int e = Entry(run, s, cell, ix, iz, l, K, false);
+                                    double dx = _plX[e] - centre.X, dz = _plZ[e] - centre.Z, d2 = dx * dx + dz * dz;
+                                    if (d2 > reachLayer * reachLayer) continue;
+                                    double length = _plLength[e];
                                     if (length < need) break;
-                                    PlaceField(ref m, id, ix, iz, q, length, set, k, centre, near, lean);
+                                    Keep(ref m, e, q, ix, iz, k, d2, near + length * lean);
                                 }
                             }
                             // The shorter ones (the field's at 0 m less at h_ref), by the same law from their own hash.
@@ -311,13 +314,16 @@ namespace Fpv450.Sim.Contact
                             if (!(extra > 0)) continue;
                             ulong low0 = FlightRandom.Mix64(cell ^ 0x5348_4F52_5453_5445UL);
                             int Ks = (int)(extra * StemSquare * StemSquare + Uniform(low0, 0));
+                            int shortRun = Run(q, l, 1, Ks, k);
+                            double within = near + StemReference * lean;
                             for (int s = 0; s < Ks && m < PartCacheSize; s++)
                             {
-                                ulong id = FlightRandom.Mix64(unchecked(low0 + (ulong)(s + 1) * 0xD1B54A32D192ED03UL)) | 1;
-                                if (!Within(id, ix, iz, centre, near + StemReference * lean)) continue;
-                                double length = ShortLengthAt(l, (s + Uniform(id, 2)) / Ks);
+                                int e = Entry(shortRun, s, low0, ix, iz, l, Ks, true);
+                                double dx = _plX[e] - centre.X, dz = _plZ[e] - centre.Z, d2 = dx * dx + dz * dz;
+                                if (d2 > within * within) continue;
+                                double length = _plLength[e];
                                 if (length < need || !(length > 0)) break;
-                                PlaceField(ref m, id, ix, iz, q, length, set, k, centre, near, lean);
+                                Keep(ref m, e, q, ix, iz, k, d2, near + length * lean);
                             }
                         }
                     }
@@ -355,27 +361,14 @@ namespace Fpv450.Sim.Contact
             _pCount = m;
         }
 
-        // Whether stem id of the square (ix, iz) has its base within reach of centre (in x–z), placed as PropStems places it.
-        static bool Within(ulong id, int ix, int iz, Double3 centre, double reach)
+        // Store entry e (a field stem of the square (ix, iz), slot q, of cover kind k, its base d2 m² from the centre in x–z) kept if
+        // its base is within the drone's reach and its own lean's (reach): its stalk and natural tip copied in.
+        void Keep(ref int m, int e, int q, int ix, int iz, int k, double d2, double reach)
         {
-            double dx = (ix + Uniform(id, 0)) * StemSquare - centre.X, dz = (iz + Uniform(id, 1)) * StemSquare - centre.Z;
-            return !(dx * dx + dz * dz > reach * reach);
-        }
-
-        // A field stem of the square (ix, iz) (slot q) of layer kind k, placed as PropStems places it, kept if its base is within
-        // the drone's reach (near) and its own lean's.
-        void PlaceField(ref int m, ulong id, int ix, int iz, int q, double length, in CoverSet set, int k, Double3 centre, double near, double lean)
-        {
-            double x = (ix + Uniform(id, 0)) * StemSquare, z = (iz + Uniform(id, 1)) * StemSquare;
-            double dx = x - centre.X, dz = z - centre.Z, reach = near + length * lean;
-            if (dx * dx + dz * dz > reach * reach) return;
-            double phi0 = StemNaturalLean * Uniform(id, 3), azimuth = TwoPi * Uniform(id, 4);
-            double cx = (ix + 0.5) * StemSquare, cz = (iz + 0.5) * StemSquare;
-            double y = _qGround[q] - (_qNx[q] * (x - cx) + _qNz[q] * (z - cz)) / _qNy[q];
-            double d = set.Diameter * StemDiameterScale * DetMath.Exp(StemAllometry * DetMath.Log(length));
-            DetMath.SinCos(azimuth, out double sa, out double ca);
-            Tissue t = TissueOf(set, d, 0.5 * (set.ModulusMin + set.ModulusMax), (ushort)(k + 1));
-            Place(ref m, id, new Double3(x, y, z), new Double3(ca, 0, sa), length, length, phi0, t);
+            if (d2 > reach * reach) return;
+            _pStalk[m] = Placed(e, q, ix, iz, k);
+            _pTip[m] = _plTip[e];
+            m++;
         }
 
         void Place(ref int m, ulong id, Double3 basePoint, Double3 lean, double length, double rise, double phi0, in Tissue t)
