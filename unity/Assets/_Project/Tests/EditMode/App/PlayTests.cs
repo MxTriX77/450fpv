@@ -77,6 +77,7 @@ namespace Fpv450.Tests.App
         {
             Assert.That(PlayMaps.StillPath(PlayMaps.House), Is.EqualTo(Path.Combine(AppData.Root, "unity", "Generated", "stills", "test-range.png")));
             Assert.That(PlayMaps.StillPath(PlayMaps.Village), Is.EqualTo(Path.Combine(AppData.Root, "unity", "Generated", "stills", "farmland.png")));
+            Assert.That(PlayMaps.StillPath(PlayMaps.Hunter), Is.EqualTo(Path.Combine(AppData.Root, "unity", "Generated", "stills", "hunter-09.png")));
             string dir = Path.Combine(Path.GetTempPath(), "fpv450-stills-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);
             var drawn = new Texture2D(64, 36, TextureFormat.RGBA32, false);
