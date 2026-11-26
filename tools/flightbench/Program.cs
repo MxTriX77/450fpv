@@ -12,7 +12,8 @@ namespace Fpv450.FlightBench
     // them, failing if one misses. `--landing` holds the touchdowns' toppling and the coil's rock against rigid-body
     // mechanics (1.6c, D-067). `--factory [seeds] [first]` flies the factory imbalance's baseline shake on 20 000 seeds by
     // default (p7f-damage 1.2). `--damage [seeds]` flies the damage harness's first cells along H01_D's wall, 8 seeds a cell by
-    // default (p7f-damage 1.3). `--legs [seeds]` flies the legs' outcomes over touchdown speed, roll and drift, 40 seeds a
+    // default (p7f-damage 1.3). `--floor [seconds]` flies full throttle under a timber floor until a motor fails, 180 s by default
+    // (w20-hunter-track design 11). `--legs [seeds]` flies the legs' outcomes over touchdown speed, roll and drift, 40 seeds a
     // cell by default, with the clamp's preload and the tube's yield held at their bounds and the known-wrong models
     // (p7g-legs 1.4). `--probe` runs the world-query contact probe (p6-world-query-gallery 1.2); `--probe
     // --break <piece>` runs it with a known-wrong piece, which must fail. `--rate-tracking` flies stick steps on the session's
@@ -139,6 +140,15 @@ namespace Fpv450.FlightBench
                     return FactoryCase.Run(seeds, first) ? 0 : 1;
                 }
             }
+            if (args.Length >= 1 && args.Length <= 2 && args[0] == "--floor")
+            {
+                double seconds = 180;
+                if (args.Length < 2 || double.TryParse(args[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out seconds) && seconds >= 10)
+                {
+                    Console.WriteLine("flightbench: full throttle under a timber floor (w20-hunter-track design 11), " + seconds + " s");
+                    return FloorCase.Run(seconds) ? 0 : 1;
+                }
+            }
             if (args.Length >= 1 && args.Length <= 2 && args[0] == "--damage")
             {
                 int seeds = 8;
@@ -230,7 +240,7 @@ namespace Fpv450.FlightBench
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step [calm | windy | severe]] | --turns [calm | windy | severe] | --scenarios | --shake [first seed] | --contacts | --slopes | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --tether [seeds] | --cuts [seeds] | --rate-log <log>... | --replay-step <log> [--from S] [--to S] | --sweep <map> <points> <seed> [...]");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step [calm | windy | severe]] | --turns [calm | windy | severe] | --scenarios | --shake [first seed] | --contacts | --slopes | --landing | --factory [seeds] [first seed] | --damage [seeds] | --floor [seconds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --tether [seeds] | --cuts [seeds] | --rate-log <log>... | --replay-step <log> [--from S] [--to S] | --sweep <map> <points> <seed> [...]");
             return 2;
         }
     }
