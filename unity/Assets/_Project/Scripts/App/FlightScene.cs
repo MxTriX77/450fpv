@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Fpv450.App.Session;
 using Fpv450.Feed;
 using Fpv450.Fiber;
+using Fpv450.Input.Radio;
 using Fpv450.Sim;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
@@ -39,7 +40,8 @@ namespace Fpv450.App
     ///   which shows only once the pilot has ended the flight (D-063); nothing else is drawn over a flight
     /// V switches between the FPV view and the third-person chase view in every build (D-055); only the camera moves,
     /// still through the feed and its OSD. Review builds add F (the feed off and on). R restarts the flight at once from
-    /// the same setup and start point; C turns the feed's noise and X Betaflight's stick overlay on the OSD off and on,
+    /// the same setup and start point, and so does a flip of the radio's restart switch (the pilot, 2026-11-25: the active
+    /// profile's, chosen in Calibrate; SwitchFlip); C turns the feed's noise and X Betaflight's stick overlay on the OSD off and on,
     /// each for the rest of the app's run (D-078).
     /// In the FPV view the camera takes each PAL field at its own sim time (p7e-camera-feel): the scene is drawn once per
     /// whole field, with the camera at the field's reference instant on the flexing frame (FieldCamera), each line read
@@ -133,6 +135,8 @@ namespace Fpv450.App
         DroneSpec _spec;
         DroneModels _models;
         bool _armedOnce;
+        readonly SwitchFlip _restartFlip = new SwitchFlip();
+        RadioReport _radio = new RadioReport(0);
         Task<PostFlight> _reading;
         int _readFor;
         List<string> _lines;
@@ -577,15 +581,35 @@ namespace Fpv450.App
         }
 
         // This frame's keys over the flight (LateUpdate reads them first): V the view in every build (D-055), F the feed
-        // in review builds, R the restart, C the noise and X the OSD's sticks (D-078). None reaches the flight, whose keys
-        // are KeyboardFallback's.
+        // in review builds, R the restart, C the noise and X the OSD's sticks (D-078), and the radio's restart switch,
+        // which does what R does. None reaches the flight, whose keys are KeyboardFallback's.
         void Keys()
         {
+            bool restart = RestartFlipped();
             Keyboard k = Keyboard.current;
-            if (k == null || Covered) return;
-            Pressed(k[ViewKey].wasPressedThisFrame, AppData.Review && k[FeedKey].wasPressedThisFrame, k[NoiseKey].wasPressedThisFrame,
-                k[SticksKey].wasPressedThisFrame);
-            if (k[RestartKey].wasPressedThisFrame) Restart();
+            if (Covered) return;
+            if (k != null)
+            {
+                Pressed(k[ViewKey].wasPressedThisFrame, AppData.Review && k[FeedKey].wasPressedThisFrame, k[NoiseKey].wasPressedThisFrame,
+                    k[SticksKey].wasPressedThisFrame);
+                restart |= k[RestartKey].wasPressedThisFrame;
+            }
+            if (restart) Restart();
+        }
+
+        // The restart switch (the pilot, 2026-11-25): the radio's latest report against the flight's profile's switch, once
+        // a frame, covered or not, so a flip made under the setup is not taken when it closes. Never the flight's input.
+        bool RestartFlipped()
+        {
+            RadioReader radio = AppRadio.Reader;
+            ArmCalibration binding = Host.Inputs?.Calibration?.Restart;
+            if (binding == null || binding.Control == ArmControl.None || !radio.Connected)
+            {
+                _restartFlip.Reset();
+                return false;
+            }
+            if (_radio.Axes.Length != radio.Axes.Length) _radio = new RadioReport(radio.Axes.Length);
+            return radio.ReadLatest(_radio) && _restartFlip.Feed(_radio, binding);
         }
 
         /// <summary>
