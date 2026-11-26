@@ -1042,3 +1042,10 @@ The pilot, 2026-11-21, on the houses the race flies through, which their track f
 - **Built:** three proper buildings of our own design, with real wall thickness, rooms, windows, doors and roofs, at the dimensions measured from the pilot's file and clips X and Y.
 - **Materials:** the village map's house materials, by reference. Their textures stay in the local store (D-089). Nothing of the other game's models or textures is used.
 - **The quad fits, tightly (derived):** it is 0.574 m wide and 0.342 m tall with legs and 1 kg. 20 of the 23 marked openings pass it level, and the windows of about 0.62 × 0.45 m leave 23–28 mm a side. Three are too small as marked. Unless the clips show them larger, they open only as far as the quad needs, with the same margin.
+
+## D-125 The throttle curve is flat at the 2 kg hover, on trial · Accepted
+The pilot, 2026-11-26: "i cant seem to find that sweet throttle stick position when trying to slowly fly through objects sometimes… make it a bit more stable. however, in real life it does happen often… there should be some balance. im more than sure it's the settings, not a faulty physics engine." Then, offered the trade: "Try 52/50".
+- **Measured** (`docs/reference-notes/fc-profiles.md` §2c): the physics' own unsteadiness near the ground is realistic (0.8 % of weight fast, 0.2–0.43 % slow, under 1 % as published), and the pilot's thumb moves the drone over 10× more. The settings are the lever, as the pilot said.
+- **The curve:** `thr_mid` 52 at the 2 kg hover and `thr_expo` 50, the Betaflight way. At the hover the climb per 1 % of stick halves against the pilot's 78/36 (0.124 against 0.206 m/s after 1 s). It is the app's default, and the pilot's saved profile now holds it (the previous file kept beside it as `fc-settings.json.before-52-50`).
+- **The cost the pilot accepted:** with 2 kg the hover stick moves from about 44 % to 53.5 % and liftoff to about 51 %, past D-066's 30–45 %, which still holds at 0 and 1 kg. This supersedes D-076's throttle default in part.
+- **On trial:** if the pilot goes back, 78/36 is two fields on the Rates tab.
