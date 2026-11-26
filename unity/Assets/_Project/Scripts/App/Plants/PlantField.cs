@@ -22,8 +22,10 @@ namespace Fpv450.App
     ///   obstacle height at each texel near the camera (their phase is anchored at the world's origin, so an interpolated height
     ///   would scramble it).
     /// - **The wash** (PlantWash, 1.2's grids): a fine (24 × 5 cm) and a coarse (32 × 15 cm) grid round the drone for the grass
-    ///   classes' middle culms, ticked from the published poses on a second helper thread; each tick's stands go to the GPU, whose texels are the
-    ///   nodes, and the gusts are linearised about the wash's bend in the wash's air (PlantAir.Sample's arithmetic).
+    ///   classes' middle culms, ticked from the published poses on two more helper threads (the fine grid with the steady air
+    ///   beyond the grids, the coarse grid), so no frame waits on a tick; each tick's stands go to the GPU, whose texels are the
+    ///   nodes, and the gusts are linearised about the wash's bend in the wash's air (PlantAir.Sample's arithmetic). A frame draws
+    ///   the newest finished tick at or before its field, one tick behind it, between the tick's two states.
     /// - **The levels**, finest first: the two wash grids, near (96 × 0.5 m), mid (96 × 2 m) and far (64 × 8 m) round the camera.
     /// Nothing here touches the flight: the helpers read the flight's wind field (its immutable layers and its wake grid, as
     /// 1.2 does) and the published poses; the flight's step never waits on them (PLT-04).
@@ -122,16 +124,17 @@ namespace Fpv450.App
         readonly Vector4[] _boxes = new Vector4[Levels];
 
         // The helpers, and the camera they centre on.
-        readonly Thread _meanThread, _washThread;
+        readonly Thread _meanThread;
+        readonly Thread[] _washThreads;
         readonly bool _threads;
         volatile bool _stop;
         long _nowBits, _cameraXBits, _cameraZBits, _velocityXBits, _velocityZBits;
-        long _washLast = -1;
+        readonly long[] _washLast = { -1, -1 };
         double _lastT = double.NaN;
         Vector3 _lastCamera, _velocity;
 
-        /// <param name="threads">False: no helper threads; each Draw computes the snapshots its time needs and ticks the wash itself
-        /// first (the EditMode suite's port check, frame by frame).</param>
+        /// <param name="threads">False: no helper threads; each Draw computes the snapshots its time needs and ticks the wash grids
+        /// itself first, one after the other (the EditMode suite's port check, frame by frame).</param>
         public PlantField(PlantMechanics[] mechanics, WindField wind, IWorldQuery world, PoseBuffer poses, PlantWash fine, PlantWash coarse,
             ComputeShader shader, bool threads = true)
         {
@@ -236,10 +239,17 @@ namespace Fpv450.App
             }
 
             _meanThread = new Thread(MeanLoop) { IsBackground = true, Name = "plants: the wind's mean", Priority = System.Threading.ThreadPriority.BelowNormal };
-            _washThread = new Thread(WashLoop) { IsBackground = true, Name = "plants: the wash", Priority = System.Threading.ThreadPriority.BelowNormal };
+            // The wash's helpers at the frame's own priority (the flight's thread is above it): below it, with the machine busy, a
+            // tick of about 15 ms of work was held for up to 0.28 s, and the drawn wash fell 0.4 s behind the drone.
+            _washThreads = new[]
+            {
+                new Thread(() => WashLoop(0)) { IsBackground = true, Name = "plants: the fine wash", Priority = System.Threading.ThreadPriority.Normal },
+                new Thread(() => WashLoop(1)) { IsBackground = true, Name = "plants: the coarse wash", Priority = System.Threading.ThreadPriority.Normal },
+            };
             if (!threads) return;
             _meanThread.Start();
-            if (_washFine != null || _washCoarse != null) _washThread.Start();
+            if (_fine != null) _washThreads[0].Start();
+            if (_coarse != null) _washThreads[1].Start();
         }
 
         /// <summary>The level's bend texture (a texture array, a slice per band in LevelBands' order) and its box (texel 0's
@@ -248,7 +258,8 @@ namespace Fpv450.App
         public Vector4 Box(int level) => _boxes[level];
 
         /// <summary>The last frame's wind means: a grid's two snapshots' boxes (node 0's centre x, z, the spacing, the size), their
-        /// flight times and the blend between them; a wash level's fraction between its ticks and its window's first node.</summary>
+        /// flight times and the blend between them; a wash level's fraction between its tick's two states (a tick before it and at
+        /// it) and its window's first node.</summary>
         public Vector4 MeanBox(int grid, int snapshot) => _grids[grid].Boxes[snapshot];
         public double MeanTime(int grid, int snapshot) => _grids[grid].Times[snapshot];
         public float MeanBlend(int grid) => _blends[grid];
@@ -279,7 +290,8 @@ namespace Fpv450.App
         readonly float[] _blends = new float[4];
         readonly double[] _fractions = new double[2];
 
-        /// <summary>The helpers' CPU: the wind's mean, ms a second of flight (each grid's last snapshot over its step); a wash tick, ms.</summary>
+        /// <summary>The helpers' CPU: the wind's mean, ms a second of flight (each grid's last snapshot over its step); a wash tick, ms
+        /// (the slower of its two helpers' last).</summary>
         public double MeanMsPerSecond
         {
             get
@@ -290,7 +302,17 @@ namespace Fpv450.App
             }
         }
 
-        public double WashTickMs => (_washFine?.LastMs ?? 0) + (_washCoarse?.LastMs ?? 0);
+        public double WashTickMs { get; private set; }
+
+        /// <summary>The wash's last tick by part, ms: the fine grid's tick and export, the steady air (the fine helper's), the
+        /// coarse grid's tick and export (the coarse helper's; a tick that catches up on several steps' ticks counts them all).</summary>
+        public double WashPartMs(int part) => _washParts[part];
+        readonly double[] _washParts = new double[5], _washStepMs = new double[2];
+
+        /// <summary>The flight time (s) of the wash state a wash level drew in the last frame (its tick's two states interpolated),
+        /// NaN before its first.</summary>
+        public double WashShown(int level) => _shown[level];
+        readonly double[] _shown = { double.NaN, double.NaN };
 
         /// <summary>
         /// The frame (render thread): the bends at flight time t (s), the near levels round the camera (world m), written to the
@@ -312,7 +334,8 @@ namespace Fpv450.App
             if (!_threads)
             {
                 while (MeanStep()) { }
-                WashStep(ref _washLast);
+                WashStep(0, ref _washLast[0]);
+                WashStep(1, ref _washLast[1]);
             }
 
             for (int g = 0; g < _grids.Length; g++)
@@ -372,20 +395,22 @@ namespace Fpv450.App
             Bind("_WakeAmp", _wakeAmp);
             Bind("_WakeFrame", _wakeFrame);
 
-            // The levels' boxes: the wash's from its newest tick (none before the first), the others round the camera with their
-            // texel centres on whole cells, so the mean grids' nodes (their spacing's half-cells) are texels.
+            // The levels' boxes: the wash's from its newest finished tick at or before the frame (none before the first), drawn a
+            // tick behind the frame between that tick's two states, so a frame never outruns the ticks finished; the others round
+            // the camera with their texel centres on whole cells, so the mean grids' nodes (their spacing's half-cells) are texels.
             var washes = new WashSnapshot[2];
             for (int l = 0; l < 2; l++)
             {
                 Wash w = l == 0 ? _washFine : _washCoarse;
-                washes[l] = w?.Take();
+                washes[l] = w?.Take(t);
                 if (washes[l] == null)
                 {
                     _boxes[l] = Vector4.zero;
                     continue;
                 }
-                double fraction = (t - (washes[l].Tick * FlightCore.Dt - washes[l].TickSeconds)) / washes[l].TickSeconds;
+                double fraction = (t - washes[l].Tick * FlightCore.Dt) / washes[l].TickSeconds;
                 _fractions[l] = fraction < 0 ? 0 : fraction > 1 ? 1 : fraction;
+                _shown[l] = washes[l].Tick * FlightCore.Dt - washes[l].TickSeconds + _fractions[l] * washes[l].TickSeconds;
                 _starts[l] = (washes[l].StartI, washes[l].StartJ);
                 _boxes[l] = new Vector4((float)(washes[l].StartI * LevelCell[l]), (float)(washes[l].StartJ * LevelCell[l]), (float)LevelCell[l], LevelSize[l]);
             }
@@ -395,8 +420,8 @@ namespace Fpv450.App
                 _boxes[l] = new Vector4((float)((Math.Floor(camera.x / cell) - half) * cell), (float)((Math.Floor(camera.z / cell) - half) * cell),
                     (float)cell, LevelSize[l]);
             }
-            // The wash's steady air beyond its grids, the newest tick's.
-            SteadySnapshot steady = _steady?.Take();
+            // The wash's steady air beyond its grids, the newest finished tick's at or before the frame.
+            SteadySnapshot steady = _steady?.Take(t);
             _steadyShown = steady;
             _cs.SetInt("_SteadyOn", steady != null ? 1 : 0);
             _cs.SetInt("_SteadyBands", SteadyBands);
@@ -703,7 +728,6 @@ namespace Fpv450.App
             public readonly int Size;
             public readonly double Cell;
             public readonly ComputeBuffer Buffer;
-            public double LastMs;
             WashSnapshot _back, _ready, _front;
             bool _fresh, _shown;
             public WashSnapshot Shown => _front;
@@ -733,7 +757,6 @@ namespace Fpv450.App
             public void Export(PoseBuffer poses, IWorldQuery world, RotorAir line)
             {
                 if (!poses.TryRead(Grid.LastTick, out PoseFrame pose)) return;
-                var clock = Stopwatch.StartNew();
                 WashSnapshot s = _back;
                 s.Tick = Grid.LastTick;
                 s.TickSeconds = Grid.Tick;
@@ -786,16 +809,16 @@ namespace Fpv450.App
                     (_back, _ready) = (_ready, _back);
                     _fresh = true;
                 }
-                LastMs = clock.Elapsed.TotalMilliseconds;
             }
 
-            // The render thread: the newest tick (a triple buffer: the helper never waits), uploaded once; null before the first.
-            public WashSnapshot Take()
+            // The render thread: the newest tick at or before the frame's time t (a triple buffer: the helper never waits; a tick
+            // past the frame waits for it), uploaded once; null before the first.
+            public WashSnapshot Take(double t)
             {
                 bool changed = false;
                 lock (_lock)
                 {
-                    if (_fresh)
+                    if (_fresh && _ready.Tick * FlightCore.Dt <= t + 1e-9)
                     {
                         (_ready, _front) = (_front, _ready);
                         _fresh = false;
@@ -817,9 +840,11 @@ namespace Fpv450.App
             }
         }
 
-        // The wash's steady air on its polar grid at a tick: the drone's place then, per band, ring and angle the air (world m/s).
+        // The wash's steady air on its polar grid at a tick: the tick's step, the drone's place then, per band, ring and angle the
+        // air (world m/s).
         sealed class SteadySnapshot
         {
+            public long Tick;
             public double X, Z;
             public float[] Data;
         }
@@ -853,6 +878,7 @@ namespace Fpv450.App
             {
                 if (!poses.TryRead(_grid.LastTick, out PoseFrame pose)) return;
                 SteadySnapshot s = _back;
+                s.Tick = _grid.LastTick;
                 s.X = pose.Position.X;
                 s.Z = pose.Position.Z;
                 for (int r = 0; r < SteadyRings; r++)
@@ -881,12 +907,13 @@ namespace Fpv450.App
                 }
             }
 
-            public SteadySnapshot Take()
+            // The render thread: as Wash.Take.
+            public SteadySnapshot Take(double t)
             {
                 bool changed = false;
                 lock (_lock)
                 {
-                    if (_fresh)
+                    if (_fresh && _ready.Tick * FlightCore.Dt <= t + 1e-9)
                     {
                         (_ready, _front) = (_front, _ready);
                         _fresh = false;
@@ -923,29 +950,41 @@ namespace Fpv450.App
             }
         }
 
-        // The wash grids ticked to the newest published step, and a new tick's stands exported.
-        void WashStep(ref long last)
+        // One wash grid (0 the fine, 1 the coarse) ticked to the newest published step and, on a new tick, its stands exported with
+        // the line's air from its own instance of the line's law (both grids' instances begin from the same pose at a tick, so
+        // they agree bit for bit), and the steady air beyond the grids with the grid it reads (the fine); each part timed.
+        void WashStep(int grid, ref long last)
         {
-            if (_fine == null && _coarse == null) return;
-            _fine?.Advance(_poses);
-            _coarse?.Advance(_poses);
-            long tick = (_fine ?? _coarse).LastTick;
+            PlantWash g = grid == 0 ? _fine : _coarse;
+            if (g == null) return;
+            long t0 = Stopwatch.GetTimestamp();
+            g.Advance(_poses);
+            long tick = g.LastTick;
             if (tick == last || tick < 0) return;
-            RotorAir line = (_fine ?? _coarse).Rotors;
-            _washFine?.Export(_poses, _world, line);
-            _washCoarse?.Export(_poses, _world, line);
-            _steady?.Export(_poses, _world);
+            long t1 = Stopwatch.GetTimestamp();
+            (grid == 0 ? _washFine : _washCoarse).Export(_poses, _world, g.Rotors);
+            long t2 = Stopwatch.GetTimestamp();
+            bool steady = _steady != null && g == (_fine ?? _coarse);
+            if (steady) _steady.Export(_poses, _world);
+            long t3 = Stopwatch.GetTimestamp();
             last = tick;
+            _washParts[3 * grid] = Ms(t1 - t0);
+            _washParts[3 * grid + 1] = Ms(t2 - t1);
+            if (steady) _washParts[2] = Ms(t3 - t2);
+            _washStepMs[grid] = Ms(t3 - t0);
+            WashTickMs = Math.Max(_washStepMs[0], _washStepMs[1]);
         }
 
-        void WashLoop()
+        static double Ms(long ticks) => ticks * 1000.0 / Stopwatch.Frequency;
+
+        void WashLoop(int grid)
         {
             long last = -1;
             try
             {
                 while (!_stop)
                 {
-                    WashStep(ref last);
+                    WashStep(grid, ref last);
                     Thread.Sleep(4);
                 }
             }
@@ -959,7 +998,8 @@ namespace Fpv450.App
         {
             _stop = true;
             if (_meanThread.IsAlive) _meanThread.Join();
-            if (_washThread.IsAlive) _washThread.Join();
+            foreach (Thread w in _washThreads)
+                if (w.IsAlive) w.Join();
             Unbind();
             foreach (ComputeBuffer b in new[] { _noWash, _bandBuf, _openWave, _openRate, _openAmp, _stripWave, _stripAmp, _wakeWave, _wakeAmp, _wakeFrame,
                 _washFine?.Buffer, _washCoarse?.Buffer, _steady?.Buffer })
