@@ -71,8 +71,10 @@ namespace Fpv450.Sim.World
             public Snags Snags;
         }
 
-        /// <summary>The vendor pieces' asset ids by variant (w3-farmland-ground 1.2): the plants' (W4a) and the ruins' (W4b).</summary>
-        public const string VendorPlants = "assets-src/vendor_plants.json", VendorRuins = "assets-src/vendor.json";
+        /// <summary>The vendor pieces' asset ids by variant (w3-farmland-ground 1.2): the plants' (W4a), the ruins' (W4b) and the
+        /// track kit's and houses' (w20-hunter-track).</summary>
+        public const string VendorPlants = "assets-src/vendor_plants.json", VendorRuins = "assets-src/vendor.json",
+            VendorTrack = "assets-src/vendor_track.json";
 
         /// <summary>
         /// The map maps/&lt;mapId&gt;/ of the repository at `root`, with the material table: a map package (its map.json, the
@@ -100,7 +102,7 @@ namespace Fpv450.Sim.World
                 byte[] placements = Terrain.Checked("placements.json", files, relative => File.ReadAllBytes(At(folder + relative)), "map.json");
                 StemField stems = ReadStems(manifest, relative => File.ReadAllBytes(At(folder + relative)), () => Read(PlantNumbers));
                 return new MapWorld(Encoding.UTF8.GetString(placements), model => Read(ModelsRoot + "/" + model), MaterialNames(Read(MaterialsFile)),
-                    terrain, manifest, VendorAssets(Read(VendorPlants), Read(VendorRuins)), stems);
+                    terrain, manifest, VendorAssets(Read(VendorPlants), Read(VendorRuins), Read(VendorTrack)), stems);
             }
             return new MapWorld(Read("maps/" + mapId + "/placements.json"), model => Read(ModelsRoot + "/" + model),
                 MaterialNames(Read(MaterialsFile)));
@@ -115,7 +117,7 @@ namespace Fpv450.Sim.World
             var assets = new Dictionary<string, string>(StringComparer.Ordinal);
             for (int f = 0; f < vendorJson.Length; f++)
             {
-                string file = f == 0 ? VendorPlants : f == 1 ? VendorRuins : "vendor list " + f;
+                string file = f == 0 ? VendorPlants : f == 1 ? VendorRuins : f == 2 ? VendorTrack : "vendor list " + f;
                 JsonNode list = Need(DetJson.Parse(vendorJson[f]), "assets", JsonKind.Object, file);
                 foreach (string asset in list.Keys)
                 {
@@ -244,7 +246,7 @@ namespace Fpv450.Sim.World
                     if (!(scale.X > 0 && scale.Y > 0 && scale.Z > 0))
                         throw new FormatException(where + ": scale must be above 0 on each axis, but for x on a variant with a _mirrored twin");
                     if (!vendor.TryGetValue(variant, out string asset))
-                        throw new FormatException(where + ": variant " + variant + " is in no vendor list (" + VendorPlants + ", " + VendorRuins + ")");
+                        throw new FormatException(where + ": variant " + variant + " is in no vendor list (" + VendorPlants + ", " + VendorRuins + ", " + VendorTrack + ")");
                     rowClass[i] = asset.Substring(0, asset.IndexOf('/'));
                     path = asset + "/" + variant + ".assetmeta.json";
                     rowScale[i] = scale;
@@ -303,7 +305,7 @@ namespace Fpv450.Sim.World
                 }
             }
             _first[rowMeta.Length] = at;
-            PlaceWind(rowMeta, rowPosition, rowYawRad, rowScale, rowGroup, file);
+            PlaceWind(rowMeta, rowPosition, rowRotation, rowYawRad, rowScale, rowGroup, file);
 
             // The ground: the plane (none on a terrain), the patches' footprints and the hole bands (a package has no record).
             JsonNode ground = package ? null : Need(root, "ground", JsonKind.Object, file);

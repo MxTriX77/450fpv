@@ -1,0 +1,13 @@
+{
+  "kind": "pylon_3m",
+  "rows": [
+    {"name": "height_m", "value": 3, "label": "F"},
+    {"name": "base_w_m", "value": 0.55, "label": "C"},
+    {"name": "tip_w_m", "value": 0.2, "label": "C"},
+    {"name": "thick_m", "value": 0.06, "label": "A"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "fabric", "colour": "white"}
+  ],
+  "lod": {"lod1_switch_m": 25.0, "lod2_switch_m": 80.0, "cull_m": 1000.0}
+}

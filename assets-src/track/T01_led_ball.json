@@ -1,0 +1,10 @@
+{
+  "kind": "led_ball",
+  "rows": [
+    {"name": "diameter_m", "value": 0.3, "label": "A"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "plastic", "colour": "white"}
+  ],
+  "lod": {"lod1_switch_m": 15.0, "lod2_switch_m": 50.0, "cull_m": 300.0}
+}

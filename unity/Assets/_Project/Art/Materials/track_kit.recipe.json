@@ -1,0 +1,50 @@
+{
+  "material": "track_kit",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "concrete": "#8a8881",
+      "rubber": "#1e1e1e",
+      "white": "#d8d5cc",
+      "black": "#222326",
+      "red": "#b3352b",
+      "blue": "#2b5fa8",
+      "yellow": "#d6b42e",
+      "green": "#3b9e46",
+      "steel": "#6c6d70",
+      "timber": "#a98a5e"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.3
+  },
+  "inputs_sha256": "e7c46fb0eb76e8e76848e069d781ba4a07a89e32dfd32abfc9ba59c645b86d63",
+  "size": [
+    256,
+    64
+  ],
+  "columns": [
+    "concrete",
+    "rubber",
+    "white",
+    "black",
+    "red",
+    "blue",
+    "yellow",
+    "green",
+    "steel",
+    "timber"
+  ]
+}

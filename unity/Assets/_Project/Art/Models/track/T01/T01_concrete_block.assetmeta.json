@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "id": "T01",
+  "variant": "T01_concrete_block",
+  "generator": "track_kit",
+  "params_sha256": "d620c3d9546d03fbd427e6bf30a83b078b5bc73d4c13cd2c95f3a4d07cf61ddf",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.381,
+      0.0,
+      -0.762
+    ],
+    "max": [
+      0.381,
+      0.762,
+      0.762
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "T01_concrete_block_LOD0",
+      "tris": 12,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 1000.0,
+  "materials": [
+    {
+      "slot": "concrete",
+      "visual": "track_kit",
+      "physics": "concrete"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.381,
+        0.0
+      ],
+      "size": [
+        0.762,
+        0.762,
+        1.524
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "concrete",
+      "landable": true
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.381,
+        0.0
+      ],
+      "size": [
+        0.762,
+        0.762,
+        1.524
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": []
+}

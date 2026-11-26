@@ -21,7 +21,7 @@ namespace Fpv450.App
     /// </summary>
     public static class PlayMaps
     {
-        public const string TestRangeScene = "TestRange";
+        public const string TestRangeScene = "TestRange", HunterScene = "HunterTrack";
 
         public static readonly PlayMap House = new PlayMap
         {
@@ -35,7 +35,14 @@ namespace Fpv450.App
             World = FlightWorlds.Farmland, Starts = root => FlightWorlds.FarmlandStarts,
         };
 
-        public static readonly PlayMap[] All = { House, Village };
+        /// <summary>The third card (w20-hunter-track 1.5): the map package hunter-09, from its one start.</summary>
+        public static readonly PlayMap Hunter = new PlayMap
+        {
+            Id = FlightWorlds.HunterMap, Name = "ХАНТЕР-09", Scene = HunterScene,
+            World = FlightWorlds.Hunter, Starts = root => FlightWorlds.Hunter(root).StartPoints,
+        };
+
+        public static readonly PlayMap[] All = { House, Village, Hunter };
 
         /// <summary>The map whose flights the scene loads; null for any other scene.</summary>
         public static PlayMap ForScene(string scene) => Array.Find(All, m => m.Scene == scene);

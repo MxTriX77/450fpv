@@ -1,0 +1,15 @@
+{
+  "kind": "light_gate",
+  "rows": [
+    {"name": "width_m", "value": 3.6, "label": "C"},
+    {"name": "height_m", "value": 2.8, "label": "C"},
+    {"name": "depth_m", "value": 0.45, "label": "C"},
+    {"name": "rim_m", "value": 0.3, "label": "C"},
+    {"name": "opening_w_m", "value": 3, "label": "F"},
+    {"name": "opening_h_m", "value": 2.2, "label": "F"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "plastic", "colour": "white"}
+  ],
+  "lod": {"lod1_switch_m": 25.0, "lod2_switch_m": 80.0, "cull_m": 1000.0}
+}

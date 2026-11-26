@@ -263,6 +263,14 @@ namespace Fpv450.Assets
         {
             string recipePath = $"{RecipesFolder}/{visual}.json";
             var recipe = Recipe(recipePath);
+            // A vendor recipe (w20-hunter-track design 9) names a material the world already holds, whose textures stay
+            // in the local store: it is used as it stands, never created or changed here.
+            if (recipe.TryGetValue("kind", out object vendorKind) && vendorKind as string == "vendor")
+            {
+                string existing = Json.Str(recipe, "material", recipePath);
+                return AssetDatabase.LoadAssetAtPath<Material>(existing)
+                    ?? throw new FileNotFoundException($"{recipePath}: no material at {existing}");
+            }
             // A far-card recipe (p1-v01-locust task 1.2j): its leaf recipe and that recipe's derived maps, for far
             // cards drawn as two faces back to back with normals of their own; one-sided, since the leaf shader would
             // light a back face with its front's normal turned round (one leaning up would lean down), and without the

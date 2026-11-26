@@ -42,9 +42,11 @@ namespace Fpv450.Tests.App
         [Test]
         public void PlayOffersHouseThenVillage()
         {
-            Assert.That(PlayMaps.All, Is.EqualTo(new[] { PlayMaps.House, PlayMaps.Village }));
+            Assert.That(PlayMaps.All, Is.EqualTo(new[] { PlayMaps.House, PlayMaps.Village, PlayMaps.Hunter }));
             Assert.That((PlayMaps.House.Id, PlayMaps.House.Name, PlayMaps.House.Scene), Is.EqualTo((FlightWorlds.TestRangeMap, "House", "TestRange")));
             Assert.That((PlayMaps.Village.Id, PlayMaps.Village.Name, PlayMaps.Village.Scene), Is.EqualTo((FlightWorlds.FarmlandMap, "Village", FarmlandExplore.Scene)));
+            Assert.That((PlayMaps.Hunter.Id, PlayMaps.Hunter.Name, PlayMaps.Hunter.Scene), Is.EqualTo((FlightWorlds.HunterMap, "ХАНТЕР-09", "HunterTrack")));
+            Assert.That(PlayMaps.Hunter.Starts(AppData.Root).Select(s => s.Name), Is.EqualTo(new[] { "spawn" }), "the package's one start");
             string[] built = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => Path.GetFileNameWithoutExtension(s.path)).ToArray();
             foreach (PlayMap map in PlayMaps.All)
             {
@@ -59,6 +61,15 @@ namespace Fpv450.Tests.App
             Assert.That(house.StartPoints.Select(s => s.Name), Is.EqualTo(new[] { FlightWorlds.HousesStart }));
         }
 
+        // w20-hunter-track 1.5: the menu's font (the game skin's, which AppStyle copies) draws the third card's Cyrillic name.
+        [Test]
+        public void TheMenuFontHasTheCardsGlyphs()
+        {
+            Font font = EditorGUIUtility.GetBuiltinSkin(EditorSkin.Game).font ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            foreach (char c in PlayMaps.Hunter.Name)
+                Assert.That(font.HasCharacter(c), Is.True, font.name + " lacks '" + c + "'");
+        }
+
         // A card's still is task 1.2's render at unity/Generated/stills/<map id>.png (the player's copy under its
         // StreamingAssets' generated/stills/): read when there, and none (a plain card) when not.
         [Test]
@@ -66,6 +77,7 @@ namespace Fpv450.Tests.App
         {
             Assert.That(PlayMaps.StillPath(PlayMaps.House), Is.EqualTo(Path.Combine(AppData.Root, "unity", "Generated", "stills", "test-range.png")));
             Assert.That(PlayMaps.StillPath(PlayMaps.Village), Is.EqualTo(Path.Combine(AppData.Root, "unity", "Generated", "stills", "farmland.png")));
+            Assert.That(PlayMaps.StillPath(PlayMaps.Hunter), Is.EqualTo(Path.Combine(AppData.Root, "unity", "Generated", "stills", "hunter-09.png")));
             string dir = Path.Combine(Path.GetTempPath(), "fpv450-stills-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);
             var drawn = new Texture2D(64, 36, TextureFormat.RGBA32, false);

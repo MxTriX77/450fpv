@@ -1,0 +1,12 @@
+{
+  "kind": "arrow_red",
+  "rows": [
+    {"name": "size_x_m", "value": 1, "label": "A"},
+    {"name": "size_y_m", "value": 0.02, "label": "A"},
+    {"name": "size_z_m", "value": 0.5, "label": "A"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "plastic", "colour": "red"}
+  ],
+  "lod": {"lod1_switch_m": 15.0, "lod2_switch_m": 50.0, "cull_m": 300.0}
+}

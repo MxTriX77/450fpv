@@ -5,7 +5,7 @@ One asset end to end: params -> derived textures -> Blender build -> Unity impor
 decision 7; p1-v01-locust, the impostor).
 
 .DESCRIPTION
-    pwsh tools/build_asset.ps1 <ID|all>
+    pwsh tools/build_asset.ps1 <ID|all> [-NoCapture]
 
 Step 1 runs tools/assets/derive.py --all, the derived maps of every material recipe (a stamped, unchanged map is a
 no-op), so the importer finds them and the Blender build's impostor render reads them current. Step 2 runs
@@ -16,10 +16,12 @@ Blender and Unity come from $env:BLENDER and $env:UNITY, falling back to the pat
 python is the pinned one on PATH. The script refuses to run while an editor holds the project open, stops at the
 first failing step and exits 1, naming the step. The full Unity logs go to unity/Logs/build_asset_<ID>.log and
 unity/Logs/review_<ID>.log; only the importer's and the capture's lines and errors are echoed.
+-NoCapture stops after step 3, for when the GPU is not free: step 4 is the only rendered one.
 #>
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [string]$Id
+    [string]$Id,
+    [switch]$NoCapture
 )
 
 $ErrorActionPreference = 'Stop'
@@ -67,6 +69,11 @@ Write-Host "build_asset: [3/4] Unity import of $Id (full log: $log)"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "build_asset: FAILED at step 3 (Unity import), exit code $LASTEXITCODE; see $log"
     exit 1
+}
+
+if ($NoCapture) {
+    Write-Host "build_asset: OK ($Id), review sheet not rendered (-NoCapture)"
+    exit 0
 }
 
 $reviewLog = Join-Path $logDir "review_$Id.log"

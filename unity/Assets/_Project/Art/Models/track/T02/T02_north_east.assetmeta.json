@@ -1,0 +1,7251 @@
+{
+  "schema": 1,
+  "id": "T02",
+  "variant": "T02_north_east",
+  "generator": "track_house",
+  "params_sha256": "c05386f195a01be75420eee327c30e166ca876bdf57118d96d10871631da5dbb",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -2.607023,
+      -0.923445,
+      -0.25
+    ],
+    "max": [
+      6.167023,
+      7.4,
+      12.15
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "T02_north_east_LOD0",
+      "tris": 17992,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "T02_north_east_LOD1",
+      "tris": 4356,
+      "switch_distance_m": 30.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "T02_north_east_LOD2",
+      "tris": 420,
+      "switch_distance_m": 100.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 1500.0,
+  "materials": [
+    {
+      "slot": "boards",
+      "visual": "House_Wood01",
+      "physics": "timber"
+    },
+    {
+      "slot": "brick",
+      "visual": "House_IndoorWall",
+      "physics": "masonry"
+    },
+    {
+      "slot": "floor",
+      "visual": "House_Wood02",
+      "physics": "timber"
+    },
+    {
+      "slot": "frame",
+      "visual": "House_Windows",
+      "physics": "timber"
+    },
+    {
+      "slot": "post",
+      "visual": "House_Wood01",
+      "physics": "timber"
+    },
+    {
+      "slot": "roof",
+      "visual": "House_IndoorWall",
+      "physics": "asbestos_cement"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0.09,
+        1.26,
+        1.09
+      ],
+      "size": [
+        0.18,
+        2.52,
+        1.82
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.09,
+        1.26,
+        4.3565
+      ],
+      "size": [
+        0.18,
+        2.52,
+        1.873
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.09,
+        1.26,
+        9.2165
+      ],
+      "size": [
+        0.18,
+        2.52,
+        5.007
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.09,
+        3.21,
+        5.95
+      ],
+      "size": [
+        0.18,
+        1.38,
+        11.54
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.73,
+        2.132384,
+        5.95
+      ],
+      "size": [
+        0.18,
+        4.264768,
+        11.54
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.91,
+        0.48,
+        0.09
+      ],
+      "size": [
+        5.82,
+        0.96,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.92725,
+        1.9465,
+        0.09
+      ],
+      "size": [
+        1.8545,
+        1.973,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.51025,
+        1.9465,
+        0.09
+      ],
+      "size": [
+        2.6195,
+        1.973,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.91,
+        3.4165,
+        0.09
+      ],
+      "size": [
+        5.82,
+        0.967,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.229464,
+        3.514286,
+        0.09
+      ],
+      "size": [
+        0.081071,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.148393,
+        3.542857,
+        0.09
+      ],
+      "size": [
+        0.243214,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.067321,
+        3.571429,
+        0.09
+      ],
+      "size": [
+        0.405357,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.98625,
+        3.6,
+        0.09
+      ],
+      "size": [
+        0.5675,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.905179,
+        3.628571,
+        0.09
+      ],
+      "size": [
+        0.729643,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.824107,
+        3.657143,
+        0.09
+      ],
+      "size": [
+        0.891786,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.743036,
+        3.685714,
+        0.09
+      ],
+      "size": [
+        1.053929,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.661964,
+        3.714286,
+        0.09
+      ],
+      "size": [
+        1.216071,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.580893,
+        3.742857,
+        0.09
+      ],
+      "size": [
+        1.378214,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.499821,
+        3.771429,
+        0.09
+      ],
+      "size": [
+        1.540357,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.41875,
+        3.8,
+        0.09
+      ],
+      "size": [
+        1.7025,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.337679,
+        3.828571,
+        0.09
+      ],
+      "size": [
+        1.864643,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.256607,
+        3.857143,
+        0.09
+      ],
+      "size": [
+        2.026786,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.175536,
+        3.885714,
+        0.09
+      ],
+      "size": [
+        2.188929,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.775,
+        4.078751,
+        0.09
+      ],
+      "size": [
+        8.09,
+        0.357503,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.7775,
+        4.261135,
+        0.09
+      ],
+      "size": [
+        8.085,
+        0.007265,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.283113,
+        0.09
+      ],
+      "size": [
+        8.0295,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.319804,
+        0.09
+      ],
+      "size": [
+        7.9285,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.356494,
+        0.09
+      ],
+      "size": [
+        7.8275,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.393185,
+        0.09
+      ],
+      "size": [
+        7.7265,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.429875,
+        0.09
+      ],
+      "size": [
+        7.6255,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.466565,
+        0.09
+      ],
+      "size": [
+        7.5245,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.503256,
+        0.09
+      ],
+      "size": [
+        7.4235,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.539946,
+        0.09
+      ],
+      "size": [
+        7.3225,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.576637,
+        0.09
+      ],
+      "size": [
+        7.2215,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.613327,
+        0.09
+      ],
+      "size": [
+        7.1205,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.650017,
+        0.09
+      ],
+      "size": [
+        7.0195,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.686708,
+        0.09
+      ],
+      "size": [
+        6.9185,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.723398,
+        0.09
+      ],
+      "size": [
+        6.8175,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.760089,
+        0.09
+      ],
+      "size": [
+        6.7165,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.796779,
+        0.09
+      ],
+      "size": [
+        6.6155,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.833469,
+        0.09
+      ],
+      "size": [
+        6.5145,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.87016,
+        0.09
+      ],
+      "size": [
+        6.4135,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.90685,
+        0.09
+      ],
+      "size": [
+        6.3125,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.943541,
+        0.09
+      ],
+      "size": [
+        6.2115,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.980231,
+        0.09
+      ],
+      "size": [
+        6.1105,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.016921,
+        0.09
+      ],
+      "size": [
+        6.0095,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.053612,
+        0.09
+      ],
+      "size": [
+        5.9085,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.090302,
+        0.09
+      ],
+      "size": [
+        5.8075,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.126993,
+        0.09
+      ],
+      "size": [
+        5.7065,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.163683,
+        0.09
+      ],
+      "size": [
+        5.6055,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.200373,
+        0.09
+      ],
+      "size": [
+        5.5045,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.237064,
+        0.09
+      ],
+      "size": [
+        5.4035,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.273754,
+        0.09
+      ],
+      "size": [
+        5.3025,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.310445,
+        0.09
+      ],
+      "size": [
+        5.2015,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.347135,
+        0.09
+      ],
+      "size": [
+        5.1005,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.383825,
+        0.09
+      ],
+      "size": [
+        4.9995,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.420516,
+        0.09
+      ],
+      "size": [
+        4.8985,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.457206,
+        0.09
+      ],
+      "size": [
+        4.7975,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.493897,
+        0.09
+      ],
+      "size": [
+        4.6965,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.530587,
+        0.09
+      ],
+      "size": [
+        4.5955,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.567277,
+        0.09
+      ],
+      "size": [
+        4.4945,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.603968,
+        0.09
+      ],
+      "size": [
+        4.3935,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.640658,
+        0.09
+      ],
+      "size": [
+        4.2925,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.677348,
+        0.09
+      ],
+      "size": [
+        4.1915,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.714039,
+        0.09
+      ],
+      "size": [
+        4.0905,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.750729,
+        0.09
+      ],
+      "size": [
+        3.9895,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.78742,
+        0.09
+      ],
+      "size": [
+        3.8885,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.82411,
+        0.09
+      ],
+      "size": [
+        3.7875,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.8608,
+        0.09
+      ],
+      "size": [
+        3.6865,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.897491,
+        0.09
+      ],
+      "size": [
+        3.5855,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.934181,
+        0.09
+      ],
+      "size": [
+        3.4845,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.970872,
+        0.09
+      ],
+      "size": [
+        3.3835,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.007562,
+        0.09
+      ],
+      "size": [
+        3.2825,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.044252,
+        0.09
+      ],
+      "size": [
+        3.1815,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.080943,
+        0.09
+      ],
+      "size": [
+        3.0805,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.117633,
+        0.09
+      ],
+      "size": [
+        2.9795,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.154324,
+        0.09
+      ],
+      "size": [
+        2.8785,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.191014,
+        0.09
+      ],
+      "size": [
+        2.7775,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.227704,
+        0.09
+      ],
+      "size": [
+        2.6765,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.264395,
+        0.09
+      ],
+      "size": [
+        2.5755,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.301085,
+        0.09
+      ],
+      "size": [
+        2.4745,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.337776,
+        0.09
+      ],
+      "size": [
+        2.3735,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.374466,
+        0.09
+      ],
+      "size": [
+        2.2725,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.411156,
+        0.09
+      ],
+      "size": [
+        2.1715,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.447847,
+        0.09
+      ],
+      "size": [
+        2.0705,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.484537,
+        0.09
+      ],
+      "size": [
+        1.9695,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.521228,
+        0.09
+      ],
+      "size": [
+        1.8685,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.557918,
+        0.09
+      ],
+      "size": [
+        1.7675,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.594608,
+        0.09
+      ],
+      "size": [
+        1.6665,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.631299,
+        0.09
+      ],
+      "size": [
+        1.5655,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.667989,
+        0.09
+      ],
+      "size": [
+        1.4645,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.70468,
+        0.09
+      ],
+      "size": [
+        1.3635,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.74137,
+        0.09
+      ],
+      "size": [
+        1.2625,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.77806,
+        0.09
+      ],
+      "size": [
+        1.1615,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.814751,
+        0.09
+      ],
+      "size": [
+        1.0605,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.851441,
+        0.09
+      ],
+      "size": [
+        0.9595,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.888132,
+        0.09
+      ],
+      "size": [
+        0.8585,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.924822,
+        0.09
+      ],
+      "size": [
+        0.7575,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.961512,
+        0.09
+      ],
+      "size": [
+        0.6565,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.998203,
+        0.09
+      ],
+      "size": [
+        0.5555,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        7.034893,
+        0.09
+      ],
+      "size": [
+        0.4545,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        7.071584,
+        0.09
+      ],
+      "size": [
+        0.3535,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        7.108274,
+        0.09
+      ],
+      "size": [
+        0.2525,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        7.144964,
+        0.09
+      ],
+      "size": [
+        0.1515,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        7.181655,
+        0.09
+      ],
+      "size": [
+        0.0505,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.91,
+        0.48,
+        11.81
+      ],
+      "size": [
+        5.82,
+        0.96,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.8425,
+        1.96,
+        11.81
+      ],
+      "size": [
+        1.685,
+        2.0,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.4585,
+        1.96,
+        11.81
+      ],
+      "size": [
+        2.723,
+        2.0,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.91,
+        3.43,
+        11.81
+      ],
+      "size": [
+        5.82,
+        0.94,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.229464,
+        3.514286,
+        11.81
+      ],
+      "size": [
+        0.081071,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.148393,
+        3.542857,
+        11.81
+      ],
+      "size": [
+        0.243214,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.067321,
+        3.571429,
+        11.81
+      ],
+      "size": [
+        0.405357,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.98625,
+        3.6,
+        11.81
+      ],
+      "size": [
+        0.5675,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.905179,
+        3.628571,
+        11.81
+      ],
+      "size": [
+        0.729643,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.824107,
+        3.657143,
+        11.81
+      ],
+      "size": [
+        0.891786,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.743036,
+        3.685714,
+        11.81
+      ],
+      "size": [
+        1.053929,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.661964,
+        3.714286,
+        11.81
+      ],
+      "size": [
+        1.216071,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.580893,
+        3.742857,
+        11.81
+      ],
+      "size": [
+        1.378214,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.499821,
+        3.771429,
+        11.81
+      ],
+      "size": [
+        1.540357,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.41875,
+        3.8,
+        11.81
+      ],
+      "size": [
+        1.7025,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.337679,
+        3.828571,
+        11.81
+      ],
+      "size": [
+        1.864643,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.256607,
+        3.857143,
+        11.81
+      ],
+      "size": [
+        2.026786,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.175536,
+        3.885714,
+        11.81
+      ],
+      "size": [
+        2.188929,
+        0.028571,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.775,
+        4.078751,
+        11.81
+      ],
+      "size": [
+        8.09,
+        0.357503,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.7775,
+        4.261135,
+        11.81
+      ],
+      "size": [
+        8.085,
+        0.007265,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.283113,
+        11.81
+      ],
+      "size": [
+        8.0295,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.319804,
+        11.81
+      ],
+      "size": [
+        7.9285,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.356494,
+        11.81
+      ],
+      "size": [
+        7.8275,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.393185,
+        11.81
+      ],
+      "size": [
+        7.7265,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.429875,
+        11.81
+      ],
+      "size": [
+        7.6255,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.466565,
+        11.81
+      ],
+      "size": [
+        7.5245,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.503256,
+        11.81
+      ],
+      "size": [
+        7.4235,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.539946,
+        11.81
+      ],
+      "size": [
+        7.3225,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.576637,
+        11.81
+      ],
+      "size": [
+        7.2215,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.613327,
+        11.81
+      ],
+      "size": [
+        7.1205,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.650017,
+        11.81
+      ],
+      "size": [
+        7.0195,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.686708,
+        11.81
+      ],
+      "size": [
+        6.9185,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.723398,
+        11.81
+      ],
+      "size": [
+        6.8175,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.760089,
+        11.81
+      ],
+      "size": [
+        6.7165,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.796779,
+        11.81
+      ],
+      "size": [
+        6.6155,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.833469,
+        11.81
+      ],
+      "size": [
+        6.5145,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.87016,
+        11.81
+      ],
+      "size": [
+        6.4135,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.90685,
+        11.81
+      ],
+      "size": [
+        6.3125,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.943541,
+        11.81
+      ],
+      "size": [
+        6.2115,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        4.980231,
+        11.81
+      ],
+      "size": [
+        6.1105,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.016921,
+        11.81
+      ],
+      "size": [
+        6.0095,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.053612,
+        11.81
+      ],
+      "size": [
+        5.9085,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.090302,
+        11.81
+      ],
+      "size": [
+        5.8075,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.126993,
+        11.81
+      ],
+      "size": [
+        5.7065,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.163683,
+        11.81
+      ],
+      "size": [
+        5.6055,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.200373,
+        11.81
+      ],
+      "size": [
+        5.5045,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.237064,
+        11.81
+      ],
+      "size": [
+        5.4035,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.273754,
+        11.81
+      ],
+      "size": [
+        5.3025,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.310445,
+        11.81
+      ],
+      "size": [
+        5.2015,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.347135,
+        11.81
+      ],
+      "size": [
+        5.1005,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.383825,
+        11.81
+      ],
+      "size": [
+        4.9995,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.420516,
+        11.81
+      ],
+      "size": [
+        4.8985,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.457206,
+        11.81
+      ],
+      "size": [
+        4.7975,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.493897,
+        11.81
+      ],
+      "size": [
+        4.6965,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.530587,
+        11.81
+      ],
+      "size": [
+        4.5955,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.567277,
+        11.81
+      ],
+      "size": [
+        4.4945,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.603968,
+        11.81
+      ],
+      "size": [
+        4.3935,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.640658,
+        11.81
+      ],
+      "size": [
+        4.2925,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.677348,
+        11.81
+      ],
+      "size": [
+        4.1915,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.714039,
+        11.81
+      ],
+      "size": [
+        4.0905,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.750729,
+        11.81
+      ],
+      "size": [
+        3.9895,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.78742,
+        11.81
+      ],
+      "size": [
+        3.8885,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.82411,
+        11.81
+      ],
+      "size": [
+        3.7875,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.8608,
+        11.81
+      ],
+      "size": [
+        3.6865,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.897491,
+        11.81
+      ],
+      "size": [
+        3.5855,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.934181,
+        11.81
+      ],
+      "size": [
+        3.4845,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.970872,
+        11.81
+      ],
+      "size": [
+        3.3835,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.007562,
+        11.81
+      ],
+      "size": [
+        3.2825,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.044252,
+        11.81
+      ],
+      "size": [
+        3.1815,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.080943,
+        11.81
+      ],
+      "size": [
+        3.0805,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.117633,
+        11.81
+      ],
+      "size": [
+        2.9795,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.154324,
+        11.81
+      ],
+      "size": [
+        2.8785,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.191014,
+        11.81
+      ],
+      "size": [
+        2.7775,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.227704,
+        11.81
+      ],
+      "size": [
+        2.6765,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.264395,
+        11.81
+      ],
+      "size": [
+        2.5755,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.301085,
+        11.81
+      ],
+      "size": [
+        2.4745,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.337776,
+        11.81
+      ],
+      "size": [
+        2.3735,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.374466,
+        11.81
+      ],
+      "size": [
+        2.2725,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.411156,
+        11.81
+      ],
+      "size": [
+        2.1715,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.447847,
+        11.81
+      ],
+      "size": [
+        2.0705,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.484537,
+        11.81
+      ],
+      "size": [
+        1.9695,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.521228,
+        11.81
+      ],
+      "size": [
+        1.8685,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.557918,
+        11.81
+      ],
+      "size": [
+        1.7675,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.594608,
+        11.81
+      ],
+      "size": [
+        1.6665,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.631299,
+        11.81
+      ],
+      "size": [
+        1.5655,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.667989,
+        11.81
+      ],
+      "size": [
+        1.4645,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.70468,
+        11.81
+      ],
+      "size": [
+        1.3635,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.74137,
+        11.81
+      ],
+      "size": [
+        1.2625,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.77806,
+        11.81
+      ],
+      "size": [
+        1.1615,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.814751,
+        11.81
+      ],
+      "size": [
+        1.0605,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.851441,
+        11.81
+      ],
+      "size": [
+        0.9595,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.888132,
+        11.81
+      ],
+      "size": [
+        0.8585,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.924822,
+        11.81
+      ],
+      "size": [
+        0.7575,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.961512,
+        11.81
+      ],
+      "size": [
+        0.6565,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        6.998203,
+        11.81
+      ],
+      "size": [
+        0.5555,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        7.034893,
+        11.81
+      ],
+      "size": [
+        0.4545,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        7.071584,
+        11.81
+      ],
+      "size": [
+        0.3535,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        7.108274,
+        11.81
+      ],
+      "size": [
+        0.2525,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        7.144964,
+        11.81
+      ],
+      "size": [
+        0.1515,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        7.181655,
+        11.81
+      ],
+      "size": [
+        0.0505,
+        0.03669,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.658,
+        4.323618,
+        5.95
+      ],
+      "size": [
+        0.036,
+        0.1177,
+        11.54
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.694,
+        4.31054,
+        5.95
+      ],
+      "size": [
+        0.036,
+        0.091544,
+        11.54
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.73,
+        4.297463,
+        5.95
+      ],
+      "size": [
+        0.036,
+        0.065389,
+        11.54
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.766,
+        4.284385,
+        5.95
+      ],
+      "size": [
+        0.036,
+        0.039233,
+        11.54
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.802,
+        4.271307,
+        5.95
+      ],
+      "size": [
+        0.036,
+        0.013078,
+        11.54
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.5275,
+        1.9465,
+        0.09
+      ],
+      "size": [
+        0.06,
+        1.973,
+        0.08
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.176,
+        2.45,
+        0.09
+      ],
+      "size": [
+        0.643,
+        0.06,
+        0.08
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.879,
+        2.45,
+        0.09
+      ],
+      "size": [
+        0.643,
+        0.06,
+        0.08
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.391,
+        1.96,
+        11.81
+      ],
+      "size": [
+        0.06,
+        2.0,
+        0.08
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.023,
+        2.43,
+        11.81
+      ],
+      "size": [
+        0.676,
+        0.06,
+        0.08
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.759,
+        2.43,
+        11.81
+      ],
+      "size": [
+        0.676,
+        0.06,
+        0.08
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.73,
+        -0.03,
+        5.95
+      ],
+      "size": [
+        8.18,
+        0.06,
+        11.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.27,
+        3.405,
+        5.95
+      ],
+      "size": [
+        0.18,
+        0.14,
+        11.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.27,
+        1.6675,
+        0.09
+      ],
+      "size": [
+        0.18,
+        3.335,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.27,
+        1.6675,
+        3.97
+      ],
+      "size": [
+        0.18,
+        3.335,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.27,
+        1.6675,
+        7.93
+      ],
+      "size": [
+        0.18,
+        3.335,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.27,
+        1.6675,
+        11.81
+      ],
+      "size": [
+        0.18,
+        3.335,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.132831,
+        3.68769,
+        5.95
+      ],
+      "size": [
+        2.304973,
+        0.025,
+        11.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.9962,
+        0.0871
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.966164,
+        5.695093,
+        5.95
+      ],
+      "size": [
+        5.422658,
+        0.025,
+        12.4
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "asbestos_cement",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        0.09
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        0.991538
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        1.893077
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        2.794615
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        3.696154
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        4.597692
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        5.499231
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        6.400769
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        7.302308
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        8.203846
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        9.105385
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        10.006923
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        10.908462
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.95,
+        5.657395,
+        11.81
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.406164,
+        5.695093,
+        5.95
+      ],
+      "size": [
+        5.422658,
+        0.025,
+        12.4
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "asbestos_cement",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        0.09
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        0.991538
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        1.893077
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        2.794615
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        3.696154
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        4.597692
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        5.499231
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        6.400769
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        7.302308
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        8.203846
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        9.105385
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        10.006923
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        10.908462
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        5.657395,
+        11.81
+      ],
+      "size": [
+        5.404495,
+        0.055,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.02,
+        1.95,
+        11.37
+      ],
+      "size": [
+        1.24,
+        3.9,
+        0.7
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.195,
+        5.65,
+        11.37
+      ],
+      "size": [
+        0.89,
+        3.5,
+        0.7
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.27,
+        -0.491723,
+        1.5
+      ],
+      "size": [
+        0.5,
+        0.863445,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        -0.491723,
+        1.5
+      ],
+      "size": [
+        0.5,
+        0.863445,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.82,
+        -0.491723,
+        1.5
+      ],
+      "size": [
+        0.5,
+        0.863445,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.27,
+        -0.4375,
+        5.95
+      ],
+      "size": [
+        0.5,
+        0.755,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        -0.4375,
+        5.95
+      ],
+      "size": [
+        0.5,
+        0.755,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.82,
+        -0.4375,
+        5.95
+      ],
+      "size": [
+        0.5,
+        0.755,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.27,
+        -0.383277,
+        10.4
+      ],
+      "size": [
+        0.5,
+        0.646555,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        -0.383277,
+        10.4
+      ],
+      "size": [
+        0.5,
+        0.646555,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.82,
+        -0.383277,
+        10.4
+      ],
+      "size": [
+        0.5,
+        0.646555,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    }
+  ],
+  "gaps": [
+    {
+      "id": "crawl_39",
+      "polygon": [
+        [
+          1.9505,
+          -0.91,
+          0.09
+        ],
+        [
+          5.1035,
+          -0.91,
+          0.09
+        ],
+        [
+          5.1035,
+          -0.06,
+          0.09
+        ],
+        [
+          1.9505,
+          -0.06,
+          0.09
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "narrowest_m": 0.85
+    },
+    {
+      "id": "crawl_43",
+      "polygon": [
+        [
+          -1.3375,
+          -0.62,
+          11.81
+        ],
+        [
+          2.1975,
+          -0.62,
+          11.81
+        ],
+        [
+          2.1975,
+          -0.06,
+          11.81
+        ],
+        [
+          -1.3375,
+          -0.06,
+          11.81
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "narrowest_m": 0.56
+    },
+    {
+      "id": "door_41",
+      "polygon": [
+        [
+          0.09,
+          0.0,
+          2.0
+        ],
+        [
+          0.09,
+          0.0,
+          3.42
+        ],
+        [
+          0.09,
+          2.52,
+          3.42
+        ],
+        [
+          0.09,
+          2.52,
+          2.0
+        ]
+      ],
+      "normal": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "narrowest_m": 1.42
+    },
+    {
+      "id": "door_42",
+      "polygon": [
+        [
+          0.09,
+          0.0,
+          5.293
+        ],
+        [
+          0.09,
+          0.0,
+          6.713
+        ],
+        [
+          0.09,
+          2.52,
+          6.713
+        ],
+        [
+          0.09,
+          2.52,
+          5.293
+        ]
+      ],
+      "normal": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "narrowest_m": 1.42
+    },
+    {
+      "id": "pane_A_l0",
+      "polygon": [
+        [
+          1.8545,
+          0.96,
+          0.09
+        ],
+        [
+          2.4975,
+          0.96,
+          0.09
+        ],
+        [
+          2.4975,
+          2.42,
+          0.09
+        ],
+        [
+          1.8545,
+          2.42,
+          0.09
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "narrowest_m": 0.643
+    },
+    {
+      "id": "pane_A_t0",
+      "polygon": [
+        [
+          1.8545,
+          2.48,
+          0.09
+        ],
+        [
+          2.4975,
+          2.48,
+          0.09
+        ],
+        [
+          2.4975,
+          2.933,
+          0.09
+        ],
+        [
+          1.8545,
+          2.933,
+          0.09
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "narrowest_m": 0.453
+    },
+    {
+      "id": "pane_A_l1",
+      "polygon": [
+        [
+          2.5575,
+          0.96,
+          0.09
+        ],
+        [
+          3.2005,
+          0.96,
+          0.09
+        ],
+        [
+          3.2005,
+          2.42,
+          0.09
+        ],
+        [
+          2.5575,
+          2.42,
+          0.09
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "narrowest_m": 0.643
+    },
+    {
+      "id": "pane_40",
+      "polygon": [
+        [
+          2.5575,
+          2.48,
+          0.09
+        ],
+        [
+          3.2005,
+          2.48,
+          0.09
+        ],
+        [
+          3.2005,
+          2.933,
+          0.09
+        ],
+        [
+          2.5575,
+          2.933,
+          0.09
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "narrowest_m": 0.453
+    },
+    {
+      "id": "pane_B_l0",
+      "polygon": [
+        [
+          1.685,
+          0.96,
+          11.81
+        ],
+        [
+          2.361,
+          0.96,
+          11.81
+        ],
+        [
+          2.361,
+          2.4,
+          11.81
+        ],
+        [
+          1.685,
+          2.4,
+          11.81
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "narrowest_m": 0.676
+    },
+    {
+      "id": "pane_46",
+      "polygon": [
+        [
+          1.685,
+          2.46,
+          11.81
+        ],
+        [
+          2.361,
+          2.46,
+          11.81
+        ],
+        [
+          2.361,
+          2.96,
+          11.81
+        ],
+        [
+          1.685,
+          2.96,
+          11.81
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "narrowest_m": 0.5
+    },
+    {
+      "id": "pane_B_l1",
+      "polygon": [
+        [
+          2.421,
+          0.96,
+          11.81
+        ],
+        [
+          3.097,
+          0.96,
+          11.81
+        ],
+        [
+          3.097,
+          2.4,
+          11.81
+        ],
+        [
+          2.421,
+          2.4,
+          11.81
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "narrowest_m": 0.676
+    },
+    {
+      "id": "pane_B_t1",
+      "polygon": [
+        [
+          2.421,
+          2.46,
+          11.81
+        ],
+        [
+          3.097,
+          2.46,
+          11.81
+        ],
+        [
+          3.097,
+          2.96,
+          11.81
+        ],
+        [
+          2.421,
+          2.96,
+          11.81
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "narrowest_m": 0.5
+    },
+    {
+      "id": "over_door_wall",
+      "polygon": [
+        [
+          0.09,
+          3.9,
+          0.18
+        ],
+        [
+          0.09,
+          3.9,
+          11.72
+        ],
+        [
+          0.09,
+          5.972143,
+          11.72
+        ],
+        [
+          0.09,
+          5.972143,
+          0.18
+        ]
+      ],
+      "normal": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "narrowest_m": 2.072143
+    },
+    {
+      "id": "porch_bay_0",
+      "polygon": [
+        [
+          -2.27,
+          0.0,
+          0.18
+        ],
+        [
+          -2.27,
+          0.0,
+          3.88
+        ],
+        [
+          -2.27,
+          3.335,
+          3.88
+        ],
+        [
+          -2.27,
+          3.335,
+          0.18
+        ]
+      ],
+      "normal": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "narrowest_m": 3.335
+    },
+    {
+      "id": "porch_bay_1",
+      "polygon": [
+        [
+          -2.27,
+          0.0,
+          4.06
+        ],
+        [
+          -2.27,
+          0.0,
+          7.84
+        ],
+        [
+          -2.27,
+          3.335,
+          7.84
+        ],
+        [
+          -2.27,
+          3.335,
+          4.06
+        ]
+      ],
+      "normal": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "narrowest_m": 3.335
+    },
+    {
+      "id": "porch_bay_2",
+      "polygon": [
+        [
+          -2.27,
+          0.0,
+          8.02
+        ],
+        [
+          -2.27,
+          0.0,
+          11.72
+        ],
+        [
+          -2.27,
+          3.335,
+          11.72
+        ],
+        [
+          -2.27,
+          3.335,
+          8.02
+        ]
+      ],
+      "normal": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "narrowest_m": 3.335
+    },
+    {
+      "id": "porch_end_A",
+      "polygon": [
+        [
+          -2.18,
+          0.0,
+          0.09
+        ],
+        [
+          0.0,
+          0.0,
+          0.09
+        ],
+        [
+          0.0,
+          3.874615,
+          0.09
+        ],
+        [
+          -2.18,
+          3.490474,
+          0.09
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "narrowest_m": 2.18
+    },
+    {
+      "id": "porch_end_B",
+      "polygon": [
+        [
+          -2.18,
+          0.0,
+          11.81
+        ],
+        [
+          0.0,
+          0.0,
+          11.81
+        ],
+        [
+          0.0,
+          3.874615,
+          11.81
+        ],
+        [
+          -2.18,
+          3.490474,
+          11.81
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "narrowest_m": 2.18
+    }
+  ],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        0.09,
+        1.26,
+        1.09
+      ],
+      "size": [
+        0.18,
+        2.52,
+        1.82
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.09,
+        1.26,
+        4.3565
+      ],
+      "size": [
+        0.18,
+        2.52,
+        1.873
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.09,
+        1.26,
+        9.2165
+      ],
+      "size": [
+        0.18,
+        2.52,
+        5.007
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.09,
+        3.21,
+        5.95
+      ],
+      "size": [
+        0.18,
+        1.38,
+        11.54
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.73,
+        2.132384,
+        5.95
+      ],
+      "size": [
+        0.18,
+        4.264768,
+        11.54
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.91,
+        0.48,
+        0.09
+      ],
+      "size": [
+        5.82,
+        0.96,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.92725,
+        1.9465,
+        0.09
+      ],
+      "size": [
+        1.8545,
+        1.973,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.51025,
+        1.9465,
+        0.09
+      ],
+      "size": [
+        2.6195,
+        1.973,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.91,
+        3.2165,
+        0.09
+      ],
+      "size": [
+        5.82,
+        0.567,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.7025,
+        3.7,
+        0.09
+      ],
+      "size": [
+        1.135,
+        0.4,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.91,
+        3.7,
+        0.09
+      ],
+      "size": [
+        5.82,
+        0.4,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.775,
+        4.078751,
+        0.09
+      ],
+      "size": [
+        8.09,
+        0.357503,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.7775,
+        4.261135,
+        0.09
+      ],
+      "size": [
+        8.085,
+        0.007265,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.732384,
+        0.09
+      ],
+      "size": [
+        4.04,
+        2.935232,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.91,
+        0.48,
+        11.81
+      ],
+      "size": [
+        5.82,
+        0.96,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.8425,
+        1.96,
+        11.81
+      ],
+      "size": [
+        1.685,
+        2.0,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.4585,
+        1.96,
+        11.81
+      ],
+      "size": [
+        2.723,
+        2.0,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.91,
+        3.23,
+        11.81
+      ],
+      "size": [
+        5.82,
+        0.54,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.7025,
+        3.7,
+        11.81
+      ],
+      "size": [
+        1.135,
+        0.4,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.91,
+        3.7,
+        11.81
+      ],
+      "size": [
+        5.82,
+        0.4,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.775,
+        4.078751,
+        11.81
+      ],
+      "size": [
+        8.09,
+        0.357503,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.7775,
+        4.261135,
+        11.81
+      ],
+      "size": [
+        8.085,
+        0.007265,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.78,
+        5.732384,
+        11.81
+      ],
+      "size": [
+        4.04,
+        2.935232,
+        0.18
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.73,
+        -0.03,
+        5.95
+      ],
+      "size": [
+        8.18,
+        0.06,
+        11.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.966164,
+        5.695093,
+        5.95
+      ],
+      "size": [
+        5.422658,
+        0.025,
+        12.4
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.309017,
+        0.951057
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.406164,
+        5.695093,
+        5.95
+      ],
+      "size": [
+        5.422658,
+        0.025,
+        12.4
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.951057,
+        0.309017
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.02,
+        1.95,
+        11.37
+      ],
+      "size": [
+        1.24,
+        3.9,
+        0.7
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.195,
+        5.65,
+        11.37
+      ],
+      "size": [
+        0.89,
+        3.5,
+        0.7
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.27,
+        -0.491723,
+        1.5
+      ],
+      "size": [
+        0.5,
+        0.863445,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        -0.491723,
+        1.5
+      ],
+      "size": [
+        0.5,
+        0.863445,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.82,
+        -0.491723,
+        1.5
+      ],
+      "size": [
+        0.5,
+        0.863445,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.27,
+        -0.4375,
+        5.95
+      ],
+      "size": [
+        0.5,
+        0.755,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        -0.4375,
+        5.95
+      ],
+      "size": [
+        0.5,
+        0.755,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.82,
+        -0.4375,
+        5.95
+      ],
+      "size": [
+        0.5,
+        0.755,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.27,
+        -0.383277,
+        10.4
+      ],
+      "size": [
+        0.5,
+        0.646555,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        -0.383277,
+        10.4
+      ],
+      "size": [
+        0.5,
+        0.646555,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.82,
+        -0.383277,
+        10.4
+      ],
+      "size": [
+        0.5,
+        0.646555,
+        0.9
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.91,
+        3.6,
+        5.95
+      ],
+      "size": [
+        5.46,
+        7.2,
+        11.54
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 1.0,
+      "cavity": true,
+      "openings": [
+        "door_41",
+        "door_42",
+        "pane_A_l0",
+        "pane_A_t0",
+        "pane_A_l1",
+        "pane_40",
+        "pane_B_l0",
+        "pane_46",
+        "pane_B_l1",
+        "pane_B_t1",
+        "over_door_wall"
+      ]
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.0,
+          0.0,
+          3.42
+        ],
+        [
+          0.0,
+          2.52,
+          3.42
+        ],
+        [
+          0.0,
+          2.52,
+          2.0
+        ],
+        [
+          0.0,
+          0.0,
+          2.0
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "timber"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.0,
+          0.0,
+          6.713
+        ],
+        [
+          0.0,
+          2.52,
+          6.713
+        ],
+        [
+          0.0,
+          2.52,
+          5.293
+        ],
+        [
+          0.0,
+          0.0,
+          5.293
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "timber"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.8545,
+          0.96,
+          0.0
+        ],
+        [
+          3.2005,
+          0.96,
+          0.0
+        ],
+        [
+          3.2005,
+          2.933,
+          0.0
+        ],
+        [
+          1.8545,
+          2.933,
+          0.0
+        ],
+        [
+          1.8545,
+          0.96,
+          0.0
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "timber"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.685,
+          0.96,
+          11.9
+        ],
+        [
+          3.097,
+          0.96,
+          11.9
+        ],
+        [
+          3.097,
+          2.96,
+          11.9
+        ],
+        [
+          1.685,
+          2.96,
+          11.9
+        ],
+        [
+          1.685,
+          0.96,
+          11.9
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "timber"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          2.5275,
+          0.96,
+          0.09
+        ],
+        [
+          2.5275,
+          2.933,
+          0.09
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "timber"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.8545,
+          2.45,
+          0.09
+        ],
+        [
+          3.2005,
+          2.45,
+          0.09
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "timber"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          2.391,
+          0.96,
+          11.81
+        ],
+        [
+          2.391,
+          2.96,
+          11.81
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "timber"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.685,
+          2.43,
+          11.81
+        ],
+        [
+          3.097,
+          2.43,
+          11.81
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "timber"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          6.167023,
+          4.111527,
+          -0.25
+        ],
+        [
+          6.167023,
+          4.111527,
+          12.15
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "asbestos_cement"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.78,
+          7.298885,
+          -0.25
+        ],
+        [
+          6.167023,
+          4.111527,
+          -0.25
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "asbestos_cement"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.78,
+          7.298885,
+          12.15
+        ],
+        [
+          6.167023,
+          4.111527,
+          12.15
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "asbestos_cement"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -2.607023,
+          4.111527,
+          -0.25
+        ],
+        [
+          -2.607023,
+          4.111527,
+          12.15
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "asbestos_cement"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.78,
+          7.298885,
+          -0.25
+        ],
+        [
+          -2.607023,
+          4.111527,
+          -0.25
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "asbestos_cement"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.78,
+          7.298885,
+          12.15
+        ],
+        [
+          -2.607023,
+          4.111527,
+          12.15
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "asbestos_cement"
+    }
+  ]
+}

@@ -1,0 +1,256 @@
+{
+  "schema": 1,
+  "id": "T01",
+  "variant": "T01_ribbon_tape_109",
+  "generator": "track_kit",
+  "params_sha256": "8629a29076fa2c46a4eb3ed16f529fbac0f7672c07d24d6b138abed8acfe0c0b",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      516.639987,
+      19.990234,
+      466.88626
+    ],
+    "max": [
+      524.514932,
+      20.698716,
+      522.969879
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "T01_ribbon_tape_109_LOD0",
+      "tris": 140,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "T01_ribbon_tape_109_LOD1",
+      "tris": 84,
+      "switch_distance_m": 25.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "T01_ribbon_tape_109_LOD2",
+      "tris": 56,
+      "switch_distance_m": 80.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [
+    {
+      "lod": 0,
+      "name": "T01_ribbon_tape_109_LOD0_band",
+      "kind": "band",
+      "count": 6,
+      "tris": 52
+    },
+    {
+      "lod": 1,
+      "name": "T01_ribbon_tape_109_LOD1_band",
+      "kind": "band",
+      "count": 6,
+      "tris": 52
+    },
+    {
+      "lod": 2,
+      "name": "T01_ribbon_tape_109_LOD2_band",
+      "kind": "band",
+      "count": 6,
+      "tris": 52
+    }
+  ],
+  "cull_distance_m": 1000.0,
+  "materials": [
+    {
+      "slot": "fabric",
+      "visual": "track_kit",
+      "physics": "fabric"
+    },
+    {
+      "slot": "steel",
+      "visual": "track_kit",
+      "physics": "steel"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "cylinder",
+      "center": [
+        517.6296,
+        20.215234,
+        466.909027
+      ],
+      "radius": 0.01,
+      "height": 0.45,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        521.2222,
+        20.215234,
+        478.185242
+      ],
+      "radius": 0.01,
+      "height": 0.45,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        518.2939,
+        20.215234,
+        488.057129
+      ],
+      "radius": 0.01,
+      "height": 0.45,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        523.9876,
+        20.215234,
+        498.910767
+      ],
+      "radius": 0.01,
+      "height": 0.45,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        521.809448,
+        20.215234,
+        509.710846
+      ],
+      "radius": 0.01,
+      "height": 0.45,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        524.425964,
+        20.473716,
+        517.524841
+      ],
+      "radius": 0.01,
+      "height": 0.45,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        516.6828,
+        20.215234,
+        522.9083
+      ],
+      "radius": 0.01,
+      "height": 0.45,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [
+    {
+      "kind": "edge",
+      "points": [
+        [
+          517.6296,
+          20.001234,
+          466.909027
+        ],
+        [
+          521.2222,
+          20.001234,
+          478.185242
+        ],
+        [
+          518.2939,
+          20.001234,
+          488.057129
+        ],
+        [
+          523.9876,
+          20.001234,
+          498.910767
+        ],
+        [
+          521.809448,
+          20.001234,
+          509.710846
+        ],
+        [
+          524.425964,
+          20.259716,
+          517.524841
+        ],
+        [
+          516.6828,
+          20.001234,
+          522.9083
+        ]
+      ],
+      "radius_m": 0.075,
+      "material": "fabric",
+      "edge_radius_m": 0.001
+    }
+  ]
+}

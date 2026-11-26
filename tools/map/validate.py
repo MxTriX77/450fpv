@@ -39,7 +39,7 @@ FORMAT_VERSION = 1
 FRAME = "unity-lh-yup"
 MAX_SAMPLE = 32766  # Unity's heightmap: a height is sample / 32766 of the tile's height
 PROBE_TOLERANCE_M = 0.001  # the spec's 1 mm (assumed)
-KINDS = ("tree", "bush", "ruin", "debris")
+KINDS = ("tree", "bush", "ruin", "debris", "track")  # track: hunter-09's kit and houses (w20-hunter-track)
 RINGS = ("map", "surround", "far")
 UNLISTED_OK = {"map.json", "README.md"}
 LFS_POINTER = b"version https://git-lfs"
@@ -238,7 +238,9 @@ def _check_classes(manifest, contents, errors):
 
 
 def _check_grass(manifest, contents, errors):
-    grass = manifest.get("grass", {})
+    if "grass" not in manifest:  # a package without grass
+        return 0
+    grass = manifest["grass"]
     tile_ids = {row["id"] for row in manifest.get("tiles", [])}
     if grass.get("tile") not in tile_ids:
         errors.append(f"grass: tile '{grass.get('tile')}' is not a tile")
@@ -345,8 +347,8 @@ def _check_placements(placements, manifest, rect, errors):
         if any(s == 0 for s in row["scale"]):
             errors.append(f"{what}: a zero scale")
     for kind in KINDS:
-        if counts[kind] != manifest.get("counts", {}).get(kind):
-            errors.append(f"placements: {counts[kind]} {kind} rows, map.json counts {manifest.get('counts', {}).get(kind)}")
+        if counts[kind] != manifest.get("counts", {}).get(kind, 0):
+            errors.append(f"placements: {counts[kind]} {kind} rows, map.json counts {manifest.get('counts', {}).get(kind, 0)}")
     return rows
 
 
@@ -367,7 +369,12 @@ def _check_outlines(outlines, rect, rows, errors):
             errors.append(f"field {name}: an outline point lies outside the map")
         if not 0 <= field.get("overgrowth", -1) <= 1 or field.get("furrow_axis") not in ("X", "Z"):
             errors.append(f"field {name}: overgrowth must be 0..1 and furrow_axis X or Z")
-    village = outlines.get("village", {})
+    if "village" not in outlines:  # a map with no village holds no ruin or debris
+        for row in rows:
+            if row.get("kind") in ("ruin", "debris"):
+                errors.append(f"placement {row['id']}: a {row['kind']} on a map with no village")
+        return len(names)
+    village = outlines["village"]
     (cx, cz), r = village.get("centre_m", (math.nan, math.nan)), village.get("radius_m", 0)
     if village.get("shape") != "circle" or not r > 0 or not _inside((rect[0] + r, rect[1] + r, rect[2] - r, rect[3] - r), cx, cz):
         errors.append("village: must be a circle lying on the map")
@@ -429,7 +436,7 @@ def validate(root):
     rows = _check_placements(documents["placements.json"], manifest, rect, errors)
     fields = _check_outlines(documents["outlines.json"], rect, rows, errors)
     probes, worst = _check_probes(documents["height_probes.json"], tiles, errors)
-    counts = ", ".join(f"{manifest['counts'].get(k)} {k}" for k in KINDS)
+    counts = ", ".join(f"{manifest['counts'].get(k)} {k}" for k in KINDS if k in manifest["counts"])
     summary = (f"{root.as_posix()}: {len(tiles)} tiles ({seams} seams), {counts}, {grass} grass instances, {fields} fields, "
                f"{probes} height probes within {worst * 1000:.4f} mm of Unity")
     if stems:

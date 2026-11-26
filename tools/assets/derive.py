@@ -274,6 +274,8 @@ def derive(root, manifest, material):
         return derive_ground(root, manifest, material, recipe)
     if kind == "palette":
         return derive_palette(root, material, recipe)
+    if kind == "vendor":  # w20-hunter-track design 9: a material the world already holds, used as it stands
+        return f"{material}: the vendor material {recipe['material']}, nothing to derive"
     if kind is not None:
         raise DeriveError(f"{material}: unknown recipe kind {kind!r} (omit it for a tiled set, or 'ground' or 'palette')")
     if ("paint" in recipe) == ("texture_set" in recipe):

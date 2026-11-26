@@ -94,20 +94,30 @@ namespace Fpv450.Sim.World
         /// <summary>
         /// Every row's wind volumes placed at its pose (position, yaw in radians, scale), and the rows' groups. A scaled row's
         /// volume is the scaled one: its centre and size per axis, a cylinder's radius by the scale's x. Its x must be its z,
-        /// so the scale turns with any yaw. A tilted row (no yaw) has no wind volumes.
+        /// so the scale turns with any yaw. A tilted row (no yaw; w20-hunter-track's kit) takes its heading (TiltedHeading), and
+        /// each volume becomes the upright box bounding it in that heading's frame; it takes no scale.
         /// </summary>
-        private void PlaceWind(Meta[] rowMeta, Double3[] rowPosition, double[] rowYaw, Double3[] rowScale, string[] groups, string file)
+        private void PlaceWind(Meta[] rowMeta, Double3[] rowPosition, Quat[] rowRotation, double[] rowYaw, Double3[] rowScale, string[] groups, string file)
         {
             _groups = groups;
             var volumes = new List<WindVolume>();
             var objects = new List<int>();
             for (int i = 0; i < rowMeta.Length; i++)
+            {
+                bool tilted = double.IsNaN(rowYaw[i]);
+                double yaw = tilted ? TiltedHeading(rowRotation[i]) : rowYaw[i];
+                Quat lean = Quat.Identity;
+                if (tilted)
+                {
+                    DetMath.SinCos(yaw / 2, out double sin, out double cos);
+                    lean = new Quat(0, sin, 0, cos).Conjugate() * rowRotation[i]; // the row's turn left after its heading
+                }
                 foreach (WindRecord r in rowMeta[i].Wind)
                 {
-                    if (double.IsNaN(rowYaw[i]) || rowScale[i].X != rowScale[i].Z)
-                        throw new FormatException(file + " placement " + i + ": a tilted row has no wind volumes, and a scaled one's x is its z");
-                    Quat q = r.Rotation;
-                    Double3 centre = r.Center, size = r.Size;
+                    if (tilted ? !Unit(rowScale[i]) : rowScale[i].X != rowScale[i].Z)
+                        throw new FormatException(file + " placement " + i + ": a tilted row with wind volumes takes no scale, and a scaled one's x is its z");
+                    Quat q = tilted ? lean * r.Rotation : r.Rotation;
+                    Double3 centre = tilted ? lean.Rotate(r.Center) : r.Center, size = r.Size;
                     WindVolumeKind kind = r.Kind;
                     double localYaw = 0;
                     if (DetMath.Abs(q.X) < 1e-9 && DetMath.Abs(q.Z) < 1e-9)
@@ -131,15 +141,26 @@ namespace Fpv450.Sim.World
                     centre = Mul(centre, scale);
                     size = Mul(size, scale);
                     WindVolume w = WindVolume.Placed(kind, centre, size.X, size.Y, size.Z, kind == WindVolumeKind.Cylinder ? r.Radius * scale.X : 0,
-                        r.Porosity, p.X, p.Z, rowYaw[i], 1);
-                    w.Yaw = rowYaw[i] + localYaw;
+                        r.Porosity, p.X, p.Z, yaw, 1);
+                    w.Yaw = yaw + localYaw;
                     if (w.BaseM < 0) w.BaseM = 0; // set into the ground
                     if (!(w.TopM > w.BaseM)) continue;
                     volumes.Add(w);
                     objects.Add(i);
                 }
+            }
             _windVolumes = volumes.ToArray();
             _windObject = objects.ToArray();
+        }
+
+        /// <summary>A tilted row's heading, rad: of its local +Z where that lies nearer level than upright, else of its local +X.</summary>
+        private static double TiltedHeading(Quat rotation)
+        {
+            Double3 z = rotation.Rotate(new Double3(0, 0, 1));
+            if (z.X * z.X + z.Z * z.Z >= 0.5)
+                return DetMath.Atan2(z.X, z.Z);
+            Double3 x = rotation.Rotate(new Double3(1, 0, 0));
+            return DetMath.Atan2(-x.Z, x.X);
         }
 
         // ---- The cut records ---------------------------------------------------------------------------------------

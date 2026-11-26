@@ -1,0 +1,14 @@
+{
+  "kind": "cone_light",
+  "rows": [
+    {"name": "height_m", "value": 2.7, "label": "C"},
+    {"name": "base_d_m", "value": 0.7, "label": "C"},
+    {"name": "tip_d_m", "value": 0.04, "label": "A"},
+    {"name": "band_h_m", "value": 0.3, "label": "C"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "plastic", "colour": "green"},
+    {"part": "band", "slot": "plastic", "colour": "black"}
+  ],
+  "lod": {"lod1_switch_m": 25.0, "lod2_switch_m": 80.0, "cull_m": 1000.0}
+}

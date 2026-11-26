@@ -1,0 +1,12 @@
+{
+  "kind": "led_flag_green",
+  "rows": [
+    {"name": "size_x_m", "value": 0.7, "label": "C"},
+    {"name": "size_y_m", "value": 0.03, "label": "A"},
+    {"name": "size_z_m", "value": 0.42, "label": "C"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "plastic", "colour": "green"}
+  ],
+  "lod": {"lod1_switch_m": 15.0, "lod2_switch_m": 50.0, "cull_m": 300.0}
+}

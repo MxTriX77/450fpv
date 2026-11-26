@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "id": "T01",
+  "variant": "T01_led_ball",
+  "generator": "track_kit",
+  "params_sha256": "9b69f58da036297fa8dc95e7065a2a7c65983df3469806579ea20f934c795508",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.15,
+      -0.15,
+      -0.15
+    ],
+    "max": [
+      0.15,
+      0.15,
+      0.15
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "T01_led_ball_LOD0",
+      "tris": 224,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "T01_led_ball_LOD1",
+      "tris": 120,
+      "switch_distance_m": 15.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "T01_led_ball_LOD2",
+      "tris": 48,
+      "switch_distance_m": 50.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 300.0,
+  "materials": [
+    {
+      "slot": "plastic",
+      "visual": "track_kit",
+      "physics": "plastic"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "sphere",
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "radius": 0.15,
+      "material": "plastic",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": []
+}

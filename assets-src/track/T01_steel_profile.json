@@ -1,0 +1,12 @@
+{
+  "kind": "steel_profile",
+  "rows": [
+    {"name": "size_x_m", "value": 0.09, "label": "C"},
+    {"name": "size_y_m", "value": 2.4, "label": "D"},
+    {"name": "size_z_m", "value": 0.04, "label": "C"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "steel", "colour": "steel"}
+  ],
+  "lod": {"lod1_switch_m": 15.0, "lod2_switch_m": 50.0, "cull_m": 300.0}
+}

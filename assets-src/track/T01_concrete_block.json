@@ -1,0 +1,12 @@
+{
+  "kind": "concrete_block",
+  "rows": [
+    {"name": "size_x_m", "value": 0.762, "label": "F"},
+    {"name": "size_y_m", "value": 0.762, "label": "F"},
+    {"name": "size_z_m", "value": 1.524, "label": "F"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "concrete", "colour": "concrete"}
+  ],
+  "lod": {"lod1_switch_m": 25.0, "lod2_switch_m": 80.0, "cull_m": 1000.0}
+}

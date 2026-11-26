@@ -123,6 +123,8 @@ def rows():
     for path in sorted(RECIPES.glob("*.json")):
         name = path.stem
         r = recipe(name)
+        if r.get("kind") == "vendor":  # the world's own material, used as it stands: no tint of ours to check
+            continue
         if "far_card_of" in r:  # the importer builds it from its leaf recipe: the leaf's tint over the leaf's maps
             name, r = r["far_card_of"], recipe(r["far_card_of"])
             label = f"{path.stem} (as {name})"

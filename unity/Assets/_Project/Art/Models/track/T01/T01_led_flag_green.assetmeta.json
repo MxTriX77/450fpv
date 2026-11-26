@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "id": "T01",
+  "variant": "T01_led_flag_green",
+  "generator": "track_kit",
+  "params_sha256": "bcfbf49df45444fda8d5b3dada6c75cd2aa9a8d12b784d55910cdcb1b0eb1025",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.35,
+      -0.015,
+      -0.21
+    ],
+    "max": [
+      0.35,
+      0.015,
+      0.21
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "T01_led_flag_green_LOD0",
+      "tris": 12,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 300.0,
+  "materials": [
+    {
+      "slot": "plastic",
+      "visual": "track_kit",
+      "physics": "plastic"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        0.7,
+        0.03,
+        0.42
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "plastic",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.35,
+          0.0,
+          -0.21
+        ],
+        [
+          0.35,
+          0.0,
+          -0.21
+        ],
+        [
+          0.35,
+          0.0,
+          0.21
+        ],
+        [
+          -0.35,
+          0.0,
+          0.21
+        ],
+        [
+          -0.35,
+          0.0,
+          -0.21
+        ]
+      ],
+      "radius_m": 0.015,
+      "material": "plastic"
+    }
+  ]
+}

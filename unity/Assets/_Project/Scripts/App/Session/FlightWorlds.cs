@@ -32,7 +32,7 @@ namespace Fpv450.App.Session
     /// </summary>
     public static class FlightWorlds
     {
-        public const string TestRangeMap = "test-range", FarmlandMap = "farmland";
+        public const string TestRangeMap = "test-range", FarmlandMap = "farmland", HunterMap = "hunter-09";
 
         /// <summary>
         /// The one start the app flies from (D-077, the pilot: "we only load the one with many houses"): the map's
@@ -69,10 +69,25 @@ namespace Fpv450.App.Session
         /// placements.json, the material table, the vendor lists, and each placed variant's metadata and sidecars (a player's
         /// copies). The flight's other uses of the map (the hills, the wind's wakes and cuts) read the loaded world, no file.
         /// </summary>
-        public static List<string> FarmlandFiles(string root)
+        public static List<string> FarmlandFiles(string root) => PackageFiles(root, FarmlandMap);
+
+        /// <summary>
+        /// The third card's map (w20-hunter-track 1.5) on its queries, MapWorld.Load(root, "hunter-09"), loaded once and shared
+        /// by its flights; its one start is the package's. The log names it by its map id, so replay and the summary reopen it.
+        /// </summary>
+        public static FlightWorldChoice Hunter(string root)
+        {
+            MapWorld map = MapWorld.Load(root, HunterMap);
+            return new FlightWorldChoice { Id = map.MapId, Open = () => new FlightWorld(map), StartPoints = Array.ConvertAll(map.StartPoints, AppStart) };
+        }
+
+        /// <summary>The files under the root that MapWorld reads for hunter-09, as FarmlandFiles (a player's copies).</summary>
+        public static List<string> HunterFiles(string root) => PackageFiles(root, HunterMap);
+
+        static List<string> PackageFiles(string root, string mapId)
         {
             var files = new List<string>();
-            MapWorld.Load(root, FarmlandMap, file =>
+            MapWorld.Load(root, mapId, file =>
             {
                 if (!files.Contains(file)) files.Add(file);
             });

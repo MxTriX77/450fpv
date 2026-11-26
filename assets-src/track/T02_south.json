@@ -1,0 +1,46 @@
+{
+  "seed": 22,
+  "rows": [
+    {"name": "length_m", "value": 11.9, "label": "D"},
+    {"name": "width_m", "value": 5.82, "label": "D"},
+    {"name": "wall_t_m", "value": 0.18, "label": "D"},
+    {"name": "door_wall_top_m", "value": 3.9, "label": "D"},
+    {"name": "ridge_v_m", "value": 1.78, "label": "D"},
+    {"name": "pitch_deg", "value": 36.0, "label": "D"},
+    {"name": "roof_under_m", "value": 7.2, "label": "D"},
+    {"name": "roof_sheet_m", "value": 0.08, "label": "A"},
+    {"name": "eave_m", "value": 0.3, "label": "C"},
+    {"name": "verge_m", "value": 0.25, "label": "A"},
+    {"name": "porch_m", "value": 2.27, "label": "C"},
+    {"name": "post_m", "value": 0.18, "label": "A"},
+    {"name": "soffit_in_m", "value": 3.9, "label": "C"},
+    {"name": "soffit_out_m", "value": 3.5, "label": "C"},
+    {"name": "pier_u_size_m", "value": 0.9, "label": "C"},
+    {"name": "pier_v_size_m", "value": 0.5, "label": "C"},
+    {"name": "chimney_u0_m", "value": 11.02, "label": "C"},
+    {"name": "chimney_v0_m", "value": 4.4, "label": "C"},
+    {"name": "chimney_v_top_m", "value": 4.75, "label": "D"},
+    {"name": "chimney_step_m", "value": 3.9, "label": "D"},
+    {"name": "chimney_top_m", "value": 7.4, "label": "C"},
+    {"name": "floor_under_m", "value": -0.08, "label": "D"},
+    {"name": "ground_a_m", "value": -0.49, "label": "D"},
+    {"name": "ground_b_m", "value": -0.49, "label": "D"}
+  ],
+  "post_u_m": [0.09, 3.97, 7.93, 11.81],
+  "pier_u_m": [1.5, 5.95, 10.4],
+  "pier_v_m": [-2.27, 0.0, 5.82],
+  "openings": [
+    {"marker": 29, "wall": "door", "kind": "door", "s": 2.767, "h": 1.235, "tilt_deg": 0, "width": 1.42, "height": 2.47},
+    {"marker": 30, "wall": "door", "kind": "door", "s": 6.047, "h": 1.235, "tilt_deg": 0, "width": 1.42, "height": 2.47},
+    {"marker": 28, "wall": "A", "kind": "pane", "s": 2.182, "h": 2.716, "tilt_deg": 0, "width": 0.625, "height": 0.475},
+    {"marker": 31, "wall": "B", "kind": "pane", "s": 2.735, "h": 2.704, "tilt_deg": 0, "width": 0.635, "height": 0.462},
+    {"marker": 27, "wall": "A", "kind": "crawl", "s": 0.834, "h": -0.285, "tilt_deg": 0, "width": 3.371, "height": 0.41},
+    {"marker": 32, "wall": "B", "kind": "crawl", "s": 3.42, "h": -0.285, "tilt_deg": 0, "width": 3.311, "height": 0.41}
+  ],
+  "windows": [
+    {"wall": "A", "columns": [2.182, 2.867], "widths": [0.625, 0.625], "top": [2.479, 2.954], "lower": [0.96, 2.419]},
+    {"wall": "B", "columns": [2.04, 2.735], "widths": [0.635, 0.635], "top": [2.473, 2.935], "lower": [0.96, 2.413]}
+  ],
+  "birch": [],
+  "lod": {"lod1_switch_m": 30.0, "lod2_switch_m": 100.0, "cull_m": 1500.0}
+}

@@ -44,7 +44,8 @@ namespace Fpv450.App
 
         static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (scene.name != FarmlandExplore.Scene) return;
+            // ХАНТЕР-09's terrain draws Village's grass prototypes too (w20-hunter-track 3.2a).
+            if (scene.name != FarmlandExplore.Scene && scene.name != PlayMaps.HunterScene) return;
             if (FarmlandPlants.On) Draw(scene);
             else Debug.Log("[Plants] -plants 0: the farmland's plants draw through the friend's own shaders and wind (the A/B's before)");
         }

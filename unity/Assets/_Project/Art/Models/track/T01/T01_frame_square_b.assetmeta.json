@@ -1,0 +1,302 @@
+{
+  "schema": 1,
+  "id": "T01",
+  "variant": "T01_frame_square_b",
+  "generator": "track_kit",
+  "params_sha256": "6a9f82757a4e8f3094b188e8f36c19a1f580efc1c74defa14946316ba86a1d37",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -1.525,
+      0.0,
+      -0.05
+    ],
+    "max": [
+      1.525,
+      7.95,
+      0.05
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "T01_frame_square_b_LOD0",
+      "tris": 88,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "T01_frame_square_b_LOD1",
+      "tris": 72,
+      "switch_distance_m": 25.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "T01_frame_square_b_LOD2",
+      "tris": 64,
+      "switch_distance_m": 80.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 1000.0,
+  "materials": [
+    {
+      "slot": "fabric",
+      "visual": "track_kit",
+      "physics": "fabric"
+    },
+    {
+      "slot": "plastic",
+      "visual": "track_kit",
+      "physics": "plastic"
+    },
+    {
+      "slot": "steel",
+      "visual": "track_kit",
+      "physics": "steel"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        5.215,
+        0.0
+      ],
+      "size": [
+        3.05,
+        0.63,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "fabric",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        7.63,
+        0.0
+      ],
+      "size": [
+        3.05,
+        0.64,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "fabric",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.28,
+        6.42,
+        0.0
+      ],
+      "size": [
+        0.49,
+        1.78,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.28,
+        6.42,
+        0.0
+      ],
+      "size": [
+        0.49,
+        1.78,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.44,
+        2.45,
+        0.0
+      ],
+      "radius": 0.025,
+      "height": 4.9,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.44,
+        2.45,
+        0.0
+      ],
+      "radius": 0.025,
+      "height": 4.9,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    }
+  ],
+  "gaps": [
+    {
+      "id": "opening",
+      "polygon": [
+        [
+          -1.035,
+          5.53,
+          0.0
+        ],
+        [
+          1.035,
+          5.53,
+          0.0
+        ],
+        [
+          1.035,
+          7.31,
+          0.0
+        ],
+        [
+          -1.035,
+          7.31,
+          0.0
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "narrowest_m": 1.78
+    }
+  ],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        5.215,
+        0.0
+      ],
+      "size": [
+        3.05,
+        0.63,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        7.63,
+        0.0
+      ],
+      "size": [
+        3.05,
+        0.64,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.28,
+        6.42,
+        0.0
+      ],
+      "size": [
+        0.49,
+        1.78,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.28,
+        6.42,
+        0.0
+      ],
+      "size": [
+        0.49,
+        1.78,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": []
+}

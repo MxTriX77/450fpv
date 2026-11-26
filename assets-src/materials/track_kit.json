@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "kind": "palette",
+  "shader": "Universal Render Pipeline/Lit",
+  "colours": { "concrete": "#8a8881", "rubber": "#1e1e1e", "white": "#d8d5cc", "black": "#222326", "red": "#b3352b",
+               "blue": "#2b5fa8", "yellow": "#d6b42e", "green": "#3b9e46", "steel": "#6c6d70", "timber": "#a98a5e" },
+  "tint": [1.0, 1.0, 1.0, 1.0],
+  "smoothness": 0.3
+}

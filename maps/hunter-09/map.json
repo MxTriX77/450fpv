@@ -1,0 +1,330 @@
+{
+  "format": "fpv450-map-package",
+  "format_version": 1,
+  "map": "hunter-09",
+  "frame": "unity-lh-yup",
+  "source": {
+    "compiler": "tools/map/compile_track.py"
+  },
+  "map_rect_m": [
+    0,
+    0,
+    1000,
+    1000
+  ],
+  "tiles": [
+    {
+      "id": "map",
+      "ring": "map",
+      "position_m": [
+        0,
+        0,
+        0
+      ],
+      "size_m": [
+        1000,
+        120,
+        1000
+      ],
+      "heights": {
+        "file": "heights/map.r16",
+        "resolution": 1025,
+        "min_sample": 4920,
+        "max_sample": 5608
+      },
+      "classes": {
+        "file": "classes/map.raw",
+        "resolution": 2
+      }
+    }
+  ],
+  "ground_classes": {
+    "surface_table": "assets-src/surfaces.json",
+    "layers": [
+      {
+        "layer": "stand_in",
+        "surface": "meadow_sod",
+        "id": 1,
+        "note": "assumed: one class until portion 3 dresses the ground"
+      }
+    ]
+  },
+  "grass": {
+    "tile": "map",
+    "file": "grass/map.raw",
+    "resolution": 1024,
+    "layers": [
+      {
+        "layer": 0,
+        "prefab": "Grass_A",
+        "group": "Green",
+        "width_scale": [
+          2.6,
+          3.4
+        ],
+        "height_scale": [
+          1.8,
+          2.6
+        ],
+        "mesh_y_m": [
+          -0.0423,
+          0.2579
+        ],
+        "instances": 350882
+      },
+      {
+        "layer": 1,
+        "prefab": "Grass_B",
+        "group": "GreenClump",
+        "width_scale": [
+          1.2,
+          1.7
+        ],
+        "height_scale": [
+          1.3,
+          1.8
+        ],
+        "mesh_y_m": [
+          -0.0436,
+          0.3466
+        ],
+        "instances": 5888
+      },
+      {
+        "layer": 2,
+        "prefab": "Grass_C",
+        "group": "GreenClump",
+        "width_scale": [
+          1,
+          1.4
+        ],
+        "height_scale": [
+          1,
+          1.4
+        ],
+        "mesh_y_m": [
+          -0.0045,
+          0.5964
+        ],
+        "instances": 5988
+      },
+      {
+        "layer": 3,
+        "prefab": "Grass_D",
+        "group": "GreenClump",
+        "width_scale": [
+          0.9,
+          1.3
+        ],
+        "height_scale": [
+          0.9,
+          1.3
+        ],
+        "mesh_y_m": [
+          -0.0151,
+          0.7424
+        ],
+        "instances": 5914
+      },
+      {
+        "layer": 4,
+        "prefab": "GrassDry_A",
+        "group": "Dry",
+        "width_scale": [
+          1.2,
+          1.7
+        ],
+        "height_scale": [
+          1.2,
+          1.7
+        ],
+        "mesh_y_m": [
+          -0.0203,
+          0.5299
+        ],
+        "instances": 12319
+      },
+      {
+        "layer": 5,
+        "prefab": "GrassDry_B",
+        "group": "Dry",
+        "width_scale": [
+          1.6,
+          2.2
+        ],
+        "height_scale": [
+          1.6,
+          2.2
+        ],
+        "mesh_y_m": [
+          -0.0152,
+          0.3658
+        ],
+        "instances": 12136
+      },
+      {
+        "layer": 6,
+        "prefab": "GrassDry_C",
+        "group": "DryClump",
+        "width_scale": [
+          1,
+          1.4
+        ],
+        "height_scale": [
+          1,
+          1.4
+        ],
+        "mesh_y_m": [
+          -0.0266,
+          0.6789
+        ],
+        "instances": 3414
+      },
+      {
+        "layer": 7,
+        "prefab": "GrassBurnt_A",
+        "group": "Burnt",
+        "width_scale": [
+          1.2,
+          1.7
+        ],
+        "height_scale": [
+          1,
+          1.5
+        ],
+        "mesh_y_m": [
+          -0.0203,
+          0.5299
+        ],
+        "instances": 22
+      },
+      {
+        "layer": 8,
+        "prefab": "GrassBurnt_B",
+        "group": "Burnt",
+        "width_scale": [
+          1.6,
+          2.2
+        ],
+        "height_scale": [
+          1.2,
+          1.8
+        ],
+        "mesh_y_m": [
+          -0.0152,
+          0.3658
+        ],
+        "instances": 25
+      },
+      {
+        "layer": 9,
+        "prefab": "GrassBurnt_C",
+        "group": "Burnt",
+        "width_scale": [
+          1,
+          1.6
+        ],
+        "height_scale": [
+          1,
+          1.7
+        ],
+        "mesh_y_m": [
+          -0.0266,
+          0.6789
+        ],
+        "instances": 0
+      },
+      {
+        "layer": 10,
+        "prefab": "Grass_A",
+        "group": "TallGreen",
+        "width_scale": [
+          2.6,
+          3.6
+        ],
+        "height_scale": [
+          3.6,
+          5.2
+        ],
+        "mesh_y_m": [
+          -0.0423,
+          0.2579
+        ],
+        "instances": 12958
+      },
+      {
+        "layer": 11,
+        "prefab": "GrassDry_C",
+        "group": "TallDry",
+        "width_scale": [
+          1.5,
+          2.2
+        ],
+        "height_scale": [
+          1.8,
+          2.6
+        ],
+        "mesh_y_m": [
+          -0.0266,
+          0.6789
+        ],
+        "instances": 2474
+      },
+      {
+        "layer": 12,
+        "prefab": "GrassDry_A",
+        "group": "TallDry",
+        "width_scale": [
+          1.8,
+          2.6
+        ],
+        "height_scale": [
+          2.2,
+          3
+        ],
+        "mesh_y_m": [
+          -0.0203,
+          0.5299
+        ],
+        "instances": 2119
+      },
+      {
+        "layer": 13,
+        "prefab": "GrassBurnt_C",
+        "group": "TallBurnt",
+        "width_scale": [
+          1.5,
+          2.2
+        ],
+        "height_scale": [
+          1.8,
+          2.6
+        ],
+        "mesh_y_m": [
+          -0.0266,
+          0.6789
+        ],
+        "instances": 0
+      }
+    ]
+  },
+  "counts": {
+    "track": 275
+  },
+  "height_probes": {
+    "seed": 450,
+    "map": 500,
+    "track": 500,
+    "track_margin_m": 15
+  },
+  "files": {
+    "classes/map.raw": "27ecd0a598e76f8a2fd264d427df0a119903e8eae384e478902541756f089dd1",
+    "grass/map.raw": "cf03d1c91bd5c841125557802b82f76e20be3b5743b563fdab06d60e116e505d",
+    "height_probes.json": "f6cc4acab7cef989cf2f2b12941931cbf635b75a06d287643e15e48ddd46b822",
+    "heights/map.r16": "200967b192e96e510e7c3406471b03083ed2f80fa42659e4327e3f0125c2b1ab",
+    "layout.json": "6937d6a71638109f3b101cd9d97825c01d27b126e430da74daf4a28934ad005c",
+    "outlines.json": "94623f932df82229710b5650349a35d4eb50a4c88036fcedb20593eeda3d33c5",
+    "params.json": "8af047330471cec196abaad1cda1359565d49ac7fa6b6698fd6c65b275418e7d",
+    "placements.json": "4aff99ec66acfbcac7face1b98a0b4ac1ca18189580ccaa177499a626a5f1535"
+  }
+}

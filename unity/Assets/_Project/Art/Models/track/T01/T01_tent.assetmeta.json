@@ -1,0 +1,178 @@
+{
+  "schema": 1,
+  "id": "T01",
+  "variant": "T01_tent",
+  "generator": "track_kit",
+  "params_sha256": "bd397c2038bc802650a7b9bd57abdd71ae5e3a7a31c4154cf8d5b96969a1ecc3",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -1.875,
+      0.0,
+      -1.875
+    ],
+    "max": [
+      1.875,
+      3.1,
+      1.875
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "T01_tent_LOD0",
+      "tris": 92,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "T01_tent_LOD1",
+      "tris": 60,
+      "switch_distance_m": 25.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "T01_tent_LOD2",
+      "tris": 44,
+      "switch_distance_m": 80.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 1000.0,
+  "materials": [
+    {
+      "slot": "fabric",
+      "visual": "track_kit",
+      "physics": "fabric"
+    },
+    {
+      "slot": "steel",
+      "visual": "track_kit",
+      "physics": "steel"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        3.07,
+        0.0
+      ],
+      "size": [
+        3.75,
+        0.06,
+        3.75
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "fabric",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.85,
+        1.52,
+        -1.85
+      ],
+      "radius": 0.025,
+      "height": 3.04,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.85,
+        1.52,
+        1.85
+      ],
+      "radius": 0.025,
+      "height": 3.04,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.85,
+        1.52,
+        -1.85
+      ],
+      "radius": 0.025,
+      "height": 3.04,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.85,
+        1.52,
+        1.85
+      ],
+      "radius": 0.025,
+      "height": 3.04,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        3.07,
+        0.0
+      ],
+      "size": [
+        3.75,
+        0.06,
+        3.75
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": []
+}

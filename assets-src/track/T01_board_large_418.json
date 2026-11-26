@@ -1,0 +1,14 @@
+{
+  "kind": "board_large",
+  "rows": [
+    {"name": "size_x_m", "value": 0.02, "label": "A"},
+    {"name": "size_y_m", "value": 1.33, "label": "C"},
+    {"name": "size_z_m", "value": 2.2, "label": "C"},
+    {"name": "centre_y_m", "value": 1.303, "label": "D"},
+    {"name": "centre_z_m", "value": 1.343, "label": "D"}
+  ],
+  "paints": [
+    {"part": "main", "slot": "timber", "colour": "timber"}
+  ],
+  "lod": {"lod1_switch_m": 25.0, "lod2_switch_m": 80.0, "cull_m": 1000.0}
+}
