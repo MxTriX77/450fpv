@@ -109,8 +109,9 @@ namespace Fpv450.Input.Radio
         /// The player's defaults (D-076; fc-profiles.md §2b): FcSettings.Default with the rate profile the pilot flies, as
         /// FpvPrep's presets and the pilot's saved quad configs hold it in their active rate profile: the rates, the
         /// deadband, the RC smoothing and the feedforward's shaping; the feedforward gains of the builder whose PIDs the
-        /// sim flies (fc-profiles §1); and the throttle curve the pilot's saved configs hold most, `thr_mid` 100 and
-        /// `thr_expo` 36. The sim core's FcSettings.Default stays the controller of its tests and golden flights.
+        /// sim flies (fc-profiles §1); and the throttle curve set the Betaflight way at the hover with the pilot's usual
+        /// 2 kg bottle (fc-profiles §2c): `thr_mid` 52 at the measured hover throttle, `thr_expo` 50 flattening the curve
+        /// there. The sim core's FcSettings.Default stays the controller of its tests and golden flights.
         /// </summary>
         public static FcSettings PlayerDefault
         {
@@ -119,7 +120,7 @@ namespace Fpv450.Input.Radio
                 FcSettings s = FcSettings.Default;
                 s.roll_rc_rate = s.pitch_rc_rate = 5; s.roll_srate = s.pitch_srate = 22; s.roll_expo = s.pitch_expo = 45;
                 s.yaw_rc_rate = 8; s.yaw_srate = 24; s.yaw_expo = 20;
-                s.thr_mid = 100; s.thr_expo = 36;
+                s.thr_mid = 52; s.thr_expo = 50;
                 s.deadband = 4; s.yaw_deadband = 5;
                 s.rc_smoothing_auto_factor = 80;
                 s.f_roll = 80; s.f_pitch = 80; s.f_yaw = 0;

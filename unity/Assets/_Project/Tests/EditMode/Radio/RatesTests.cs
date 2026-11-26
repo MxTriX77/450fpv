@@ -62,13 +62,13 @@ namespace Fpv450.Tests.Radio
                 AssertSame(FcSettingsStore.PlayerDefault, s, "no file: FcSettingsStore.PlayerDefault");
 
                 // The screen's rows, in the configurator's units: the rate profile the pilot flies (FpvPrep's presets and
-                // the pilot's saved quad configs), and the throttle curve those configs hold most (D-076).
+                // the pilot's saved quad configs, D-076), and the throttle curve flat at the 2 kg hover (fc-profiles §2c).
                 double Shown(string name) => Row(name).Shown(s);
                 Assert.AreEqual(new[] { 50.0, 220, 0.45 }, new[] { Shown("roll_rc_rate"), Shown("roll_srate"), Shown("roll_expo") }, "roll");
                 Assert.AreEqual(new[] { 50.0, 220, 0.45 }, new[] { Shown("pitch_rc_rate"), Shown("pitch_srate"), Shown("pitch_expo") }, "pitch");
                 Assert.AreEqual(new[] { 80.0, 240, 0.2 }, new[] { Shown("yaw_rc_rate"), Shown("yaw_srate"), Shown("yaw_expo") }, "yaw");
-                Assert.AreEqual(new[] { 100.0, 36 }, new[] { s.thr_mid, s.thr_expo }, "thr_mid, thr_expo (CLI)");
-                Assert.AreEqual(new[] { 1.0, 0.36 }, new[] { Shown("thr_mid"), Shown("thr_expo") }, "thr_mid, thr_expo (shown)");
+                Assert.AreEqual(new[] { 52.0, 50 }, new[] { s.thr_mid, s.thr_expo }, "thr_mid, thr_expo (CLI)");
+                Assert.AreEqual(new[] { 0.52, 0.5 }, new[] { Shown("thr_mid"), Shown("thr_expo") }, "thr_mid, thr_expo (shown)");
                 // Not on the screen in v1, from the same profile (D-076): the deadband, the RC smoothing, the
                 // feedforward's shaping, and the feedforward gains of the builder whose PIDs the sim flies.
                 Assert.AreEqual(new[] { 4.0, 5 }, new[] { s.deadband, s.yaw_deadband }, "deadband / yaw_deadband");

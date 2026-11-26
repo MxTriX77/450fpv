@@ -43,8 +43,8 @@ Betaflight ACTUAL rates: the centre sensitivity and the full-stick rate are in �
 | yaw centre | 70 | 90 | 80 | **80** | **85** |
 | yaw full stick | 150 | 300 | 240 | **240** | **260** |
 | yaw expo | 0 | 0.20 | 0.20 | **0.20** | **0.15** |
-| `thr_mid` | 50 | 50 | builder's | **100** | **50** |
-| `thr_expo` | 0 | 25 | builder's | **36** | **10** |
+| `thr_mid` | 50 | 50 | builder's | **52** (§2c) | **50** |
+| `thr_expo` | 0 | 25 | builder's | **50** (§2c) | **10** |
 | `deadband` / `yaw_deadband` | 0 / 0 | 3 / 3 | 4 / 5 | **4 / 5** | **2 / 2** |
 | `rc_smoothing_auto_factor` | 30 | 60 | 80 | **80** | **50** |
 | `f_roll` / `f_pitch` (feedforward) | 80 | 40 | builder's, with `feedforward_transition 40`, `jitter_factor 12`, `boost 0` | **80**, with `feedforward_transition 40`, `jitter_factor 12`, `boost 0` | **50** |
@@ -170,6 +170,38 @@ How it was computed (`LiftoffTests`):
   - every value equal to either old default takes today's default
   - any other value is the pilot's own and stays
 - **Saving:** reading writes nothing, and the next change saves format 2.
+
+## 2c. The throttle at the hover (model 108)
+
+The pilot, after ХАНТЕР-09's flights: "i cant seem to find that sweet throttle stick position when trying to slowly fly through objects sometimes… make it a bit more stable", but "you can't hold the position when flying on low alt stabilized that easily - tis life… there should be some balance". They are "more than sure it's the settings, not a faulty physics engine".
+
+**Measured, from the pilot's flights and headless** (the stick in % of its travel, the mixer throttle in % before the idle):
+- **The pilot's two Calm flights with 2 kg, legs on** (on their save, 78 / 36), over the level, slow, airborne half-seconds: the hover's mixer throttle is 50.8 and 51.5 %, at 43.1 and 43.9 % of stick. One Calm 1 kg flight: 45.8 %, at 38.2 %.
+- **Headless** (`LiftoffTests`: the session's setup, Calm, a full pack, 100 m up): the hover's mixer throttle is 39.1 / 45.5 / 51.5 % at 0 / 1 / 2 kg; another seed gives 50.8 % at 2 kg, 0.75 m up 51.7 %. It rises as the pack drains, to 56.6 / 60.7 / 63.4 % at 70 / 40 / 20 % charge (no sag compensation).
+- **The class check (§3):** 51.5 % of mixer is 54 % of motor power, inside the loaded class's 50–65 %.
+- **The climb for a point of mixer throttle over the 2 kg hover:** 0.24 m/s after 1 s, 0.43 m/s after 2 s, 0.79 m/s after 5 s, about 1.0 m/s steady. That is a heave time constant of about 4 s (damping 0.24 /s). Blade-element momentum theory at a fixed rotor speed gives 0.21 /s for this rotor (2 blades, solidity 0.10, lift slope 5.7, inflow ratio 0.117 at 93 m/s tip speed). The axis is close to an integrator for the first seconds: the "tis life" part.
+- **The physics' own unsteadiness near the ground** (2 kg, the stick held still for 4 s after a closed-loop hover; Calm and Still read alike):
+  - The vertical force's fast fluctuation (under 0.2 s) is 0.80 % of the weight at every height, 0.5 m to 100 m: the rotors' own wakes (D-064).
+  - Its slow part (0.2 s means) is 0.20 % of the weight at 1 m and at 100 m, 0.25 % at 0.75 m and 0.43 % at 0.5 m, where the rotors are 0.44 m up and the recirculation (inside 4 R) reaches them.
+  - With the stick still, the height wanders 6–7 mm about its trend over 4 s at 0.5 m, 1–3 mm at 0.75–1 m and at 100 m, and 0.07 mm with every effect off.
+  - Published: Cheeseman and Bennett's mean thrust gain is 0.4 % at 4 R; the multirotor measurements (Sanchez-Cuevas et al., Conyers et al.) put the large gains and the recirculation below about z/R 1–2. Not beyond realistic.
+- **The pilot's own thumb in their low hovers** (a rotor within 1.2 m of the ground): the stick moves 0.42 % (sd) within half a second, the height 1.2 cm. On 78 / 36 that is 0.37 points of mixer, about 0.09 m/s², over ten times the physics' own slow push.
+
+So the stick's gain at the hover sets what the pilot feels, and the physics is not the cause.
+
+**The curve: `thr_mid` 52, `thr_expo` 50**, Betaflight's way (D-023: Betaflight 4.5's curve passes through mid at mid):
+- **`thr_mid` 52** is the whole number at or just above the full-pack hover with the usual 2 kg (51.5 % headless, 50.8–51.5 % in the pilot's flights), which only rises as the pack drains.
+- **`thr_expo` 50** makes the stick's gain at the 2 kg hover 0.53 points of mixer a point of stick (0.55 just below), flat over ±10 % of stick. That is 40 % under the pilot's 78 / 36 and 55 % under the old default 100 / 36. Not an altitude hold: the axis still integrates, and the hover still moves with the pack, the line and the ground. Betaflight guides start `thr_expo` at 0.3–0.65; the pilot's own flown set (§2) was 50 / 25.
+
+| At the 2 kg hover | The pilot's save 78 / 36 | The old default 100 / 36 | **The default 52 / 50** |
+|---|---|---|---|
+| Hover stick | 44.0 % | 40.6 % | **53.5 %** |
+| Mixer points a point of stick | 0.874 | 1.168 | **0.526** |
+| Climb for 1 % of stick, after 1 s | 0.206 m/s | 0.276 m/s | **0.124 m/s** |
+| Climb for 1 % of stick, after 2 s | 0.374 m/s | 0.500 m/s | **0.225 m/s** |
+
+- **The hover stick moves up:** 33.3 / 42.5 / 53.5 % at 0 / 1 / 2 kg on 52 / 50, against 31.8 / 37.8 / 44.0 % on the pilot's save. The liftoff is 33.1 / 41.2 / 51.4 %: inside the pilot's 30–45 % (D-066) at 0 and 1 kg, not at 2 kg. The OSD's throttle (the stick from `min_check`, D-080) reads about 51 % in the 2 kg hover, against 41 % on the pilot's save. Betaflight 2025.12's hover point would keep the stick lower with the same flat part, but it is past 4.5.
+- **The pilot's save is kept:** it holds `thr_mid` 78 (their own, set before D-066) and `thr_expo` 36. A fresh profile, or Calibrate → Rates → Defaults, gives 52 / 50. The file's format stays 2: a saved file holds its throttle.
 
 ## 3. Other class data from FpvPrep's notes
 - **Liftoff and hover power.** A loaded heavy quad lifted off at **about 62 % motor power**. Its builder had shaped the throttle as `thr_mid 100, thr_expo 100`, so power = 1 − (1 − stick)³, which spreads the last 10 % of power over almost half the stick. FpvPrep had calculated hover at 31–52 %; the real drone needed more. **Use this as a plant-realism check:** a loaded Svinoriz should lift off around 50–65 % motor power.
