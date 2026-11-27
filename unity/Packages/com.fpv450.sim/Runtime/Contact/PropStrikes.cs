@@ -471,14 +471,26 @@ namespace Fpv450.Sim.Contact
             if (!(rm < rtip)) return false; // the blade, cut back, no longer reaches it
             // Inside the blade's root (its first section's inner edge) the disc is the hub's and the motor's bell's (MotorBell): no
             // blade meets a shape there (model 64: a meeting at the axis took the rotor's lost momentum over a vanishing lever,
-            // lost/r_c, a 107 N·s impulse in a graze, and threw the drone through the wall).
-            if (_spec.BladeRoot && rm < (_b.Stations[0] - 0.5 * _span) * R) return false;
+            // lost/r_c, a 107 N·s impulse in a graze, and threw the drone through the wall). A face that holds the blade's line past
+            // its tip lies across the whole blade (a face flat on the disc, the disc deep in a wall): it meets the blade from its root
+            // out (FlatFaces, design 11's addendum, below); only a shape inside the rim is the hub's alone.
+            double root = (_b.Stations[0] - 0.5 * _span) * R;
+            bool faces = _spec.FlatFaces, atRoot = false;
+            if (_spec.BladeRoot && rm < root)
+            {
+                if (!faces) return false;
+                BladeCut.Along(g, chain, hub, axis, m.Direction, d.HalfThickness, R, out _, out double rx, out _, out _);
+                if (rx < rtip && !BladeCut.Wide(g, chain, hub, axis, m.Direction, d.HalfThickness, rm, rx, rtip)) return false;
+                atRoot = true;
+            }
+            // Where the blade meets it: at r_m, or at its root for a face across it.
+            double rin = atRoot ? root : rm;
             double omega = now.RotorSpeed[c], J = _propulsion.Inertia(c), s = _spin[c], f = _strength[c * _blades + b];
             Double3 dir = m.Direction, nrm = m.Normal, motion = Double3.Cross(axis, dir) * -s;
             Double3 at = PointVelocity(now, m.Point);
             var rec = new PassRecord
             {
-                Corner = c, Blade = b, Radius = rm, Exit = double.PositiveInfinity, SpeedBefore = omega, Inertia = J, TipBefore = tip, TipAfter = tip,
+                Corner = c, Blade = b, Radius = rin, Exit = double.PositiveInfinity, SpeedBefore = omega, Inertia = J, TipBefore = tip, TipAfter = tip,
                 Point = m.Point, Normal = nrm, Station = -1, Tilt = DetMath.Abs(Double3.Dot(nrm, axis)),
             };
             // The face: a surface's set (the ground, a soil shape) or a material's row.
@@ -488,7 +500,7 @@ namespace Fpv450.Sim.Contact
                 rec.Mode = StrikeMode.Glance;
                 rec.SpeedAfter = omega;
                 Strike(i, d, b, obj, shape, material, surface, rec, events);
-                Slot(ref now, c, b, material, 0, 0, rm);
+                Slot(ref now, c, b, material, 0, 0, rin);
                 Last = rec;
                 Record?.Add(rec);
                 Passes++;
@@ -506,6 +518,11 @@ namespace Fpv450.Sim.Contact
             int broke = -1, set = -1;
             double phi = 0, wear = 0;
             bool crushPast = false; // a crush back to a face past the tip: its push acts over α, every other pass's over 2α
+            // A face past the tip (design 11's addendum): the slab's depth past it at the hub along n, d0 (−r_m·sin γ while the hub's
+            // slab is clear of it, BladeCut's depth once it is in), and its in-plane slope sin γ along the meeting's direction: the
+            // slab is past the face beyond the chord x_m = −d0/sin γ (r_m; −∞ for a face parallel to the disc, clamped at the far rim).
+            double slope = DetMath.Max(0, -Double3.Dot(nrm, dir)), d0 = rm > 0 ? -rm * slope : m.Depth;
+            double xm = rm > 0 ? rm : d0 >= slope * rtip ? -rtip : -d0 / slope;
             StrikeMode mode;
             if (!hard)
             {
@@ -514,11 +531,26 @@ namespace Fpv450.Sim.Contact
                 double area, second, path;
                 if (!inside)
                 {
-                    alpha = DetMath.Acos(rm / rtip);
+                    alpha = faces ? Half(rm, d0, slope, rtip) : DetMath.Acos(rm / rtip);
                     DetMath.SinCos(alpha, out double sa, out double ca);
                     double ta = sa / ca, r2 = rtip * rtip, m2 = rm * rm;
-                    area = r2 * (alpha - sa * ca);
-                    second = r2 * r2 * alpha / 2 - m2 * m2 * (ta + ta * ta * ta / 3) / 2;
+                    if (faces && !(rm > 0))
+                    {
+                        // The hub's slab in the face: the chord on the hub's far side or past the far rim (x_m ≤ 0).
+                        area = Segment(rtip, xm);
+                        second = Polar(rtip, xm);
+                    }
+                    else
+                    {
+                        area = r2 * (alpha - sa * ca);
+                        second = r2 * r2 * alpha / 2 - m2 * m2 * (ta + ta * ta * ta / 3) / 2;
+                    }
+                    if (atRoot)
+                    {
+                        // No blade inside its root: the annulus past the chord.
+                        area -= Segment(root, xm);
+                        second -= Polar(root, xm);
+                    }
                     if (rout < rtip)
                     {
                         // A thin skin: less the segment past its far face, which the blade reaches only through it (air there).
@@ -528,7 +560,7 @@ namespace Fpv450.Sim.Contact
                         area -= r2 * (beta - sb0 * cb0);
                         second -= r2 * r2 * beta / 2 - o2 * o2 * (tb + tb * tb * tb / 3) / 2;
                     }
-                    rc = 0.5 * (rm + rtip);
+                    rc = 0.5 * (rin + rtip);
                     path = rc * 2 * alpha;
                 }
                 else
@@ -553,13 +585,16 @@ namespace Fpv450.Sim.Contact
                 double ut = omega * rc + Double3.Dot(moving, motion), ua = Double3.Dot(moving, axis), speed = DetMath.Sqrt(ut * ut + ua * ua);
                 double ratio = speed / (omega * rc), cb = ut / speed, sb = ua / speed;
                 Section(chord, _b.Thickness[k], theta, ut, ua, speed, out double height, out double gt, out double ga, out double attack);
+                // The share of that frontal height the face holds over the region (Depth): 1 for a face across the disc's plane.
+                double fill = 1, fillS = 1;
+                if (faces && !inside) Depth(rtip, root, d0, slope, rec.Tilt, height, xm, out fill, out fillS);
                 if (soil && !drawn && _spec.TipSlide && _stones[surface] > 0)
                 {
                     // The soil's stones (the tip slide): the pass meets one with the probability 1 − e^(−λ) of what it sweeps (Stone),
                     // drawn once a pass; met, the stone takes its energy and its damage first, then the pass carves on with what is
                     // left of the rotor and the blade.
                     double w = _stoneSize[surface];
-                    stones = _stones[surface] * (height + w) * (area + 0.5 * w * path) * ratio / (Pi * w * w * w / 6);
+                    stones = _stones[surface] * (height * fill + w) * (area + 0.5 * w * path) * ratio / (Pi * w * w * w / 6);
                     double draw = (_stoneStream.BitsAt(_stoneDraws++) >> 11) * (1.0 / 9007199254740992.0);
                     if (draw < 1 - DetMath.Exp(-stones))
                     {
@@ -570,13 +605,13 @@ namespace Fpv450.Sim.Contact
                     }
                 }
                 rec.Stones = stones;
-                double fling = row.Density * height * omega * omega * second * ratio * ratio * ratio;
-                double crushing = row.CrushStrength * area * height * ratio;
+                double fling = row.Density * height * omega * omega * second * ratio * ratio * ratio * fillS;
+                double crushing = row.CrushStrength * area * height * ratio * fill;
                 carveCrush = crushing;
                 work = crushing + fling;
                 rec.Fling = fling;
                 // The soil the pass sweeps, flung from its centroid: its share reaches the motor's gap (p7f-damage 1.6b, MotorHealth).
-                if (soil) _contacts.Health?.Carve(c, row.Density * area * height * ratio, rc, row.CrushStrength / BearingFactor, row.KineticFriction, row.Density);
+                if (soil) _contacts.Health?.Carve(c, row.Density * area * height * ratio * fill, rc, row.CrushStrength / BearingFactor, row.KineticFriction, row.Density);
                 rec.Ratio = ratio;
                 rec.Attack = attack;
                 rec.Body = moving;
@@ -602,7 +637,7 @@ namespace Fpv450.Sim.Contact
                 }
                 double cut = path > 0 ? DetMath.Abs(along) / (path * ratio) : 0;
                 rec.PeakForce = cut;
-                broke = Breaks(blade, f, rm, rc, cut, 0, out rec.PeakMoment, out rec.Margin);
+                broke = Breaks(blade, f, rin, rc, cut, 0, out rec.PeakMoment, out rec.Margin);
                 rotorWork = _spec.TipSlide ? work * rotorShare : work;
                 if (rotorWork < 0) rotorWork *= hold;
                 if (broke >= 0)
@@ -618,14 +653,16 @@ namespace Fpv450.Sim.Contact
             else if (!inside)
             {
                 // A hard face past the tip: bend over it or crush back to it.
-                alpha = DetMath.Acos(rm / rtip);
+                alpha = faces ? Half(rm, d0, slope, rtip) : DetMath.Acos(rm / rtip);
                 DetMath.SinCos(alpha, out double sa, out double ca);
-                double along = DetMath.Max(0, -Double3.Dot(nrm, dir)), tilt = rec.Tilt, depth = (rtip - rm) * along;
+                double along = slope, tilt = rec.Tilt, depth = faces && !(rm > 0) ? d0 + rtip * along : (rtip - rm) * along;
                 double kb = _bladeInertia * (_flapFrequency * _flapFrequency + (_spec.FlapSouthwell - 1) * omega * omega);
                 double kf = kb / (R * R), mtip = _bladeInertia / (R * R);
-                int km = Station(rm / R);
+                int km = Station(rin / R);
                 double fcrush = crush * _area[km] * blade.ChordShare[km];
-                double fbend = tilt > 1e-12 ? kf * depth * DetMath.Sqrt(1 - tilt * tilt) / tilt : double.PositiveInfinity;
+                // The tip clears the face by an axial deflection p/sin β (p its depth along n; model 108's p·cot β is the in-plane
+                // overshoot's, p/cos β, with the depth put for it: 0 for a face parallel to the disc).
+                double fbend = !(tilt > 1e-12) ? double.PositiveInfinity : faces ? kf * depth / tilt : kf * depth * DetMath.Sqrt(1 - tilt * tilt) / tilt;
                 rec.CrushForce = fcrush;
                 rec.BendForce = fbend;
                 Double3 entry = motion * ca + dir * sa;
@@ -634,7 +671,7 @@ namespace Fpv450.Sim.Contact
                 {
                     // Bend: the slap, then the slide and its wear.
                     mode = StrikeMode.Wear;
-                    int kt = Station(DetMath.Max(rm, rtip - 1e-9) / R);
+                    int kt = Station(DetMath.Max(rin, rtip - 1e-9) / R);
                     double flat = rec.SpeedIn / tilt;
                     double peak = DetMath.Min(flat * DetMath.Sqrt(kf * mtip), crush * _b.Chord[kt] * blade.ChordShare[kt] * _spec.SlapWidth);
                     rec.PeakForce = peak;
@@ -669,21 +706,21 @@ namespace Fpv450.Sim.Contact
                     mode = StrikeMode.Crush;
                     crushPast = true;
                     double slide = rtip * alpha;
-                    work = crush * Volume(blade, rm, rtip) + mu * fcrush * slide;
+                    work = crush * Volume(blade, rin, rtip) + mu * fcrush * slide;
                     rec.Friction = mu * fcrush * slide;
                     pushN = fcrush * Contact(alpha, omega);
                     Double3 across = motion - nrm * Double3.Dot(nrm, motion);
                     double al = across.Length();
                     Double3 force = nrm * fcrush - (al > 0 ? across * (mu * fcrush / al) : default);
                     rec.PeakForce = fcrush;
-                    broke = Breaks(blade, f, rm, rm, DetMath.Abs(Double3.Dot(force, motion)), DetMath.Abs(Double3.Dot(force, axis)), out rec.PeakMoment, out rec.Margin);
+                    broke = Breaks(blade, f, rin, rin, DetMath.Abs(Double3.Dot(force, motion)), DetMath.Abs(Double3.Dot(force, axis)), out rec.PeakMoment, out rec.Margin);
                     if (broke >= 0)
                     {
                         mode = StrikeMode.Break;
                         newTip = _b.Stations[broke];
                         work = _b.FractureEnergy * f * _area[broke] * blade.ChordShare[broke];
                     }
-                    else newTip = rm / R;
+                    else newTip = rin / R;
                 }
             }
             else
@@ -726,7 +763,7 @@ namespace Fpv450.Sim.Contact
                 {
                     // Short of the fracture's work the section holds: the blade presses the face, crushing that share of its depth.
                     mode = StrikeMode.Crush;
-                    newTip = hard && !inside ? tip - share * (tip - rm / R) : tip;
+                    newTip = hard && !inside ? tip - share * (tip - rin / R) : tip;
                     broke = -1;
                 }
                 if (hard && inside)
@@ -749,7 +786,7 @@ namespace Fpv450.Sim.Contact
                     {
                         Active = true, Object = obj, Shape = shape, Blade = b, Left = _spec.TipSlide ? rest * (1 - share) : rotorWork - energy, Work = rest,
                         Entry = psi - alpha, Psi = psi,
-                        WearRate = soil ? _sand[surface] : 0, From = rm / R, Material = material, Surface = surface, Point = m.Point,
+                        WearRate = soil ? _sand[surface] : 0, From = rin / R, Material = material, Surface = surface, Point = m.Point,
                     };
                 }
             }
@@ -758,14 +795,25 @@ namespace Fpv450.Sim.Contact
 
             // The impulses: the reaction about the axis, the tangential one at the meeting point, the face's push (a hard face's
             // along n, a carve's along the axis: its face's share, Section).
-            double lost = J * (omega - after), tangential = rc > 0 ? lost / rc : 0;
+            // A face past the tip drags the blade along its motion all round its arc 2α: the body takes the mean of that direction,
+            // sin α/α of the drag (design 11's addendum: 0 for a face parallel to the disc, whose drag turns with the blades; 1 − α²/6
+            // for a graze).
+            double kappa = 1;
+            if (faces && !inside && alpha > 0)
+            {
+                DetMath.SinCos(alpha, out double sk, out _);
+                kappa = sk / alpha;
+            }
+            double lost = J * (omega - after), tangential = rc > 0 ? lost * kappa / rc : 0;
             Double3 external = motion * -tangential + nrm * (pushN * share)
                 + axis * (double.IsNaN(cot) ? axial * share : tangential * cot);
             Double3 reaction = new Double3(0, -s * lost, 0);
             impulse = impulse + external;
             angular = angular + reaction + Double3.Cross(now.Attitude.InverseRotate(m.Point - now.Position) - body.CenterOfMass, now.Attitude.InverseRotate(external));
             now.RotorSpeed[c] = after;
-            if (jam) Hold(ref now, c, b, mode == StrikeMode.Carve ? psi - alpha + alpha * share : psi - Entry(rm, newTip * R, alpha, inside));
+            if (jam)
+                Hold(ref now, c, b, mode == StrikeMode.Carve ? psi - alpha + alpha * share
+                    : psi - (faces && !inside ? Half(rm, d0, slope, newTip * R) : Entry(rm, newTip * R, alpha, inside)));
 
             // The damage.
             double before = Mass(blade);
@@ -792,10 +840,10 @@ namespace Fpv450.Sim.Contact
                 damaged = true;
                 Damaged(i, d, b, StrikeMode.Bend, obj, shape, material, surface, m.Point, blade.TipRadius, 0, _b.Stations[set], events);
             }
-            if (wear > 0 && Wear(blade, rm / R, wear))
+            if (wear > 0 && Wear(blade, rin / R, wear))
             {
                 damaged = true;
-                Damaged(i, d, b, StrikeMode.Wear, obj, shape, material, surface, m.Point, blade.TipRadius, before - Mass(blade), rm / R, events);
+                Damaged(i, d, b, StrikeMode.Wear, obj, shape, material, surface, m.Point, blade.TipRadius, before - Mass(blade), rin / R, events);
             }
 
             rec.Mode = mode;
@@ -829,7 +877,7 @@ namespace Fpv450.Sim.Contact
                 shafts.Strike(c, now.Attitude.InverseRotate(m.Point - now.Position), now.Attitude.InverseRotate(external),
                     Contact(crushPast ? alpha : 2 * alpha, omega), peak, DetMath.Abs(lost), Wrap(psi - TwoPi * b / _blades), omega, events, cause);
             }
-            Slot(ref now, c, b, material, used, external.Length(), rm);
+            Slot(ref now, c, b, material, used, external.Length(), rin);
             Last = rec;
             Record?.Add(rec);
             Passes++;
@@ -1445,6 +1493,79 @@ namespace Fpv450.Sim.Contact
         // The entry's half-angle of a jammed blade's remaining tip at a face past it, or the leading edge's for a shape inside.
         static double Entry(double rm, double rtip, double alpha, bool inside) =>
             inside ? alpha : rtip > rm ? DetMath.Acos(rm / rtip) : 0;
+
+        // A tip at radius r's half-arc in a face past it (design 11's addendum): cos α = x_m/r, the chord at r_m, or at −d0/sin γ
+        // when the hub's own slab is in the face (π, the whole turn, once that chord is past the far rim).
+        static double Half(double rm, double d0, double slope, double r) =>
+            rm > 0 ? DetMath.Acos(rm / r) : d0 >= slope * r ? Pi : DetMath.Acos(-d0 / (slope * r));
+
+        /// <summary>Below this wedge (m) the carve's depth share is its midpoint's (numerical: the closed form's difference cancels
+        /// there; both agree within 1e-8 at it).</summary>
+        const double Sliver = 1e-7;
+
+        // The share of a full-height carve a face past the tip holds (design 11's addendum, derived): the blade's slab is past the
+        // face by d(x) = d0 + x·sin γ along n at x along the meeting's direction, so its frontal height H is in the face for
+        // clamp(d/sin β, 0, H) of it (the blade taken to its slab's face, as BladeCut meets it). Over the annulus from the root to the
+        // tip past the chord x_m, its volume is ∫₀^H A(x_m + t·sin β/sin γ) dt = [Φ(H·sin β − d0) − Φ(−d0)]/sin β (Swept) and its
+        // polar moment likewise (Turned), the shares fill and fillS of H·A and H·I (A, I the region's area and polar moment,
+        // Segment and Polar). The depth reaches H over a wedge H·sin β/sin γ wide: a face across the disc's plane (sin β 0) holds the
+        // whole height (1, 1: model 108's carve, bit for bit), a face parallel to it (sin γ 0) the slab's depth, d0/sin β, everywhere.
+        static void Depth(double rtip, double root, double d0, double slope, double tilt, double height, double xm, out double fill, out double fillS)
+        {
+            double a = Segment(rtip, xm) - Segment(root, xm), i = Polar(rtip, xm) - Polar(root, xm), v, s;
+            double wedge = height * tilt / slope;
+            if (!(wedge >= Sliver))
+            {
+                double x = xm + 0.5 * wedge;
+                v = height * (Segment(rtip, x) - Segment(root, x));
+                s = height * (Polar(rtip, x) - Polar(root, x));
+            }
+            else
+            {
+                double hi = height * tilt - d0, lo = -d0;
+                v = (Swept(rtip, slope, hi) - Swept(rtip, slope, lo) - Swept(root, slope, hi) + Swept(root, slope, lo)) / tilt;
+                s = (Turned(rtip, slope, hi) - Turned(rtip, slope, lo) - Turned(root, slope, hi) + Turned(root, slope, lo)) / tilt;
+            }
+            fill = a > 0 ? v / (height * a) : 1;
+            fillS = i > 0 ? s / (height * i) : 1;
+        }
+
+        // A circle r's part past a chord at x (signed, from its centre): its area r²·acos(x/r) − x·√(r² − x²) and its polar moment about
+        // the centre r⁴·acos(x/r)/2 − x³·√(r² − x²)/2 − x·(r² − x²)^1.5/6; the whole circle's before −r, none past r.
+        static double Segment(double r, double x)
+        {
+            if (!(x > -r)) return Pi * r * r;
+            if (!(x < r)) return 0;
+            double w = DetMath.Sqrt((r - x) * (r + x));
+            return r * r * DetMath.Acos(x / r) - x * w;
+        }
+
+        static double Polar(double r, double x)
+        {
+            if (!(x > -r)) return 0.5 * Pi * r * r * r * r;
+            if (!(x < r)) return 0;
+            double w = DetMath.Sqrt((r - x) * (r + x));
+            return 0.5 * r * r * r * r * DetMath.Acos(x / r) - 0.5 * x * x * x * w - x * w * w * w / 6;
+        }
+
+        // Φ(u) = sin γ·∫Segment dx up to x = u/sin γ (u the depth offset along n): sin γ·[r²·x·acos(x/r) − r²·w + w³/3], w = √(r² − x²);
+        // πr²·u with the chord past the far rim, 0 past the near one (so a face parallel to the disc, sin γ 0, is no special case).
+        static double Swept(double r, double slope, double u)
+        {
+            if (!(u > -slope * r)) return Pi * r * r * u;
+            if (!(u < slope * r)) return 0;
+            double x = u / slope, w = DetMath.Sqrt((r - x) * (r + x));
+            return r * r * u * DetMath.Acos(x / r) - slope * w * (r * r - w * w / 3);
+        }
+
+        // Ψ(u) = sin γ·∫Polar dx: sin γ·[r⁴·(x·acos(x/r) − w)/2 + r²·w³/6 − w⁵/15]; πr⁴·u/2 past the far rim, 0 past the near one.
+        static double Turned(double r, double slope, double u)
+        {
+            if (!(u > -slope * r)) return 0.5 * Pi * r * r * r * r * u;
+            if (!(u < slope * r)) return 0;
+            double x = u / slope, w = DetMath.Sqrt((r - x) * (r + x)), w3 = w * w * w;
+            return 0.5 * r * r * r * r * (u * DetMath.Acos(x / r) - slope * w) + slope * (r * r * w3 / 6 - w3 * w * w / 15);
+        }
 
         // The rotor's angle held so blade b sits at azimuth psi.
         void Hold(ref FlightState now, int c, int b, double psi) => now.RotorAngle[c] = Wrap(psi - TwoPi * b / _blades);

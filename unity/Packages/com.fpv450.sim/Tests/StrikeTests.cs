@@ -43,6 +43,39 @@ namespace Fpv450.Sim.Tests
             height = chord * Math.Abs(Math.Sin(a)) + thick * Math.Abs(Math.Cos(a));
         }
 
+        // The share of a full-height carve a face past the tip holds (w20-hunter-track design 11a), for a pass met at r_m with the
+        // face's tilt to the axis sin β (PassRecord.Tilt) and a frontal height hf: the slab is past the face by (x − r_m)·sin γ along
+        // n at x, so the face holds clamp((x − r_m)·tan γ, 0, hf) of the height, over the tip's segment past r_m, as volume (fill) and
+        // as polar moment (fillS), against hf over it. The closed forms, ∫₀^hf of the segment's area and polar moment past
+        // r_m + t/tan γ, written again here with System.Math, are checked against a quadrature of the chords (4·10⁴ strips) within
+        // quadrature's error, the largest of which comes back.
+        static double FaceShare(double rt, double rm, double tilt, double hf, out double fill, out double fillS)
+        {
+            double sg = Math.Sqrt(1 - tilt * tilt), wedge = hf * tilt / sg, x1 = Math.Min(rm + wedge, rt);
+            double Area(double x) => x >= rt ? 0 : rt * rt * Math.Acos(x / rt) - x * Math.Sqrt(rt * rt - x * x);
+            double Polar(double x) => x >= rt ? 0
+                : Math.Pow(rt, 4) * Math.Acos(x / rt) / 2 - Math.Pow(x, 3) * Math.Sqrt(rt * rt - x * x) / 2 - x * Math.Pow(rt * rt - x * x, 1.5) / 6;
+            double GA(double x) { double w = Math.Sqrt(Math.Max(0, rt * rt - x * x)); return rt * rt * x * Math.Acos(Math.Min(1, x / rt)) - rt * rt * w + w * w * w / 3; }
+            double GI(double x)
+            {
+                double w = Math.Sqrt(Math.Max(0, rt * rt - x * x));
+                return Math.Pow(rt, 4) * (x * Math.Acos(Math.Min(1, x / rt)) - w) / 2 + rt * rt * w * w * w / 6 - Math.Pow(w, 5) / 15;
+            }
+            // By parts, the height growing over the wedge: ∫ clamp·dA = (hf/wedge)·∫ A dx from r_m to the wedge's end (or the tip).
+            double v = hf / wedge * (GA(x1) - GA(rm)), i = hf / wedge * (GI(x1) - GI(rm));
+            fill = v / (hf * Area(rm));
+            fillS = i / (hf * Polar(rm));
+            const int n = 40000;
+            double qa = 0, qi = 0, dx = (rt - rm) / n;
+            for (int k = 0; k < n; k++)
+            {
+                double x = rm + (k + 0.5) * dx, l = 2 * Math.Sqrt(rt * rt - x * x), z = Math.Min(hf, (x - rm) * hf / wedge);
+                qa += z * l * dx;
+                qi += z * (x * x * l + l * l * l / 12) * dx;
+            }
+            return Math.Max(Math.Abs(qa - v) / v, Math.Abs(qi - i) / i);
+        }
+
         // Heading 45° (fl due north) and tilted 30° about the body's horizontal axis across fl's arm, so fl's disc dips lowest.
         static Quat Rolled()
         {
@@ -384,7 +417,8 @@ namespace Fpv450.Sim.Tests
 
         // "Props that touch the ground bog down", against the materials table's soil-like row (sandbag: dry sand's c·N_c and
         // density): 2 and 10 mm into its top under a disc rolled 30°. Each pass's work is p·V + m_f·v² within 1e-9 of the closed
-        // form, the flung mass dominates, the 10 mm dig stops the rotor within its first two passes. The ground's own soil (the
+        // form (since w20-hunter-track design 11a V and the fling's moment the face's share of the full frontal height, FaceShare),
+        // the flung mass dominates, the 10 mm dig stops the rotor within its first two passes. The ground's own soil (the
         // dirt track, S04's) and its sand's wear: PropsThatTouchTheGroundBogDown.
         [Test]
         public void PropsThatTouchSoilBogDown()
@@ -399,7 +433,7 @@ namespace Fpv450.Sim.Tests
             {
                 StrikeScenarios.Rig rig = StrikeScenarios.Into(spec, soil, top, Up, Rolled(), depth, top.Y, 1.0, 200);
                 List<PropStrikes.PassRecord> passes = Passes(rig).FindAll(r => r.Mode != StrikeMode.Glance && !r.Stone);
-                double worst = 0;
+                double worst = 0, quadrature = 0;
                 int closedForms = 0;
                 foreach (PropStrikes.PassRecord r in passes)
                 {
@@ -412,16 +446,19 @@ namespace Fpv450.Sim.Tests
                     BladeState s = rig.Core.Propulsion.Rotor(3).Blade(r.Blade);
                     double theta = b.SectionAngle[k] + s.FactoryPitch + s.PitchSet[k];
                     Relative(r, axis, rc, b.Chord[k] * s.ChordShare[k], b.Thickness[k], theta, out double q, out double hf);
-                    double closed = row.CrushStrength * area * hf * q + row.Density * hf * r.SpeedBefore * r.SpeedBefore * second * q * q * q;
+                    quadrature = Math.Max(quadrature, FaceShare(rt, r.Radius, r.Tilt, hf, out double fill, out double fillS));
+                    double closed = row.CrushStrength * area * hf * q * fill + row.Density * hf * r.SpeedBefore * r.SpeedBefore * second * q * q * q * fillS;
                     worst = Math.Max(worst, Math.Abs(r.Work - closed) / closed);
                     closedForms++;
                     Assert.That(r.Fling, Is.GreaterThan(r.Work - r.Fling), "the flung mass dominates");
                 }
                 int first = passes.FindIndex(r => r.Jammed);
-                TestContext.Out.WriteLine($"sandbag {depth * 1e3} mm: {passes.Count} passes, the first jam at pass {first}; {closedForms} against p·V + m_f·v², the worst {worst:E2}");
+                TestContext.Out.WriteLine($"sandbag {depth * 1e3} mm: {passes.Count} passes, the first jam at pass {first}; {closedForms} against p·V + m_f·v², the worst {worst:E2}"
+                    + $" (the face's share's closed form within {quadrature:E2} of its quadrature)");
                 foreach (PropStrikes.PassRecord r in passes.GetRange(0, Math.Min(4, passes.Count))) TestContext.Out.WriteLine("  " + StrikeScenarios.Line(r));
                 Assert.That(closedForms, Is.GreaterThan(0));
                 Assert.That(worst, Is.LessThan(1e-9));
+                Assert.That(quadrature, Is.LessThan(1e-6), "the share's closed form is the depth's integral");
                 if (depth == 0.010) Assert.That(first, Is.InRange(0, 1), "the 10 mm dig stops the rotor within its first two passes");
             }
         }
@@ -431,7 +468,8 @@ namespace Fpv450.Sim.Tests
         // track start) and a soil shape of S04 (a runtime box with the belt_straw surface, as S04's patches have), dry, in Rain and
         // in Severe rain. On the soils without their stones (the carve's own claims; the stones are ASoilPassMeetsItsStones'),
         // each carve's work is p·V + m_f·v² within 1e-9 of the closed form at the rain's set (p = c·N_c, ρ the bulk density) at the
-        // blade's speed through the soil (its own and the body's, p7f-damage 1.3's tip slide), the flung mass dominates, the 10 mm dig stops the rotor within its first two passes, the sand wears the leading
+        // blade's speed through the soil (its own and the body's, p7f-damage 1.3's tip slide; since w20-hunter-track design 11a V and
+        // the fling's moment the face's share of the full frontal height, FaceShare), the flung mass dominates, the 10 mm dig stops the rotor within its first two passes, the sand wears the leading
         // edges by Archard (V = k·s·W/H_b on every carve, BladeDamaged Wear), and the wetter soil, denser, takes more from the same
         // first pass. The known-wrong, model 40's Glance (the same rig without surfaces.json), takes no work and never stops the
         // rotor, so it fails.
@@ -470,9 +508,9 @@ namespace Fpv450.Sim.Tests
                             table: table, rain: rain);
                         List<PropStrikes.PassRecord> passes = Passes(rig).FindAll(r => r.Mode != StrikeMode.Glance && !r.Stone);
                         int stones = Passes(rig).FindAll(r => r.Stone).Count;
-                        // Each blade's first carve meets it unworn (chord share 1), so its whole closed form is checked there; on
-                        // every carve the crush and the fling share one swept volume (the frontal height the fling implies), and
-                        // the sand's wear is Archard's on the pass's work.
+                        // Each blade's first carve meets it unworn (chord share 1), so its whole closed form is checked there, and
+                        // its crush and fling share one swept height (the frontal height the fling implies, through the face's
+                        // shares of it); on every carve the sand's wear is Archard's on the pass's work.
                         double worst = 0, worstSplit = 0, worstWear = 0;
                         int closedForms = 0, splits = 0;
                         var unworn = new bool[spec.Props.Blades];
@@ -482,11 +520,7 @@ namespace Fpv450.Sim.Tests
                             double rt = r.TipBefore * R, a = Math.Acos(r.Radius / rt), t = Math.Tan(a);
                             double area = rt * rt * (a - Math.Sin(a) * Math.Cos(a));
                             double second = Math.Pow(rt, 4) * a / 2 - Math.Pow(r.Radius, 4) * (t + t * t * t / 3) / 2;
-                            // The fling's h·q³ and the crush's h·q: one swept volume at the relative speed q (Ratio).
-                            double implied = r.Fling / (set.BulkDensity * r.SpeedBefore * r.SpeedBefore * second);
-                            worstSplit = Math.Max(worstSplit, Math.Abs(r.Work - r.Fling - p * area * implied / (r.Ratio * r.Ratio)) / (r.Work - r.Fling));
                             worstWear = Math.Max(worstWear, Math.Abs(r.Wear - k * set.SandShare * r.Work / b.Hardness) / r.Wear);
-                            splits++;
                             Assert.That(r.Fling, Is.GreaterThan(r.Work - r.Fling), "the flung mass dominates");
                             if (unworn[r.Blade]) continue;
                             unworn[r.Blade] = true;
@@ -495,9 +529,14 @@ namespace Fpv450.Sim.Tests
                             BladeState s = rig.Core.Propulsion.Rotor(3).Blade(r.Blade);
                             double theta = b.SectionAngle[st] + s.FactoryPitch + s.PitchSet[st];
                             Relative(r, Rolled().Rotate(Up), rc, b.Chord[st], b.Thickness[st], theta, out double q, out double hf);
-                            double closed = p * area * hf * q + set.BulkDensity * hf * r.SpeedBefore * r.SpeedBefore * second * q * q * q;
+                            FaceShare(rt, r.Radius, r.Tilt, hf, out double fill, out double fillS);
+                            double closed = p * area * hf * q * fill + set.BulkDensity * hf * r.SpeedBefore * r.SpeedBefore * second * q * q * q * fillS;
                             worst = Math.Max(worst, Math.Abs(r.Work - closed) / closed);
                             closedForms++;
+                            // The fling's h·q³ and the crush's h·q: one swept height at the relative speed q (Ratio).
+                            double implied = r.Fling / (set.BulkDensity * r.SpeedBefore * r.SpeedBefore * second * fillS);
+                            worstSplit = Math.Max(worstSplit, Math.Abs(r.Work - r.Fling - p * area * implied * fill / (r.Ratio * r.Ratio)) / (r.Work - r.Fling));
+                            splits++;
                         }
                         int first = passes.FindIndex(r => r.Jammed), worn = 0;
                         foreach (FlightEvent e in rig.Log)
