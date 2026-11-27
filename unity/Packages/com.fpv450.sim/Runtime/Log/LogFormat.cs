@@ -1074,8 +1074,13 @@ namespace Fpv450.Sim.Log
         ///    a liftoff's cut follows the pilot's empirical law (one draw a liftoff, stream fiber.liftoff, by its
         ///    thrust and attitude: the safe launch 5 %, a very sharp one 87-95 %, nose up or rolled more). flightbench
         ///    --cuts passes every row. Known-wrongs TetherEdgeIntact and TetherLiftoffPhysical fly 107's line.
+        /// 109: a prop pressed flat against a face meets it (w20-hunter-track design 11a, on 108). A face lying within the
+        ///    blade's slab meets the chord from x_m = -d0/sin(gamma) (the tip's arc cos(alpha) = x_m/r_tip), not only from the
+        ///    root; the carve takes the face's share of the frontal height in closed form, the bend is k_f*p/sin(beta), and the
+        ///    body takes sin(alpha)/alpha of the drag's impulse. Flat on a timber floor at full throttle the props jam and
+        ///    break in about 0.6 s. A log without ContactSpec.FlatFaces (header entry 36) flies 108.
         /// </summary>
-        public const int ModelVersion = 108;
+        public const int ModelVersion = 109;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
