@@ -352,6 +352,12 @@ namespace Fpv450.Sim.Contact
         /// the rotor's lost momentum over a vanishing lever).</summary>
         public bool BladeRoot = true;
 
+        /// <summary>A blade meets a face lying flat across its disc (w20-hunter-track design 11's addendum, PropStrikes.Pass): a face
+        /// whose slab reaches inside the blade's root is met from the root out over its whole arc, the carve holds the depth the
+        /// slab is past the face, the bend's flatwise force is k_f·p/sin β and the face's drag is the body's by its mean over the
+        /// arc. false: model 108's law (no pass inside the root, k_f·p·cot β, the full frontal height), the kept known-wrong.</summary>
+        public bool FlatFaces = true;
+
         /// <summary>The props meet the stems (w9-village-physics 2.2, PropStems): a map's stem field and its drawn straws and stems,
         /// laid over by the slipstream, pushed aside by a leaning or slow blade, the rest cut and paid for. On for every flight; off
         /// only for the kept audits of earlier models and a known-wrong's comparison.</summary>

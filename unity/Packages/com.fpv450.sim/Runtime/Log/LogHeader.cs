@@ -187,6 +187,8 @@ namespace Fpv450.Sim.Log
             // w17-four-legs, in their own entry (TagTips)
             "LegTips", "TipRadius", "ShaftDiameter", "TipReferenceDepth", "TipModulusRatio", "TipPoisson", "ShaftFriction", "ConeFactor",
             "LateralGrowth", "SetDownMin", "SetDownMax",
+            // w20-hunter-track design 11's addendum, in its own entry (TagFlat)
+            "FlatFaces",
         };
 
         /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
@@ -299,7 +301,7 @@ namespace Fpv450.Sim.Log
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
             TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26,
-            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30, TagStemAir = 31, TagHanging = 32, TagMembers = 33, TagPartStems = 34, TagTips = 35;
+            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30, TagStemAir = 31, TagHanging = 32, TagMembers = 33, TagPartStems = 34, TagTips = 35, TagFlat = 36;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -1464,6 +1466,13 @@ namespace Fpv450.Sim.Log
                 e.Write(Contacts != null);
                 if (Contacts != null) e.Write(Contacts.PartStems);
             });
+            // A blade meets a face lying flat across its disc since w20-hunter-track design 11's addendum, an entry of its own (no
+            // format change). A log without it flew model 108's root rule.
+            Entry(w, TagFlat, e =>
+            {
+                e.Write(Contacts != null);
+                if (Contacts != null) e.Write(Contacts.FlatFaces);
+            });
             // The legs' tips in the soil since w17-four-legs 1.3, an entry of its own (no format change): the switch, the tip and its
             // law's values, and surfaces.json's tip_resistance_pa rows (each surface's dry, wet and saturated sets, under the table's
             // hash in the contacts entry). A log without it flew the skids (model 105 and earlier).
@@ -1553,7 +1562,7 @@ namespace Fpv450.Sim.Log
 
         void Parse(BinaryReader r, uint length)
         {
-            bool sawLayouts = false, sawTables = false, sawStems = false, sawGround = false, sawStemAir = false, sawHanging = false, sawMembers = false, sawPartStems = false;
+            bool sawLayouts = false, sawTables = false, sawStems = false, sawGround = false, sawStemAir = false, sawHanging = false, sawMembers = false, sawPartStems = false, sawFlat = false;
             ulong tablesHash = 0;
             while (r.BaseStream.Position < length)
             {
@@ -1684,6 +1693,14 @@ namespace Fpv450.Sim.Log
                         {
                             bool partStems = r.ReadBoolean();
                             if (Contacts != null) Contacts.PartStems = partStems;
+                        }
+                        break;
+                    case TagFlat:
+                        sawFlat = true;
+                        if (r.ReadBoolean())
+                        {
+                            bool flat = r.ReadBoolean();
+                            if (Contacts != null) Contacts.FlatFaces = flat;
                         }
                         break;
                     case TagTips:
@@ -2166,6 +2183,8 @@ namespace Fpv450.Sim.Log
             }
             // Before w16-plants-in-the-air 1.5 the parts skimmed the stems and a crown's leaves with no force.
             if (!sawPartStems && Contacts != null) Contacts.PartStems = false;
+            // Before w20-hunter-track design 11's addendum no blade met a face inside its root (model 108).
+            if (!sawFlat && Contacts != null) Contacts.FlatFaces = false;
             if (sawTables && tablesHash != DroneHash)
                 throw new FlightLogException("the header is malformed: its blade and motor tables are of drone.json 0x"
                     + tablesHash.ToString("X16", CultureInfo.InvariantCulture) + ", its drone of 0x" + DroneHash.ToString("X16", CultureInfo.InvariantCulture));

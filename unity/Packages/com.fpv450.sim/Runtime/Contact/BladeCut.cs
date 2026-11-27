@@ -33,10 +33,12 @@ namespace Fpv450.Sim.Contact
         public const int Steps = 64;
 
         /// <summary>Where a blade meets a shape: the radius along the blade, m; the blade's unit direction there (in the disc's
-        /// plane); the point on the shape's surface; its unit normal, out of the shape.</summary>
+        /// plane); the point on the shape's surface; its unit normal, out of the shape; and for a shape holding the hub's own
+        /// segment (Radius 0), how far that segment's deepest end is past its surface, m (the slab's depth at the hub along the
+        /// normal; 0 otherwise).</summary>
         public struct Meeting
         {
-            public double Radius;
+            public double Radius, Depth;
             public Double3 Direction, Point, Normal;
         }
 
@@ -54,6 +56,7 @@ namespace Fpv450.Sim.Contact
             if (near.Distance <= 0)
             {
                 m.Radius = 0;
+                m.Depth = -near.Distance;
                 m.Direction = InPlane(-near.Normal, axis);
                 m.Point = near.Point;
                 m.Normal = near.Normal;
@@ -234,6 +237,7 @@ namespace Fpv450.Sim.Contact
             if (above <= 0)
             {
                 m.Radius = 0;
+                m.Depth = -above;
                 m.Direction = length > 0 ? inPlane * (-1 / length) : InPlane(new Double3(1, 0, 0), axis);
             }
             else
