@@ -2,6 +2,7 @@ using System;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Tests
@@ -44,6 +45,9 @@ namespace Fpv450.Sim.Tests
         {
             public double PressedAt, Push, Clearance, Amps, ShortestTip, FirstPassAt, FirstJamAt, FirstDamageAt, SlowestLate;
             public int Passes, PassesBeforeFailure, Damaged, Jams, Tunnels, Crashes;
+
+            /// <summary>The steps flown and the bytes FlightCore.Advance allocated from 2 s on (AllocProbe; a recorded flight's).</summary>
+            public long Steps, Allocated;
             public double[] HotAt, ShortedAt, FailedAt, PeakWinding;
 
             /// <summary>The blades' damage events by mode (StrikeMode: crush, break, bend, wear).</summary>
@@ -82,9 +86,10 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>The flight under the floor: payload kg (drone.json's 2 kg bottle, or 0 for none), seconds in all (full throttle
         /// from 1 s), a roll stick held from 3 s (0: SimPilot holds still), the floor's material, its tilt (degrees, about the x
-        /// axis through the point over the drone's origin), and the flat faces' law (ContactSpec.FlatFaces; false: model 108's).</summary>
+        /// axis through the point over the drone's origin), and the flat faces' law (ContactSpec.FlatFaces; false: model 108's). With
+        /// log, every step is recorded there (its world "test-range", the floor a runtime object) and Advance's bytes are counted.</summary>
         public static Pinned UnderTheFloor(DroneSpec spec, double payload, double seconds, double roll = 0, string material = "timber",
-            ulong seed = 0x450F, double tilt = 0, bool faces = true)
+            ulong seed = 0x450F, double tilt = 0, bool faces = true, System.IO.Stream log = null)
         {
             Double3 start = StrikeScenarios.Sky;
             Loadout load = spec.Nominal;
@@ -110,7 +115,20 @@ namespace Fpv450.Sim.Tests
             setup.GroundEffect = spec.BuildGroundEffect();
             setup.Interference = spec.BuildInterference();
             var core = new FlightCore(setup);
-            for (int k = 0; k < 16; k++) core.Advance(new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = k >= 8 }); // armed in the air
+            FlightRecorder recorder = null;
+            if (log != null)
+            {
+                LogHeader header = LogHeader.For(setup, core);
+                header.WorldId = "test-range";
+                header.SetDrone(spec, load);
+                recorder = new FlightRecorder(log, header, FlightRecorder.DefaultCapacity, ownsStream: false);
+            }
+            for (int k = 0; k < 16; k++) // armed in the air
+            {
+                var arm = new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = k >= 8 };
+                core.Advance(arm);
+                recorder?.RecordStep(core.State, arm, core.Trace, core.Events);
+            }
             var pilot = new SimPilot(core.Controller, start);
             var r = new Pinned
             {
@@ -126,7 +144,14 @@ namespace Fpv450.Sim.Tests
                 if (k == full) pilot.HeldThrottle = 1.0;
                 StickSample stick = pilot.Sticks(core, core.State.Step * FlightCore.StepUs);
                 if (k >= lean && roll != 0) stick.Roll = roll;
-                core.Advance(stick);
+                if (recorder == null) core.Advance(stick);
+                else
+                {
+                    long before = AllocProbe.Before();
+                    core.Advance(stick);
+                    if (k >= 2000) r.Allocated += AllocProbe.After(before);
+                    recorder.RecordStep(core.State, stick, core.Trace, core.Events);
+                }
                 double t = (core.State.Step - first) * FlightCore.Dt;
                 for (int i = 0; i < core.Events.Count; i++)
                 {
@@ -173,6 +198,12 @@ namespace Fpv450.Sim.Tests
                 if (!double.IsNaN(r.PressedAt))
                     for (int c = 0; c < 4; c++) r.Clearance = Math.Min(r.Clearance, tr.CeilingDistance[c]);
             }
+            if (recorder != null)
+            {
+                recorder.Close();
+                if (recorder.Fault != null) throw new InvalidOperationException("the floor's log failed", recorder.Fault);
+            }
+            r.Steps = 16 + end;
             r.Push = pressed > 0 ? push / pressed : 0;
             r.Amps = pressed > 0 ? amps / pressed : 0;
             r.ShortestTip = 1;

@@ -1,4 +1,5 @@
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 using NUnit.Framework;
 
 namespace Fpv450.Sim.Tests
@@ -146,6 +147,33 @@ namespace Fpv450.Sim.Tests
                 Assert.That(r.MeanSpeed, Is.InRange(1250.0, 1520.0), a + "°: slowed, not stopped");
             }
             Assert.That(FloorScenarios.Pressed(spec, 0, 0.001, 1, "concrete", faces: false).Passes, Is.Zero, "model 108 made no pass flat");
+        }
+
+        // The flat floor's flight recorded and replayed headless: the props carving, jamming and breaking against it, every step bit
+        // for bit on this model, its steps allocating nothing from 2 s on; and the header keeps the flat faces' switch both ways.
+        [Test]
+        public void FlatUnderTheFloorReplaysBitForBitAndAllocatesNothing()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            var stream = new System.IO.MemoryStream();
+            FloorScenarios.Pinned r = FloorScenarios.UnderTheFloor(spec, 0, 4, log: stream);
+            TestContext.Out.WriteLine(r.Describe() + $"; {r.Allocated} B allocated from 2 s");
+            Assert.That(r.Passes, Is.GreaterThan(100), "the props meet the floor");
+            Assert.That(r.Damaged, Is.GreaterThan(0), "and are damaged");
+            Assert.That(r.Allocated, Is.Zero, AllocProbe.Report());
+            ContactScenarios.RepositoryMaterials(out ulong materials);
+            ReplayResult replay = FlightReplay.Run(new System.IO.MemoryStream(stream.ToArray()), id => new FlightWorld(RangeScenarios.World), spec.ContentHash, null,
+                SoilScenarios.Table().Hash, materialsHash: materials);
+            TestContext.Out.WriteLine($"replay: {replay.Outcome}, {replay.Steps} steps; {replay.Message}");
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            Assert.That(replay.Steps, Is.EqualTo(r.Steps));
+            foreach (bool faces in new[] { true, false })
+            {
+                var log = new System.IO.MemoryStream();
+                FloorScenarios.UnderTheFloor(spec, 0, 0.05, faces: faces, log: log);
+                var reader = new FlightLogReader(new System.IO.MemoryStream(log.ToArray()));
+                Assert.That(reader.Header.Contacts.FlatFaces, Is.EqualTo(faces), "the header keeps the switch");
+            }
         }
 
         // Pinned, then leaned about the bottle (a roll stick held from 3 s): the props on the low side reach the floor and chip.
