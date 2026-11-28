@@ -178,7 +178,7 @@ namespace Fpv450
                         foreach ((string name, Rect cell) in Cells())
                             Law(v, state, name, cell, dryTrue, dryDiffuse, light, whole, diffuse);
                     }
-                }
+
                     // The wind's sway between renders (the vegetation moves on the editor's clock): Sunny against itself, later.
                     WetLook.Restore();
                     Report(v, "Sunny against itself after the renders (the sway)", Compare(dryTrue, Linear(camera, hdr), v.PatchRect));
