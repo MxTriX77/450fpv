@@ -130,6 +130,9 @@ namespace Fpv450.App
         FiberView _fiber;
         readonly LegView _legs = new LegView();
         readonly PropView _props = new PropView();
+        readonly LensView _lens = new LensView();
+        bool _lensShown;
+        FeedOutput _lensFeed;
         readonly FlightFeedSignals _signals = new FlightFeedSignals();
         GameObject _model, _stand;
         DroneSpec _spec;
@@ -332,10 +335,45 @@ namespace Fpv450.App
             }
             PlaceCamera(_camera.transform, _body, CameraMount, Chase);
             Latch(session, thisFlight);
+            if (thisFlight) Lens(session, pair.Signals);
             NearTerrain(_body.position);
             if (_look != null) _look.UpdateFog(_camera);
             Cursor.visible = session.State != SessionState.Flying || Covered;
             Summarise(session);
+        }
+
+        /// <summary>The water on the FPV camera's lens (w21-rain-on-camera 1.2): the current flight's, from its physics.</summary>
+        public LensView LensWater => _lens;
+
+        // The water on the lens (w21-rain-on-camera 1.2, FEED-13): the flight's LensWater from its first pose's rain rate (0 when
+        // Sunny: the lens stays dry), stepped on the published poses every frame, and its drops drawn through the feed in the FPV
+        // view only (the chase camera has no glass). The map is uploaded when its water moved, the view changed or the feed restarted.
+        void Lens(FlightSession session, in FeedSignals signals)
+        {
+            if (_rig == null || !_rig.Running || _spec == null) return;
+            if (_lens.Flight != session.Flights)
+            {
+                if ((signals.Live & FeedSignalSet.RainRate) == 0) return;
+                _lens.Begin(session.Flights, _spec, session.Setup.Mass, signals.RainRateMmPerHour, session.Seed);
+                _lensShown = false;
+                Debug.Log($"[Flight] lens: {signals.RainRateMmPerHour:0.0} mm/h of rain from the physics, the lens's water drawn from its LensWater " +
+                          (signals.RainRateMmPerHour > 0 ? "(drops, trails' pearls)" : "(Sunny: dry)"));
+            }
+            bool changed = _lens.Advance(session.Poses);
+            bool show = !Chase && _lens.Map.Wet;
+            if (changed || show != _lensShown || _rig.Feed != _lensFeed)
+            {
+                _rig.ShowLens(show ? _lens.Map : null);
+                _lensShown = show;
+                _lensFeed = _rig.Feed;
+            }
+        }
+
+        // No water drawn until the next flight's lens begins.
+        void DryLens()
+        {
+            if (_rig != null && _rig.Running) _rig.ShowLens(null);
+            _lensShown = false;
         }
 
         /// <summary>The view (D-055): the camera, a child of the drone's body, at the lens (the mount, looking along +z),
@@ -466,6 +504,7 @@ namespace Fpv450.App
         void Show(FlightSession session)
         {
             Unlatch();
+            DryLens(); // the last flight's water goes with its drone; this one's begins at its first pose
             ShownFlight = session.Flights;
             _previewed = null; // the next wait for the radio previews again
             _armedOnce = false;
@@ -557,6 +596,7 @@ namespace Fpv450.App
             FlightChoices c = inputs.Choices;
             if (ReferenceEquals(c, _previewed)) return;
             _previewed = c;
+            DryLens();
             _fiber.End();
             _legs.Bind(null, null);
             _props.Bind(null, null);

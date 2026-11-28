@@ -62,7 +62,7 @@ namespace Fpv450.App
         public Num.Vector3 SunDirection => Stub.SunDirection;
         public float SunVisibility => Stub.SunVisibility;
         public float TimeOfDayHours => Stub.TimeOfDayHours;
-        public float RainRateMmPerHour => Stub.RainRateMmPerHour;
+        public float RainRateMmPerHour => Live(FeedSignal.RainRate) ? (float)_s.RainRateMmPerHour : Stub.RainRateMmPerHour;
         public Num.Vector3 AirVelocityAtCamera => Live(FeedSignal.AirVelocityAtCamera) ? V(_s.AirVelocityAtCamera) : Stub.AirVelocityAtCamera;
         public char OsdCell(int row, int col) => Osd.Grid[row, col];
         public void BuildOsd(int field) => Osd.Build(field, LinkMarginDb);
