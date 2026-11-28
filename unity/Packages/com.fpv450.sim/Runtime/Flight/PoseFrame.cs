@@ -62,6 +62,10 @@ namespace Fpv450.Sim.Flight
         /// 0 for a rigid airframe: the camera on the flexing frame (p7e-camera-feel, FieldCamera.Attitude). Render-side.</summary>
         public Double3 CameraTurn;
 
+        /// <summary>The air's velocity at the camera's lens relative to it, m/s in the camera's axes: FeedSignals.AirVelocityAtCamera
+        /// of the same step (w21-rain-on-camera 1.1: the lens's water reads it from the history at each field's middle). Render-side.</summary>
+        public Double3 AirVelocityAtCamera;
+
         /// <summary>
         /// The legs as the app draws them (p7g-legs 1.3): each leg's state (Contact.LegFlags) and each corner's
         /// (Contact.CornerState), a byte a corner, rear right in the low byte; each leg's set (body rad: x and z its bend at the
@@ -113,6 +117,7 @@ namespace Fpv450.Sim.Flight
                 FiberTrailCount = b.FiberTrailCount,
                 FiberBreakTrail = b.FiberBreakTrail,
                 CameraTurn = a.CameraTurn + (b.CameraTurn - a.CameraTurn) * t,
+                AirVelocityAtCamera = a.AirVelocityAtCamera + (b.AirVelocityAtCamera - a.AirVelocityAtCamera) * t,
                 LegState = b.LegState,
                 CornerState = b.CornerState,
                 LegSet = b.LegSet,
