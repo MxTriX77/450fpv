@@ -24,8 +24,9 @@ namespace Fpv450.App
         /// frames are timed (the frame, the CPU's main and render threads, the GPU where frame timing gives it); the hovers, the pass
         /// and the belt are shot through the feed (FPV, and the hovers again in the chase view) as sequences of frames. The wind
         /// is <c>-plantwind &lt;Calm|Windy|Severe&gt;</c> (Calm by default); <c>-plants 0</c> flies it with the friend's own plants
-        /// (the A/B's before); <c>-plantshots 0</c> takes no shots, so no capture lands in the frame times. Writes <c>plantbench.json</c>
-        /// and the PNGs to the folder, and quits.
+        /// (the A/B's before); <c>-pieces 0</c> with the plants but no pieces in the air (1.4's A/B); <c>-plantshots 0</c> takes no
+        /// shots, so no capture lands in the frame times. After the belt it hovers over a tilled field's bare loam at 2, 1 and 0.5 m
+        /// (1.4: the dust against clip F). Writes <c>plantbench.json</c> and the PNGs to the folder, and quits.
         /// </summary>
         IEnumerator PlantBench(string folder)
         {
@@ -80,7 +81,8 @@ namespace Fpv450.App
                 return under[0].Height;
             }
             Session.StartPoint start = FlightWorlds.FarmlandStart;
-            const double FieldX = 503, FieldZ = 524, BeltX = 543, BeltZ = 820;
+            // The tilled field west of the fields (bare loam over 8 m about the point, maps/farmland's classes).
+            const double FieldX = 503, FieldZ = 524, BeltX = 543, BeltZ = 820, TilledX = 430, TilledZ = 528;
             var legs = new[]
             {
                 new PlantPilot.Leg("start 2 m", start.X, start.Z, 2, 2, 300, 10),
@@ -93,6 +95,10 @@ namespace Fpv450.App
                 new PlantPilot.Leg("low pass 1 m", FieldX - 60 * Math.Sin(200 * Math.PI / 180), FieldZ - 60 * Math.Cos(200 * Math.PI / 180), 1, 6, 20, 0),
                 new PlantPilot.Leg("to the belt", BeltX, BeltZ, 8, 8, 270, 0),
                 new PlantPilot.Leg("belt 4 m", BeltX, BeltZ, 4, 2, 270, 10),
+                new PlantPilot.Leg("to the tilled field", TilledX, TilledZ, 8, 8, 90, 0),
+                new PlantPilot.Leg("hover tilled 2 m", TilledX, TilledZ, 2, 1, 90, 8),
+                new PlantPilot.Leg("hover tilled 1 m", TilledX, TilledZ, 1, 1, 90, 8),
+                new PlantPilot.Leg("hover tilled 0.5 m", TilledX, TilledZ, 0.5, 0.5, 90, 8),
             };
             var pilot = new PlantPilot(host.Inputs.Settings, Ground, legs);
             var runs = new Dictionary<string, Timing>();
@@ -133,7 +139,8 @@ namespace Fpv450.App
                     FrameTimingManager.CaptureFrameTimings();
                     double gpu = FrameTimingManager.GetLatestTimings(1, timings) > 0 ? timings[0].gpuFrameTime : 0;
                     t.Add(Time.unscaledDeltaTime * 1000, timings[0].cpuMainThreadFrameTime, timings[0].cpuMainThreadPresentWaitTime,
-                        timings[0].cpuRenderThreadFrameTime, gpu, drawnField != null ? plants.DrawMs : 0, collected, skipped, drawnField, washAge, washHeld);
+                        timings[0].cpuRenderThreadFrameTime, gpu, drawnField != null ? plants.DrawMs : 0, collected, skipped, drawnField, washAge, washHeld,
+                        drawnField != null ? plants.PiecesDrawMs : 0, plants != null ? plants.PiecesView : null);
                 }
                 // The shots: the hovers' and the belt's last seconds, the pass's whole, a frame every 0.2 s (0.25 at the belt).
                 bool hover = leg.Name.StartsWith("hover", StringComparison.Ordinal) || leg.Name.StartsWith("belt", StringComparison.Ordinal);
@@ -143,7 +150,7 @@ namespace Fpv450.App
                     if (shotLeg != leg.Name) { shotLeg = leg.Name; shots = 0; }
                     yield return new WaitForEndOfFrame();
                     string name = leg.Name.Replace(" ", "_").Replace(".", "") + "_" + (++shots).ToString("00");
-                    ScreenCapture.CaptureScreenshot(Path.Combine(folder, (FarmlandPlants.On ? "" : "before_") + name + ".png"));
+                    ScreenCapture.CaptureScreenshot(Path.Combine(folder, Prefix() + name + ".png"));
                     nextShot = now + (leg.Name.StartsWith("belt", StringComparison.Ordinal) ? 0.25f : 0.2f);
                 }
                 if (shooting && hover && pilot.Holding && pilot.HeldFor >= leg.Hold - 0.2 && !_flight.Chase && leg.Name.StartsWith("hover", StringComparison.Ordinal))
@@ -153,7 +160,7 @@ namespace Fpv450.App
                     for (int i = 0; i < 6; i++)
                     {
                         yield return new WaitForEndOfFrame();
-                        ScreenCapture.CaptureScreenshot(Path.Combine(folder, (FarmlandPlants.On ? "" : "before_") + leg.Name.Replace(" ", "_").Replace(".", "") + "_chase_" + (i + 1).ToString("00") + ".png"));
+                        ScreenCapture.CaptureScreenshot(Path.Combine(folder, Prefix() + leg.Name.Replace(" ", "_").Replace(".", "") + "_chase_" + (i + 1).ToString("00") + ".png"));
                         float wait = Time.realtimeSinceStartup + 0.2f;
                         while (Time.realtimeSinceStartup < wait)
                         {
@@ -171,11 +178,16 @@ namespace Fpv450.App
             string result = pilot.Done ? "flown" : Crashed(session) ? "CRASHED" : "stopped at '" + pilot.Now.Name + "'";
             Debug.Log($"[PlantBench] {result} at t = {p.TimeS:0.0} s, ({p.Position.X:0.0}, {p.Position.Y:0.0}, {p.Position.Z:0.0})");
             PlantField field = _flight.GetComponent<FarmlandPlants>()?.Field;
+            PlantPieces pieces = _flight.GetComponent<FarmlandPlants>()?.Pieces;
+            if (pieces != null)
+                Debug.Log($"[PlantBench] the pieces: {pieces.MissedFields} fields the frames skipped, {pieces.LateTicks} ticks without their fields' cuts");
             var json = new StringBuilder();
             json.Append("{\n  \"wind\": \"").Append(wind).Append("\",\n  \"plants\": ").Append(FarmlandPlants.On ? "true" : "false")
                 .Append(",\n  \"result\": \"").Append(result).Append("\",\n  \"gpu\": \"").Append(SystemInfo.graphicsDeviceName)
                 .Append("\",\n  \"screen\": \"").Append(Screen.width).Append('x').Append(Screen.height)
-                .Append("\",\n  \"meanMsPerSecond\": ").Append(F(field?.MeanMsPerSecond ?? 0)).Append(",\n  \"washTickMs\": ").Append(F(field?.WashTickMs ?? 0))
+                .Append("\",\n  \"pieces\": ").Append(pieces != null ? "true" : "false")
+                .Append(",\n  \"missedFields\": ").Append(pieces?.MissedFields ?? 0).Append(",\n  \"lateTicks\": ").Append(pieces?.LateTicks ?? 0)
+                .Append(",\n  \"meanMsPerSecond\": ").Append(F(field?.MeanMsPerSecond ?? 0)).Append(",\n  \"washTickMs\": ").Append(F(field?.WashTickMs ?? 0))
                 .Append(",\n  \"legs\": [");
             bool first = true;
             foreach (KeyValuePair<string, Timing> kv in runs)
@@ -185,29 +197,39 @@ namespace Fpv450.App
                 first = false;
             }
             json.Append("\n  ]\n}\n");
-            File.WriteAllText(Path.Combine(folder, (FarmlandPlants.On ? "" : "before_") + "plantbench.json"), json.ToString());
+            File.WriteAllText(Path.Combine(folder, Prefix() + "plantbench.json"), json.ToString());
             host.Keys = () => KeyboardKeys.None;
             Application.Quit(pilot.Done ? 0 : 1);
         }
 
         static string F(double v) => v.ToString("0.000", CultureInfo.InvariantCulture);
 
+        // The A/B's file prefix: "before_" with the friend's plants (-plants 0), "nopieces_" without the pieces (-pieces 0).
+        static string Prefix() => !FarmlandPlants.On ? "before_" : !FarmlandPlants.PiecesOn ? "nopieces_" : "";
+
         // A held leg's frames: per frame the frame's time, the main thread's (and its wait for the present), the render thread's,
         // the GPU's (frame timing's), the plants' Draw on the main thread, the collections and PAL fields skipped, the wash's last
-        // tick on its helper and the fine wash level's drawn age (frames that drew the plants); each column's mean, p99 and worst;
-        // the frames whose wash stood still while the field moved; each part of the wash's tick, its mean over the frames.
+        // tick on its helper and the fine wash level's drawn age (frames that drew the plants), the pieces' Draw on the main thread;
+        // each column's mean, p99 and worst; the frames whose wash stood still while the field moved; each part of the wash's tick
+        // (the pieces' on the coarse helper the last), its mean over the frames; the most pieces and dust puffs drawn in a frame.
         sealed class Timing
         {
             readonly List<double>[] _c = { new List<double>(4096), new List<double>(4096), new List<double>(4096), new List<double>(4096),
-                new List<double>(4096), new List<double>(4096), new List<double>(4096), new List<double>(4096) }; // sized ahead: nothing allocated a frame
-            static readonly string[] Names = { "frame", "main", "presentWait", "render", "gpu", "plantsDraw", "washTick", "washAge" };
-            static readonly string[] Parts = { "fine tick", "fine export", "steady", "coarse tick", "coarse export" };
-            readonly double[] _parts = new double[5];
-            int _gcs, _gcFrames, _skipped, _skipFrames, _held, _partFrames;
+                new List<double>(4096), new List<double>(4096), new List<double>(4096), new List<double>(4096), new List<double>(4096) }; // sized ahead: nothing allocated a frame
+            static readonly string[] Names = { "frame", "main", "presentWait", "render", "gpu", "plantsDraw", "washTick", "washAge", "piecesDraw" };
+            static readonly string[] Parts = { "fine tick", "fine export", "steady", "coarse tick", "coarse export", "pieces" };
+            readonly double[] _parts = new double[PlantField.WashParts];
+            int _gcs, _gcFrames, _skipped, _skipFrames, _held, _partFrames, _mostPieces, _mostDust;
 
             public void Add(double ms, double main, double presentWait, double render, double gpu, double plantsDraw, int gcs, int skipped,
-                PlantField field, double washAge, bool washHeld)
+                PlantField field, double washAge, bool washHeld, double piecesDraw, PlantPiecesView pieces)
             {
+                _c[8].Add(piecesDraw);
+                if (pieces != null)
+                {
+                    _mostPieces = Math.Max(_mostPieces, pieces.ShownPieces);
+                    _mostDust = Math.Max(_mostDust, pieces.ShownDust);
+                }
                 if (field != null)
                 {
                     _c[6].Add(field.WashTickMs);
@@ -257,7 +279,8 @@ namespace Fpv450.App
                     b.Append(", ").Append(Names[i]).Append(' ').Append(_c[i].Count == 0 ? "n/a" : Mean(_c[i]).ToString("0.00", CultureInfo.InvariantCulture) + " / p99 " +
                         P(_c[i], 0.99).ToString("0.00", CultureInfo.InvariantCulture) + " / max " + Max(_c[i]).ToString("0.00", CultureInfo.InvariantCulture));
                 b.Append(" ms; ").Append(_gcs).Append(" collections in ").Append(_gcFrames).Append(" frames, ").Append(_skipped)
-                    .Append(" PAL fields skipped in ").Append(_skipFrames).Append(" frames, the wash held in ").Append(_held).Append(" frames; the tick's parts");
+                    .Append(" PAL fields skipped in ").Append(_skipFrames).Append(" frames, the wash held in ").Append(_held).Append(" frames; at most ")
+                    .Append(_mostPieces).Append(" pieces and ").Append(_mostDust).Append(" dust puffs drawn; the tick's parts");
                 for (int i = 0; i < Parts.Length; i++)
                     b.Append(i == 0 ? " " : ", ").Append(Parts[i]).Append(' ').Append((_parts[i] / Math.Max(1, _partFrames)).ToString("0.00", CultureInfo.InvariantCulture));
                 return b.Append(" ms").ToString();
@@ -270,7 +293,8 @@ namespace Fpv450.App
                     b.Append(", \"").Append(Names[i]).Append("\": { \"mean\": ").Append(F(Mean(_c[i]))).Append(", \"p99\": ").Append(F(P(_c[i], 0.99)))
                         .Append(", \"max\": ").Append(F(Max(_c[i]))).Append(" }");
                 b.Append(", \"collections\": ").Append(_gcs).Append(", \"collectionFrames\": ").Append(_gcFrames).Append(", \"fieldsSkipped\": ")
-                    .Append(_skipped).Append(", \"skipFrames\": ").Append(_skipFrames).Append(", \"washHeldFrames\": ").Append(_held).Append(", \"washPartsMs\": [");
+                    .Append(_skipped).Append(", \"skipFrames\": ").Append(_skipFrames).Append(", \"washHeldFrames\": ").Append(_held)
+                    .Append(", \"mostPieces\": ").Append(_mostPieces).Append(", \"mostDust\": ").Append(_mostDust).Append(", \"washPartsMs\": [");
                 for (int i = 0; i < Parts.Length; i++) b.Append(i == 0 ? "" : ", ").Append(F(_parts[i] / Math.Max(1, _partFrames)));
                 return b.Append("] }").ToString();
             }
