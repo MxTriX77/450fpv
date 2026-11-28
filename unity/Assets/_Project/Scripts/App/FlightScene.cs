@@ -514,7 +514,7 @@ namespace Fpv450.App
             _signals.Osd.Reset(); // a fresh pack: the filters and the charge used start again
             _signals.Osd.MinCheck = setup.Settings.min_check; // the throttle element's 0 %
             if (_rig != null && _rig.Running) NewFlightFeed(_rig.Events); // a whole line: the last flight's loss ends (D-087)
-            Look(session.Choices);
+            Look(session.Choices, session.Core.Rain?.RateMmPerHour ?? 0);
         }
 
         // A prefab's instance, drawn only: its colliders go, since PhysX stays out of the flight, whose contacts are
@@ -526,14 +526,17 @@ namespace Fpv450.App
             return go;
         }
 
-        void Look(FlightChoices c)
+        // The look of the choices; rateMmPerHour is the flight's rain rate (RainField's draw), or its class's middle before one.
+        void Look(FlightChoices c, double rateMmPerHour)
         {
             _signals.Stub.TimeOfDayHours = (float)c.TimeOfDay;
             if (_look == null)
             {
                 // The farmland keeps the friend's light (D-088, w3-farmland-ground design 3.1): its sun, sky, fog and volume
-                // as the scene has them. The setup's time of day and rain go to the log and the physics, not to the look.
-                Debug.Log($"[Flight] look: the scene's own light; the setup's {SetupScreen.Clock(c.TimeOfDay)} and {c.Rain} leave it as it is");
+                // as the scene has them. The setup's time of day goes to the log and the physics, not to the look; the rain
+                // wets its surfaces (w21-rain-on-camera 1.3) under that light.
+                Debug.Log($"[Flight] look: the scene's own light; the setup's {SetupScreen.Clock(c.TimeOfDay)} leaves it as it is, {c.Rain} wets it");
+                Wet(c, rateMmPerHour);
                 return;
             }
             LookPreset sky = Preset(c.Rain == Rain.Sunny ? "day" : "overcast");
@@ -545,8 +548,17 @@ namespace Fpv450.App
                 _look.fogScaleHeightM = sky.fog_scale_height_m;
             }
             _look.Apply();
+            Wet(c, rateMmPerHour); // after the light: the rain's extinction takes the fog's colour
             Debug.Log($"[Flight] look: {SetupScreen.Clock(c.TimeOfDay)}, {c.Rain} as the {(sky != null ? sky.name : "scene's")} sky, cover {_look.cloudCover:0.##}, " +
                       $"sun {_look.State.SunElevationDeg:0.0}° up");
+        }
+
+        // The wet look (w21-rain-on-camera 1.3, VIS-03): the sim's moisture for the rain, its drops' extinction at the rate, and
+        // the sim's rigid surfaces for Severe rain's standing water. Sunny restores what a rain changed, and nothing else.
+        void Wet(FlightChoices c, double rateMmPerHour)
+        {
+            SessionInputs inputs = Host.Inputs;
+            WetSurfaces.Apply(WetSurfaces.LevelOf(c.Rain), rateMmPerHour, inputs?.Materials, inputs?.Surfaces);
         }
 
         // While the radio is awaited (before the first flight, or after a Fly or a Restart): the view from the chosen
@@ -569,7 +581,7 @@ namespace Fpv450.App
             _body.SetPositionAndRotation(new Vector3((float)at.X, ground + PreviewHeightM, (float)at.Z), Quaternion.Euler(0f, (float)(at.Yaw * 180 / Math.PI), 0f));
             _signals.Osd.Reset(); // the OSD as before the first flight, disarmed, not the last flight's end
             _signals.Update(default, false, 0, 0, 0);
-            Look(c);
+            Look(c, WetSurfaces.ClassMiddle(WetSurfaces.LevelOf(c.Rain)));
         }
 
         LookPreset Preset(string name)
@@ -737,7 +749,11 @@ namespace Fpv450.App
             ? "Arm: Enter, with the throttle down (S)"
             : "Arm: switch off, then on, with the throttle down";
 
-        void OnDisable() => Cursor.visible = true;
+        void OnDisable()
+        {
+            Cursor.visible = true;
+            WetLook.Restore(); // the rain's twins and keyword go with the flight
+        }
 
         static Vector3 V(in Double3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
         static Quaternion Q(in Quat q) => new Quaternion((float)q.X, (float)q.Y, (float)q.Z, (float)q.W);
