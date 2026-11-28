@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!200 &20000000
+ShaderVariantCollection:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: WetVariants
+  m_Shaders:
+  - first: {fileID: 4800000, guid: 76f39d07f8644c319220fea0e1808917, type: 3}
+    second:
+      variants:
+      - keywords: 
+        passType: 13
+      - keywords: _ALPHAPREMULTIPLY_ON _NORMALMAP
+        passType: 13
+      - keywords: _ALPHATEST_ON _METALLICSPECGLOSSMAP _OCCLUSIONMAP
+        passType: 13
+      - keywords: _DETAIL_MULX2 _METALLICSPECGLOSSMAP _NORMALMAP _OCCLUSIONMAP
+        passType: 13
+      - keywords: _DETAIL_MULX2 _NORMALMAP
+        passType: 13
+      - keywords: _METALLICSPECGLOSSMAP _NORMALMAP _OCCLUSIONMAP
+        passType: 13
+      - keywords: _NORMALMAP
+        passType: 13
+      - keywords: _NORMALMAP _OCCLUSIONMAP
+        passType: 13
+  - first: {fileID: 4800000, guid: 74eb536cc924411d953ff5d239c26157, type: 3}
+    second:
+      variants:
+      - keywords: 
+        passType: 13
+      - keywords: _MASKMAP
+        passType: 13
+      - keywords: _MASKMAP _NORMALMAP
+        passType: 13
+      - keywords: _MASKMAP _NORMALMAP _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+        passType: 13
+      - keywords: _MASKMAP _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+        passType: 13
+      - keywords: _NORMALMAP
+        passType: 13
+      - keywords: _NORMALMAP _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+        passType: 13
+      - keywords: _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+        passType: 13
+  - first: {fileID: 4800000, guid: 3c68e40980f342cbb7b136a02a334cd9, type: 3}
+    second:
+      variants:
+      - keywords: 
+        passType: 13
+      - keywords: _NORMALMAP
+        passType: 13
+      - keywords: _NORMALMAP _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+        passType: 13
+      - keywords: _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+        passType: 13
+  - first: {fileID: 4800000, guid: 6e294ae300414f32befa9a02a0ebaea5, type: 3}
+    second:
+      variants:
+      - keywords: 
+        passType: 13
+      - keywords: _MASKMAP
+        passType: 13
+      - keywords: _MASKMAP _NORMALMAP
+        passType: 13
+      - keywords: _MASKMAP _NORMALMAP _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+        passType: 13
+      - keywords: _MASKMAP _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+        passType: 13
+      - keywords: _NORMALMAP
+        passType: 13
+      - keywords: _NORMALMAP _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+        passType: 13
+      - keywords: _TERRAIN_INSTANCED_PERPIXEL_NORMAL
+        passType: 13
