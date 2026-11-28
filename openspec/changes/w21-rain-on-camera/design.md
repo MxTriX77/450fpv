@@ -139,3 +139,13 @@ Per field, `LensWater.Drops` holds `LensDrop`s:
 | Drops stay in fast flight and travel with the airflow | 20 m/s pitched 25°: a 0.1 mm³ drop stays; a 10 mm³ drop slides down the glass, and stays pinned in the same pose without the air |
 | Goldens unchanged | flightbench and worldbench `--golden`; a rain flight's final state the same with the lens stepping beside it; two lenses on the same poses identical bit for bit |
 | Bounds and 0 B | a long Severe rain flight: count ≤ Capacity, trails ≤ TrailPoints, the water's books balance; `Advance` allocates 0 B in steady state |
+
+## 1.2 The drops drawn (tech artist)
+
+The feed draws what `LensWater` computes, ahead of its analog stages (FEED-13). Numbers and sources: [lens-drops.md §8](../../../docs/reference-notes/lens-drops.md).
+
+- **The physics on the drawn side:** `App/LensView` builds the flight's `LensWater` from its first pose's rain rate (`FeedSignals.RainRate`, now the feed's signal from the physics as well) and seed, steps it on `PoseBuffer` every frame, and draws its drops and trails onto the feed's `LensMap` when they moved. Sunny keeps it dry. The chase view draws none.
+- **The map** (`Feed/Core/LensMap`, engine-free): 192 texels over the glass, the signed distance to the nearest contact line, the water's slope and its curvature. Drops are their caps (round or elongated along their axis); a trail stretch's film is drawn as the pearls it dewets into (a rivulet at the receding angle, broken at Plateau–Rayleigh's wavelength).
+- **The optics** (`Shaders/Feed.shader`, passes 3 and 4): per picture point, 16 rays over the 1.05 mm entrance pupil, 3.81 mm behind the dome's apex, traced to the dome; under water, Snell into the water and out of its surface, the Fresnel transmission, the scene at the mip of the ray's spread; total reflection brings nothing. The result is a 480 × 270 layer of the light through the water and the pupil's wetted share.
+- **Into the feed:** the field pass's `FEED_LENS` variant mixes the layer into each sensor read in linear light, so the drops go through the channel's blur, noise and colour. Dry, the keyword is off and the pass is the ported one, token for token.
+- **Proof:** `Fpv450.RainFields` flies a recorded rain flight again from its log and draws chosen fields wet and dry over the test range; `NoclipFeed -feedcost -feedlens <map>` measures the cost.

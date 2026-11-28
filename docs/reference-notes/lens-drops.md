@@ -103,3 +103,47 @@ Hand: a 3 mm³ drop with 20 µN of excess force slides at 7 cm/s (Ca 1.1·10⁻�
 - **Oblique impacts:** the spread is taken round about the impact point; an oblique lamella runs further downstream.
 - **Water on the barrel's rim, drops sliding back onto the glass, a drop crossing an old trail:** none tracked.
 - **Rain hitting the props and flung off them:** flung in the disk's plane, above the lens.
+
+## 8. The drops drawn (task 1.2)
+
+What the feed draws from `LensWater`'s drops and trails (`Scripts/Feed/Core/LensMap.cs`, the lens passes in `Shaders/Feed.shader`). Hand numbers here are `tools/feedbench/handcalc/lens_drops_drawn.py`.
+
+**How a drop on the front glass images.** The lens is focused far away, so its front glass is deep out of focus. A picture point is the bundle of parallel rays that fills the entrance pupil, and that bundle crosses the glass over a footprint the pupil's size (published optics: the stop's image in object space; adherent drops on a lens are out-of-focus blurs that contract the scene like a fish-eye lens, You, Tan, Kawakami, Mukaigawa and Ikeuchi, "Adherent Raindrop Modeling, Detection and Removal in Video", TPAMI 2016). Where the footprint is dry, the point is the scene as before. Under water, each ray leaves the glass into the water and the water's surface into the air by Snell's law. The glass keeps the dry ray's tangential part, so its own index drops out. The ray takes that direction's scene times the water surface's Fresnel transmission, and a ray past the critical angle is reflected back into the lens and brings no scene. So a drop shows the scene shifted, minified and blurred (the cap is a short-focus lens inside the pupil), with an edge as soft as the footprint is wide.
+
+| Number | Value | Label | Source / reasoning |
+|---|---|---|---|
+| Water's index | 1.333 | published | 589 nm, 20 °C |
+| Focal length, f-number | 2.1 mm, f/2.0 | published | the class's M12 lens (RunCam RC21's listing, getfpv.com; Edmund Optics' 2.1 mm f/2 micro video lens) |
+| Entrance pupil | 1.05 mm across | derived | f/N |
+| Its depth behind the dome's apex | 3.81 mm | derived / assumed | every chief ray points at the pupil's centre (pupil aberration left out, assumed); the front element is just large enough to pass the picture's corner bundle unvignetted (assumed: no drawing found), so that bundle meets the dome at most at the clear radius. Hand: it reaches 4.500 mm |
+| The picture on the glass | centre 0 mm; the edge's middle (52.9°) 3.79 mm; the top's middle (31.7°) 2.17 mm; the corner (58.6°) 4.25 mm | derived | the feed's picture (k1 0.33, f 1.005 half-widths, 16:9) through that pupil onto the 8 mm dome; the chief rays meet the glass at most 26.5° from its normal |
+| Scale at the centre | 15.0° of the picture per mm of glass | derived | hand |
+| A contact line's softness | ±7.9° at the centre | derived | the pupil's radius times the scale |
+| A cap as a lens | surface radius 2.92 r, focal length 8.8 r: 6.1 mm at r 0.7 mm, 13.2 at 1.5, 17.6 at 2.0 | derived | a spherical cap at the receding angle (§4) |
+| Its blur across the pupil | ±4.9° at r 0.7 mm, ±2.3° at 1.5, ±1.7° at 2.0 | derived | the pupil's radius over the cap's focal length |
+| Its minification | the scene at 0.38 of its size inside a 0.7 mm drop at the centre, 0.71 at 1.5 mm, 0.78 at 2.0 | derived | the cap turns the rays back by their offset over its focal length, against the glass's 15°/mm |
+| Its size in the picture | about ±11° at r 0.7 mm, ±23° at 1.5, ±30° at 2.0, at the centre | derived | the scale |
+| The rim's deviation | 7.1° | derived | Snell at the receding angle, along the glass's normal |
+| Critical angle, water to air | 48.6° | derived | asin(1/1.333) |
+| The steepest ray in the water | 39.6° at the corner's rim | derived | 26.5° at the glass is 19.6° in the water, plus the cap's 20° |
+| Fresnel transmission | 0.980 at normal, 0.948 at 39.6° | derived | unpolarised, water to air |
+
+**The dark rim.** A dark band at an adherent drop's boundary comes from total internal reflection there (published: S. You's doctoral thesis on adherent raindrops). For these caps, at the receding angle 20°, no ray of the picture reaches the critical angle (39.6° against 48.6°), so the computed drops have no reflected band. Their rims darken only by the Fresnel loss, up to 5 %, and by what their 7° deviation brings in. A drop steeper than 49° at its edge, on a more hydrophobic lens than §4 assumes, would reflect: the band follows from `LensSpec`'s angles, never from the drawing.
+
+**Trails.** A film this thin on partially wetting glass does not stay a film. Films under the critical thickness, about a capillary length times sin(θ/2) (0.5–1 mm here), dewet (published: de Gennes, Brochard-Wyart and Quéré, *Capillarity and Wetting Phenomena*). Each trail stretch's water is drawn as the pearls it gathers into, and they image as small drops do, so a trail is a row of soft, smeared spots.
+
+| Number | Value | Label | Source / reasoning |
+|---|---|---|---|
+| The rivulet the water makes | its section 0.0591 w², at the receding angle | derived | a circular segment of chord w at 20° |
+| Pearl spacing | 4.51 rivulet widths | published / assumed | Plateau–Rayleigh's fastest wavelength for a jet, its diameter taken as the rivulet's width |
+| A pearl | a cap at the receding angle holding its spacing's water, evenly along the stretch | derived | hand: a 4 µm film 2 mm wide makes a 0.37 mm rivulet, pearls of 0.36 mm radius 1.7 mm apart, 12 % of the track |
+
+**The passes** (numerical): 16 rays over the pupil (a Vogel spiral); each ray's share of the pupil, a disc of 0.131 mm, feathers the contact line and sets the mip it reads, the spread its share of the cap turns the light over. The map is 192 texels a side over the clear square (47 µm), its signed distance to the nearest contact line, the water's slope and curvature. The lens scene is the render at half size in linear light, with its mips. The layer is 480 × 270 over the picture. The field pass mixes the layer into each sensor read, in linear light, so the drops take the channel's softness, noise and colour with the picture. The layer's scene turns with the camera's read at its row's middle tap (the drops ride the camera; the exposure's blur inside a drop is far under its defocus).
+
+**Left out, with reasons:**
+- **The ray's shift inside the water:** at most 0.6 mm × tan 7° = 0.07 mm, under a ray's 0.13 mm share of the pupil.
+- **The water–glass interface's reflection:** 0.4 %.
+- **The dry glass's coating:** taken as lossless. A single MgF₂ layer reflects about 1.3 % on crown glass, so the wet glass is drawn up to 1 % too dark.
+- **Light the drop scatters in from outside the bundle (glare):** not modelled.
+- **The film's dewetting time:** about 0.1 s for a 2 mm track (a rim speed of about 1 cm/s at θ 20°). The pearls are drawn as the film is laid.
+- **Trails' lifetimes:** a trail goes when its drop is shed or merges into a larger one (1.1's books). It is drawn as the physics publishes it.
