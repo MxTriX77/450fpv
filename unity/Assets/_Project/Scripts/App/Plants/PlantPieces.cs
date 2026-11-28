@@ -112,6 +112,7 @@ namespace Fpv450.App
         readonly double _airDensity, _extinction, _dustSettling;
         readonly double[] _clay = new double[256];
         readonly bool[] _dusty = new bool[256];
+        readonly double[] _filmSupply = new double[256];
         readonly int[] _dustColour = new int[256];
         readonly BitPiece[] _bits = new BitPiece[ChaffLaw.Classes];
         readonly CoverSet[] _stems = new CoverSet[4]; // by StemKind
@@ -196,6 +197,7 @@ namespace Fpv450.App
                 if (name == null || !DustLaw.Find(name, out DustLaw.Row row)) continue;
                 _dusty[s] = true;
                 _clay[s] = row.Clay;
+                _filmSupply[s] = row.Film ? FilmSupply(name) : 0;
                 _dustColour[s] = DustColour(name);
             }
             for (int c = 0; c < ChaffLaw.Classes; c++) _bits[c] = ChaffLaw.Piece((BitClass)c, moisture);
@@ -261,6 +263,25 @@ namespace Fpv450.App
             }
             heights.Sort();
             medianHeight = heights.Count > 0 ? heights[heights.Count / 2] : double.NaN;
+        }
+
+        /// <summary>The live cut pieces and bits: how many fly and lie, how many fly over 0.3 m and over 1 m above the ground, and
+        /// their fastest speed (m/s), after the last tick (a still's summary).</summary>
+        public string PiecesShape()
+        {
+            int flying = 0, lying = 0, over03 = 0, over1 = 0;
+            double fastest = 0;
+            for (int i = CutFirst; i < Capacity; i++)
+            {
+                if (_kind[i] == Kind.None) continue;
+                if (!double.IsNaN(_lay[i])) { lying++; continue; }
+                flying++;
+                double h = _x[i].Y - _ground[i];
+                if (h > 0.3) over03++;
+                if (h > 1) over1++;
+                fastest = Math.Max(fastest, _v[i].Length());
+            }
+            return $"{flying} flying ({over03} over 0.3 m, {over1} over 1 m, the fastest {fastest:0.0} m/s), {lying} lying";
         }
 
         /// <summary>The live pieces of a kind after the last tick, and the dust's mass in the air, kg.</summary>
@@ -540,19 +561,27 @@ namespace Fpv450.App
             return best;
         }
 
-        // The dust over the tick: each lifting node's vertical flux α·Q (MB95 on White's saltation flux) over its cell; a tick's
-        // emission (with what earlier ticks carried) in up to DustPerTick puffs, each placed by the emission's own distribution
-        // over the nodes (stratified by the tick's hash), as wide as the share of the lifting area it stands for and as thick as
-        // the near jets (RotorAir.JetThickness: the wall jets' layer).
+        // The dust over the tick: each lifting node's vertical flux α·Q (MB95 on White's saltation flux) over its cell, on a film
+        // (a track's, a slab's, rubble's loose layer) no more than its cell still holds; a tick's emission (with what earlier ticks
+        // carried) in up to DustPerTick puffs, each placed by the emission's own distribution over the nodes (stratified by the
+        // tick's hash), as wide as the share of the lifting area it stands for and as thick as the near jets (RotorAir.JetThickness:
+        // the wall jets' layer).
         void SpawnDust(WashGround ground, double t0, double tick, PlantWash grid)
         {
             int n = ground.Size * ground.Size;
+            if (_emit.Length < n) _emit = new double[n];
             double cell = ground.Cell, area = cell * cell, total = 0, lifting = 0;
             for (int i = 0; i < n; i++)
             {
+                _emit[i] = 0;
                 double q = ground.DustFlux[i];
-                if (!(q > 0) || !_dusty[ground.Surface[i]]) continue;
-                total += Sandblasting(_clay[ground.Surface[i]]) * q * area * tick;
+                byte surface = ground.Surface[i];
+                if (!(q > 0) || !_dusty[surface]) continue;
+                double m = Sandblasting(_clay[surface]) * q * area * tick;
+                if (_filmSupply[surface] > 0) m = Film(ground.StartI + i % ground.Size, ground.StartJ + i / ground.Size, _filmSupply[surface] * area, m);
+                if (!(m > 0)) continue;
+                _emit[i] = m;
+                total += m;
                 lifting += area;
             }
             if (!(total > 0))
@@ -578,9 +607,8 @@ namespace Fpv450.App
                 int node = -1;
                 for (int i = 0; i < n && node < 0; i++)
                 {
-                    double q = ground.DustFlux[i];
-                    if (!(q > 0) || !_dusty[ground.Surface[i]]) continue;
-                    run += Sandblasting(_clay[ground.Surface[i]]) * q * area * tick;
+                    if (!(_emit[i] > 0)) continue;
+                    run += _emit[i];
                     if (run >= target) node = i;
                 }
                 if (node < 0) continue;
@@ -631,6 +659,49 @@ namespace Fpv450.App
                         _spinRate[slot] = 2 * Math.PI * (TumbleMin + (TumbleMax - TumbleMin) * Fraction(Hash(hj, 4, 0)));
                     }
                 }
+        }
+
+        // ---- the films' supply ----
+
+        /// <summary>
+        /// A film's loose fines a square metre holds, kg (DustLaw's Film rows: "short whiffs, then clean", design §5's supply left to
+        /// 1.4): the track's 0.13, a 1 mm loose layer at 1300 kg/m³ with a tenth of it silt (assumed: the layer; the silt share
+        /// within the published surface silt of unpaved roads, 1.8–35 %, mean about 10 %, US EPA AP-42 §13.2.2); a slab's and
+        /// asphalt's 0.6 g (published: AP-42 §13.2.1's baseline silt loading of low-volume paved roads); rubble's fines 0.01
+        /// (assumed). 0 for a surface whose loose layer the law takes as without end.
+        /// </summary>
+        public static double FilmSupply(string surface) =>
+            surface == "dirt_track" ? 0.13 : surface == "asphalt" || surface == "concrete_slab" ? 0.0006 : surface == "rubble" ? 0.01 : 0;
+
+        /// <summary>The cells the films' table remembers (numerical: 1,474 m² of 15 cm cells; past three quarters of it the table
+        /// starts again whole, every film full).</summary>
+        public const int FilmCells = 65536;
+
+        readonly long[] _filmKey = new long[FilmCells];
+        readonly double[] _filmLeft = new double[FilmCells];
+        int _filmCount;
+        double[] _emit = new double[0];
+
+        // What a film's cell gives of the mass asked (kg), from what it still holds (first asked: its supply over the cell).
+        double Film(long i, long j, double supply, double asked)
+        {
+            if (_filmCount >= FilmCells * 3 / 4)
+            {
+                Array.Clear(_filmKey, 0, FilmCells);
+                _filmCount = 0;
+            }
+            long key = (i << 32) ^ (j & 0xFFFFFFFFL) ^ long.MinValue; // never 0, the empty key
+            int at = (int)(FlightRandom.Mix64((ulong)key) & (FilmCells - 1));
+            while (_filmKey[at] != 0 && _filmKey[at] != key) at = (at + 1) & (FilmCells - 1);
+            if (_filmKey[at] == 0)
+            {
+                _filmKey[at] = key;
+                _filmLeft[at] = supply;
+                _filmCount++;
+            }
+            double given = Math.Min(asked, _filmLeft[at]);
+            _filmLeft[at] -= given;
+            return given;
         }
 
         /// <summary>A bit's start over the ground, m: 0.03 (assumed: lying in the cover's lodged layer).</summary>
