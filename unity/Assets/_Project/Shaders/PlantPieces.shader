@@ -282,15 +282,16 @@ Shader "Fpv450/Plant Pieces"
             float4 DustFragment(Varyings i) : SV_Target
             {
                 float3 origin = _WorldSpaceCameraPos, ray = normalize(i.positionWS - origin);
+                float3 sigma = float3(i.sigma.x, i.sigma.y, i.sigma.x);
+                float3 o = (origin - i.centre.xyz) / sigma, d = ray / sigma;
+                float dd = dot(d, d), od = dot(o, d), length_d = sqrt(dd);
+                float closest = -od / dd, b2 = max(0, dot(o, o) - od * od / dd);
+                if (b2 > 36) discard; // the ray passes the puff beyond 6 σ: e^(−18), nothing (numerical)
                 float2 uv = i.positionCS.xy * _DustTarget.zw;
                 float raw = SampleSceneDepth(uv);
                 float3 forward = -UNITY_MATRIX_V[2].xyz;
                 float far = LinearEyeDepth(raw, _ZBufferParams) / max(dot(ray, forward), 1e-3);
                 float nearest = _ProjectionParams.y / max(dot(ray, forward), 1e-3);
-                float3 sigma = float3(i.sigma.x, i.sigma.y, i.sigma.x);
-                float3 o = (origin - i.centre.xyz) / sigma, d = ray / sigma;
-                float dd = dot(d, d), od = dot(o, d), length_d = sqrt(dd);
-                float closest = -od / dd, b2 = max(0, dot(o, o) - od * od / dd);
                 float span = Phi(length_d * (far - closest)) - Phi(length_d * (nearest - closest));
                 float tau = i.centre.w / (6.2831853 * i.sigma.x * i.sigma.x * i.sigma.y * length_d) * exp(-0.5 * b2) * max(0, span);
                 return float4(i.colour * tau, tau);
