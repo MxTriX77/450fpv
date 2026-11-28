@@ -1,7 +1,8 @@
 // The farmland's grass in the flight's air (w16-plants-in-the-air 1.3): the project's own replacement for the friend's
 // "Farm Land/Grass" (Farm_land/Shaders/FarmLandGrass.shader, which stays as he left it), drawn through runtime copies of his
 // materials (FarmlandPlantDrawing). His look is kept as he wrote it: blades lit with a normal bent towards the sky, a darker base
-// standing in for the blades shading each other, far instances thinned, a screen-space dither to the draw distance. His wind is
+// standing in for the blades shading each other, far instances thinned, then faded to the draw distance. His fade, a screen-space
+// dither per pixel, broke each half-faded clump into lone pixels that crawled with the camera; here a clump goes whole. His wind is
 // gone: each clump bends by its culms' bend in the sim's air (PlantBend.hlsl: 1.2's law, its class's bands at its length, read
 // at its base), as a cantilever from its base, so a gust bends it and it springs back as the law gives and the wash flattens it.
 Shader "Fpv450/Plant Grass"
@@ -63,24 +64,23 @@ Shader "Fpv450/Plant Grass"
             return PlantTurn(positionWS, origin.y, GrassBend((int)_PlantClass, culm, origin.xz), culm);
         }
 
-        // False once the instance's random value passes the share kept at its distance (the friend's thinning). Thinned
-        // instances collapse to a point, which saves rasterising their triangles and skips the air.
+        // False once the instance's random value passes the share kept at its distance: the friend's thinning, times his
+        // fade from _FadeStart to nothing at _FadeEnd. Dropped instances collapse to a point, which saves rasterising their
+        // triangles and skips the air.
         bool KeepInstance(float3 origin)
         {
-            float share = lerp(1, _ThinKeep, saturate((distance(origin, _WorldSpaceCameraPos) - _ThinStart) / (_ThinEnd - _ThinStart)));
+            float d = distance(origin, _WorldSpaceCameraPos);
+            float share = lerp(1, _ThinKeep, saturate((d - _ThinStart) / (_ThinEnd - _ThinStart)));
+            float fade = saturate((_FadeEnd - d) / (_FadeEnd - _FadeStart));
             float random = frac(sin(dot(origin.xz, float2(12.9898, 78.233))) * 43758.5453);
-            return random < share;
+            return random < share * fade;
         }
 
-        // Clips the blade shape, then removes more pixels with distance using screen-space noise (the friend's).
-        half4 SampleBaseAndClip(float2 uv, float3 positionWS, float2 positionCS)
+        // Clips the blade shape.
+        half4 SampleBaseAndClip(float2 uv)
         {
             half4 base = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);
             clip(base.a - _Cutoff);
-
-            float fade = saturate((_FadeEnd - distance(positionWS, _WorldSpaceCameraPos)) / (_FadeEnd - _FadeStart));
-            float noise = frac(52.9829189 * frac(dot(positionCS, float2(0.06711056, 0.00583715))));
-            clip(fade - noise - 0.001);
             return base;
         }
         ENDHLSL
@@ -143,7 +143,7 @@ Shader "Fpv450/Plant Grass"
 
             half4 Fragment(Varyings input) : SV_Target
             {
-                half4 base = SampleBaseAndClip(input.uv, input.positionWS, input.positionCS.xy);
+                half4 base = SampleBaseAndClip(input.uv);
                 half3 albedo = base.rgb * _BaseColor.rgb;
                 half occlusion = lerp(1, SAMPLE_TEXTURE2D(_MaskMap, sampler_MaskMap, input.uv).g, _OcclusionStrength);
 
@@ -183,7 +183,6 @@ Shader "Fpv450/Plant Grass"
             {
                 float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD0;
-                float3 positionWS : TEXCOORD1;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -195,17 +194,17 @@ Shader "Fpv450/Plant Grass"
 
                 float3 origin = PlantOrigin();
                 bool keep = KeepInstance(origin);
-                output.positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
                 if (keep)
-                    output.positionWS = ApplyAir(output.positionWS, origin);
-                output.positionCS = keep ? TransformWorldToHClip(output.positionWS) : float4(0, 0, 0, 0);
+                    positionWS = ApplyAir(positionWS, origin);
+                output.positionCS = keep ? TransformWorldToHClip(positionWS) : float4(0, 0, 0, 0);
                 output.uv = TRANSFORM_TEX(input.uv, _BaseMap);
                 return output;
             }
 
             half Fragment(Varyings input) : SV_Depth
             {
-                SampleBaseAndClip(input.uv, input.positionWS, input.positionCS.xy);
+                SampleBaseAndClip(input.uv);
                 return input.positionCS.z;
             }
             ENDHLSL
