@@ -1215,6 +1215,7 @@ namespace Fpv450.Sim.Flight
                 Armed = s.Armed,
                 LegCompression = _trace.LegCompression, // the step's start: one step behind the pose
                 CameraTurn = _modes != null ? _modes.FrameTurn(s.ModeShape) : default,
+                AirVelocityAtCamera = AirAtCamera(s), // render-side (w21-rain-on-camera): the signal's, for the lens's water
                 LegState = _trace.LegState,
                 CornerState = _trace.CornerState,
                 LegSet = _trace.LegSet,
