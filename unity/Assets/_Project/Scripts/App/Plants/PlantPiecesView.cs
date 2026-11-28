@@ -70,6 +70,14 @@ namespace Fpv450.App
             if (_material == null || pieces == null || camera == null) return;
             PlantPieces.Snapshot s = pieces.Take(t, out bool changed);
             if (s == null) return;
+            Draw(s, changed, t, camera, exposureS);
+        }
+
+        /// <summary>A snapshot's pieces at flight time t (s) in the camera (uploaded when changed): Draw's second half, and a test's.</summary>
+        public void Draw(PlantPieces.Snapshot s, bool changed, double t, Camera camera, double exposureS)
+        {
+            _pass.Pieces = _pass.Dust = false;
+            if (_material == null || s == null || camera == null) return;
             if (changed) _buffer.SetData(s.Data);
             double drawn = Math.Max(s.T0, Math.Min(s.T0 + s.TickSeconds, t - s.TickSeconds));
             Shown = drawn;
