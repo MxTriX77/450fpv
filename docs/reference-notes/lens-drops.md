@@ -89,7 +89,7 @@ Hand, forward flight at 20 m/s pitched 25° (u_t 8.5 m/s down the glass, u_n 18 
 | ln(b/a) | 15 | derived | 1 mm over a water molecule's 0.3 nm |
 | Trail onset | Ca* = θ_R³/(9·ln(b/a)) = 3.2·10⁻⁴, 2.0 cm/s | published / derived | Cox–Voinov θ³ = θ_s³ − 9 ln(b/a)·Ca at the rear (Le Grand et al. eq. 5.2, A = 1/[9 ln(b/a)]); their corner forms at θ_r = 0.46–0.56·θ_s,r, pearls follow |
 | Trail film | 0.94·h·Ca^(2/3) | published / assumed | Landau–Levich–Derjaguin's film with the drop's height h as the meniscus's scale (assumed) |
-| Elongation | L/W = 1 + Ca/Ca* while sliding, 1 pinned | assumed | Le Grand et al.: sliding drops grow longer and thinner at constant height, to about 2 at the corner (their figure 8) |
+| Elongation | L/W = 1 + Ca/Ca* while sliding, at most 3; 1 pinned | assumed | Le Grand et al.: sliding drops grow longer and thinner at constant height, to about 2 at the corner (their figure 8) |
 | Merging | patches that touch coalesce at once | derived | coalescence takes milliseconds, under a field |
 | Shedding | the drop's centre passes the clear radius, or its pull exceeds the pull-off | assumed | past the glass it is on the barrel, out of the picture |
 

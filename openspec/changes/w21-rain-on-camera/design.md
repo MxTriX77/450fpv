@@ -74,7 +74,7 @@ The drive is F = m·f_t + F_a. ρ_air is drone.json's `aero.air_density_kg_m3`.
 - **Retention:** F_ret = k·γ·w·(cos θ_R − cos θ_A), with w the patch's width across the drive (2r/√e for elongation e), k = 1 (published), θ_A 50° and θ_R 20° (assumed, note §4).
 - **Pinned:** |F| ≤ F_ret. The drop stays; its velocity and elongation drop to 0 and 1.
 - **Sliding:** the speed is Le Grand et al.'s quasi-steady law, U = s·(|F| − F_ret)/(μ·V^(1/3)), along F, with s = 0.006 (derived, note §6). Quasi-steady holds because the drop's inertial time ρ_w·s·V^(2/3)/μ is 5 ms at 1 mm³ and 25 ms at 10 mm³ (derived): at or under a field. The drop moves U·dt across the glass (its X, Y by the tangent's components).
-  - **Elongation:** e = 1 + Ca/Ca* while sliding, with Ca = μU/γ and Ca* = θ_R³/(9·15) (assumed form, published threshold; note §6). The long axis is the way it moves.
+  - **Elongation:** e = 1 + Ca/Ca* while sliding, at most 3, with Ca = μU/γ and Ca* = θ_R³/(9·15) (assumed form and cap, published threshold; note §6). The long axis is the way it moves. A narrower drop is held by less (w = 2r/√e), so a drop once under way runs on: a sliding drop's dynamic retention below its static one.
   - **The Coriolis term** −2ω×v takes the previous field's velocity (explicit; numerical).
 
 #### 3.6 Trails
