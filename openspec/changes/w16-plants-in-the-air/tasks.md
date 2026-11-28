@@ -33,10 +33,25 @@ The change lives on the physics line, `unity/physics/physics-integration-2`, fro
   - The frame rate holds (PLT-02).
   - **Built so far** (design.md "## 1.3"): the friend's plant shaders replaced at load by the project's own (his look, the sim's air); the field on five levels each frame, 1.2's closed form on the GPU against the CPU within 1.5·10⁻³ rad, the wash's grids and its steady air beyond them; the flight's log the same byte for byte with the plants drawn. **Open:** the captures against clip H (`-plantbench`), PLT-02's verdict on the A/B below, the columns' steady air from the wash grids' own samples.
   - **The wash off the frame** (5b9e367e, 36258e37; design.md "## 1.3" §3 and §5; the pilot's stutter low over grass): no frame ever waited on a wash tick (it had its own helper); the plants' `Draw` costs the main thread under 0.5 ms at p99. The drawn wash stuttered: drawn at the field's time it stood still in 6–29 % of the fields low over grass, its lag jumping 0–31 ms, and once 0.41 s. Now the fine and the coarse grid tick on two helpers at the frame's priority (the tick 15–18 → 9–12 ms) and the frame draws the newest finished tick a tick behind the field: a constant 40 ms, never still. Main thread low over Village's grass (IL2CPP, AC, vsync off), p99 / worst, before → after: hover 1 m 5.26 / 5.88 → 5.78 / 9.20 ms, hover 0.5 m 5.95 / 7.56 → 5.79 / 6.72, the pass 1 m up 5.99 / 7.68 → 6.38 / 9.38 (`-plants 0`: 5.39 / 7.99, 5.56 / 6.54, 6.07 / 8.90). The sim core is untouched: `flightbench --golden` 68 PASS, nothing re-recorded; the flight's log is the same byte for byte with the three helpers reading it; the two grids' line instances give the same bits (980,100 airs).
-- [ ] 1.4a [physics-engineer] **The loose plant bits the wash lifts** (the pilot, 2026-11-28: "not only dust - when in grass it also whiffs grass particles"). No GPU. Branch `--w16-chaff`.
+- [x] 1.4a [physics-engineer] **The loose plant bits the wash lifts** (the pilot, 2026-11-28: "not only dust - when in grass it also whiffs grass particles"). No GPU. Branch `--w16-chaff`.
   - On covered surfaces (`meadow_sod`, `weeds`, `belt_straw`, `yard_litter`, and the track map's grass), the wash lifts the loose dead leaves, chaff and straw bits lying in the cover, not soil dust (plants-in-the-air.md §5.3). Researched per surface: the pieces' size, mass and drag (their settling speed), the wall jet's speed that starts and keeps them moving, and how much loose material a square metre holds (supply-limited).
   - Beside DustLaw in `PlantWash`, on the same grid and tick: per node, the bits' lift rate and the pieces' size class, for the drawing (1.4). Wet ground (Rain, Severe rain) lifts wet bits only if the law gives it.
   - More throttle and a lower drone lift more, from the wall jet's own scaling (no tuning knob). The flight is unchanged: no model number, goldens the same byte for byte.
+  - **As built** (design.md §5b; plants-in-the-air.md §5.4; `tools/flightbench/handcalc/plant_bits.py`):
+    - **Three classes** (`BitClass`, `ChaffLaw.Piece`):
+      - chaff: 1 mg, settling at 0.87 m/s;
+      - straw bits: the surface table's straw, 4 cm, 81 mg, 2.9 m/s;
+      - dead leaves: 78 mg, 0.95 m/s.
+    - **What starts a piece:** the wall jet's u* over the cover's roughness, against the piece's force balance.
+      - Dry leaves start at 0.46 m/s, the Beaufort scale's force 4 ("dust, leaves and loose paper lifted") over open grass. Chaff takes it by √σ, at 0.42. A straw bit rolls out of its groove at 0.39.
+      - The thresholds are spread log-normally (×1.5, assumed). A moving piece keeps moving down to 0.8 of its start.
+    - **Standing stems shelter the pieces** (Raupach et al. 1993's partition on the world's own stem field).
+    - **Wet:** the pieces hold litter's 2.0 kg/kg of water, and a meniscus holds them to the mat. Chaff then needs 6.8 m/s (none lifts), leaves 2.4 (only at the discs' outwash), straw bits 1.1 (a low hover still lifts some).
+    - **Supply-limited:** each surface's loose top layer per class (assumed φ, bounded by the published residue and litterfall masses). A node lifts the share of its supply whose thresholds its u* passes for the first time, so a hover whiffs and clears, and a punch or a lower drone whiffs again.
+    - **The interface:** `PlantWash.TakeGround(frameTime)` gives the drawn side each tick's `WashGround` whole.
+      - It is a triple buffer, 0 B, the newest tick at or before the frame's time.
+      - Per node: the dust's u*, threshold and flux, the bits' u*, and per class the pieces lifted per m² per s.
+    - **The flight is untouched** (no flight code changed, no model number). The commands' output is in the handoff.
 - [ ] 1.4 [tech-artist] **The cut pieces, the dust and the grass bits on camera** (the pieces were `w9-village-physics` 2.5). Needs the GPU. Branch `--w16-whiffs`.
   - From `FeedSignals`' cuts per rotor, pieces leave the front discs at the blade's speed, drawn in front of the camera; a replay draws the same pieces.
   - Dust whiffs lift from dry ground where the wash's speed along it passes the surface's threshold (1.2 gives the law and the thresholds), and grow as the drone comes lower and the throttle rises.

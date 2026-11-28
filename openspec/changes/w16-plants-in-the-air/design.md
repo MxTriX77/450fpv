@@ -260,7 +260,7 @@ The leaning ring reaches as far from almost any height, because the wall jet car
 - **How wet that is.** The wet set holds a loam's field capacity: 25 % water by volume (`water_content_wet`, assumed there; Saxton and Rawls 2006's 0.2–0.35). Over the surfaces' dry bulk densities that is 15.6–23.8 % by mass.
 - **Why no grain moves.** At field capacity the topsoil's grains are bound in its cohesion. The sim's own wet sets carry 0.6–18 kPa (`cohesion_pa`: crater_spoil 0.6, tilled 1.2, belt_bare 3.6, dry_crust 12, dirt_track 18), and the saturated sets 0.3–9 kPa. The wash's shear on the ground is ρu*² ≤ 7.6 Pa: u* reaches 2.49 m/s at most, 0.25–0.3 m up. That is 40 to 2400 times below what would part the grains.
 - **Where Fécan's factor still applies.** Fécan et al.'s √(1 + 1.21·(w − w′)^0.68) (published) is kept only up to 10 % water by mass (`DustLaw.FecanMaximum`, assumed: the band the reference note reads the law over, ×1.5–2.5 at 5–10 %). Past it, no dust. Every wet set of the sim lies past it, so in a flight Rain and Severe rain lift none.
-- **Covered surfaces** lift none (published in kind): their chaff is 1.4's.
+- **Covered surfaces** lift none (published in kind): the wash lifts their loose bits instead (§5b).
 - **u\* is still reported everywhere the wash blows** (`DustSample.Friction`); only the flux needs a finite threshold.
 
 **The flux:** past the threshold it is White's Q = 2.61·(ρ/g)·u*³·(1 − r²)·(1 + r) (White 1979, recalled).
@@ -287,6 +287,94 @@ The leaning ring reaches as far from almost any height, because the wall jet car
 **Clip H's damp dark soil and the spec's "a landing … in rain … no dust": met.**
 - In a flight with rain, the wet topsoil lifts nothing at any height.
 - Clip H's soil looks damp on a dry day, which the sim does not represent: the sim's moisture follows the rain alone. If the pilot flies H's scene with Sunny, its bare loam lifts dust from 6 m. That is the dry case, F's veil.
+
+### 5b. The loose plant bits (`ChaffLaw`, `WashGround`; task 1.4a)
+
+The pilot (2026-11-28): "when props whiff dust near ground (the more power the more whiffs)… not only dust - when in grass it also whiffs grass particles". On covered ground the cover shelters the soil (no dust, §5); the wash lifts the loose dead pieces lying on it instead (clip H's leaves and straws). The numbers and their labels are the note's §5.4; the hand is `tools/flightbench/handcalc/plant_bits.py`.
+
+**Three size classes** (`BitClass`, `ChaffLaw.Piece`):
+
+| Class | Piece | Mass, dry / wet | Settling, dry / wet | Start u*, dry / wet (5–95 %) | Keep |
+|---|---|---|---|---|---|
+| Chaff | glumes and blade bits, 8 × 3 × 0.2 mm, σ 0.05 kg/m² | 1.04 / 2.83 mg | 0.87 / 1.43 m/s | 0.42 (0.22–0.82) / 6.8 m/s | 0.8 × start |
+| Straw | the surface table's straw, 3.5 mm, 4 cm | 81 / 106 mg | 2.91 / 3.31 m/s | 0.39 (0.20–0.76) / 1.13 (0.58–2.2) | |
+| Leaf | a dead leaflet, 50 × 30 × 0.3 mm, the table's 0.06 kg/m² | 78 / 212 mg | 0.95 / 1.57 m/s | 0.46 (0.24–0.90) / 2.38 (1.2–4.6) | |
+
+- **The start** is a force balance on the wall's shear (derived):
+  - A flat piece slides when c·ρu*²·A passes μ·m·g, so u*_t ∝ √σ. The leaves' 0.46 m/s is the Beaufort scale's force 4, which lifts dust, leaves and loose paper at 5.5–7.9 m/s 10 m up (published), over open grass (z₀ 0.03 m): u* 0.38–0.54. Chaff takes it by √(σ_chaff/σ_leaf).
+  - A straw bit rolls out of its groove on the mat (tan 30°, two touching neighbours) when the drag at its centre's speed, the rough wall's (8.5 + 5.75·log₁₀(y/k_s))·u* at y = d/2 over k_s = d, passes tan 30° of its weight, at the median of its ways across the flow.
+  - A moving piece keeps moving down to 0.8 of its start (Bagnold's impact threshold, published for sand, assumed here).
+- **Settling:** a flat piece falls broadside at √(2σg/(ρ·1.17)); a straw across its axis at √(2λg/(ρ·1.1·d)) (derived). Both lie under the published bounds: combine waste at most 2.3 m/s, short wheat straws at most 4.9 m/s.
+- **The spread:** each class's thresholds are log-normal about its start, geometric deviation 1.5 (assumed: the leaves' mass per area, their curl and snag on the mat).
+- **u\*:** the wall jet's, by §5's law and samples, over the cover's own roughness k_s (assumed: the thatch's blades 2 mm, the straws 3.5 mm, the litter's curled leaves 5 mm).
+- **Shelter:** among standing stems the pieces feel only the ground's share, [1 + mβλ]^(−1/2) (Raupach et al. 1993; m 0.5 and β 90 published). λ is the world's own stem field under the node (`StemsNear`: its stems per m², their drawn tops, the cover rows' allometry), taken once as the node enters the window. A sward of 400 green culms of 0.6 m a m² has λ 0.31: the pieces feel 0.27 of u*. Mats and litter with no standing stems shelter nothing.
+
+**Wet** (Rain and Severe rain alike; the cover table has one wet set). The law gives it (derived):
+- The piece holds its water: dead leaves and chaff 2.0 kg per kg dry (litter's published water-holding capacity), straw the table's straw_density_wet (1.3).
+- A meniscus along its contact with the wet mat holds it by 2γ a metre of contact (γ 0.072 N/m): the leaf's and the chaff's rim, the straw's length.
+- So u*_t grows by √((m_wet·g + 2γ·contact)/(m·g)):
+  - wet chaff needs 6.8 m/s, past any wash;
+  - wet leaves 2.4 m/s, only at the discs' outwash, 0.3–0.5 m up;
+  - wet straw bits 1.1 m/s: a low hover over a wet straw mat still lifts some, 3,000 in the first tick at 0.3 m and 110 at 4 m (dry: 23,000 and 10,700).
+
+**The supply** (assumed; `ChaffLaw.Supply`, pieces per m²). Each covered surface holds a loose top layer per class: its plan cover φ over the piece's area.
+
+| Surface | φ chaff / straw / leaves | Pieces per m² | Mass |
+|---|---|---|---|
+| meadow_sod (the thatch; the track map's grass) | 0.1 / 0.05 / 0 | 5,305 / 357 / 0 | 35 g/m² |
+| weeds | 0.05 / 0.05 / 0.05 | 2,653 / 357 / 42 | 35 g/m² |
+| belt_straw (the belt's straw mat) | 0.05 / 0.3 / 0.1 | 2,653 / 2,143 / 85 | 184 g/m² |
+| yard_litter (leaf litter) | 0.1 / 0 / 0.6 | 5,305 / 0 / 509 | 45 g/m² |
+
+The published masses bound these: a wheat crop leaves 3–10 t/ha of straw and chaff, and a temperate hardwood stand drops 4.4–5.3 t/ha of leaves a year (300–1,000 and 440–530 g/m²).
+
+**The law per node** (`PlantWash.Bits`, the same grid, samples and tick as the dust):
+- Each node keeps the highest u* its pieces have felt since it entered the window.
+- A tick whose u* passes it lifts, per class, the supply's share F(u*) − F(felt), with F(u) = Φ(ln(u/start)/ln 1.5): the pieces whose thresholds lie between.
+- Its rate is that share over the tick, in pieces per m² per s.
+- What lifted is gone (supply-limited). So:
+  - a hover lifts its whiff in its first tick and then clears;
+  - a punch of throttle or a lower drone (a higher u*, the wall jet's own scaling) lifts a new one;
+  - a moving drone meets fresh nodes, so it lifts all along its track.
+- There is no knob: the throttle and the height act through RotorAir's wall jet only.
+
+**A hover from rest, the first tick over the 32 × 0.15 m window** (the hand; the grid within 6 %):
+
+| Hubs up | meadow_sod chaff / straws | belt_straw chaff / straws / leaves | yard_litter chaff / leaves |
+|---|---|---|---|
+| 0.3 m | 41,900 / 3,210 | 25,700 / 23,400 / 711 | 58,800 / 4,930 |
+| 1 m | 25,600 / 1,960 | 15,100 / 13,800 / 415 | 33,600 / 2,790 |
+| 3 m | 20,100 / 1,630 | 12,700 / 12,100 / 328 | 29,300 / 2,310 |
+| 8 m | 4,750 / 462 | 3,640 / 4,110 / 77 | 9,570 / 620 |
+
+The near jets carry the ground to about 0.75 m up (0.3–0.75 m lift within 5 % of each other). From 1 m the merged jet's thicker layer lowers u* by about 45 %. This is the step at §5's merged share of ½, where the peak's height takes the merged jet's δ.
+
+These are over a bare floor of that surface, with no standing stems. The farmland's own stems shelter them where it draws grass: under 400 culms a m², the 8 m hover lifts almost none (`StandingGrassSheltersTheBits`).
+
+**Against clip H** (the note §1.5): dry leaves and straws thrown up and forward from the mats at a 0.3–0.6 m creep. The law lifts every class there: u* reaches 2.2–2.8 m/s at the discs' outwash, past nearly every piece's start. Their settling, 0.9–1 m/s for a leaf, lets the outwash's 3–8 m/s throw them as H shows. Whether they fly or hop is their settling speed against the air, which is the drawn side's (1.4).
+
+**The interface** (§7.1, step 5): `PlantWash.TakeGround(frameTime)` hands the drawn side each tick's dust and bits whole (`WashGround`).
+- **The buffer:** a triple buffer under a lock. The thread that ticks the grid never waits, and a snapshot taken stays unchanged until the taker's next call. It is the newest finished tick at or before the frame's time, as `PlantField`'s wash. 0 B.
+- **The layout:** node (a, b) is world cell (StartI + a, StartJ + b), its index a + Size·b.
+  - Per node: Surface; DustFriction, DustThreshold, DustFlux; BitsFriction (the u* at the pieces).
+  - Per node and class: BitsRate (pieces per m² per s).
+  - The pieces a cell lifts over a frame of dt s are BitsRate·Cell²·dt.
+- **Both grids** keep their own supply, so the drawn side reads one grid per place (the fine one within its window).
+- **Live reads:** `PlantWash.DustAt` stays for the ticking thread.
+
+**Checks** (`PlantWashTests`):
+- `TheBitsAreTheHandCalculation`: the pieces and supplies, and the straw and leaf numbers against the surface table's rows.
+- `GrassBitsLiftMoreAsTheDroneComesLowerAndThrottlesUp`: every covered surface, dry and wet, by hover height against the hand; more thrust lifts more; bare ground none.
+- `AHoverLiftsItsWhiffThenClearsAndAPunchLiftsAnother`: the supply's limit.
+- `StandingGrassSheltersTheBits`: the shelter.
+- `TheGroundIsHandedWholeDeterministicallyAndAllocatesNothing`: bit for bit, 0 B, the frame's-time rule, a helper ticking while the test takes.
+
+**Not met** (named):
+- **A stand the wash folds still shelters as standing:** the law reads the world's stems, not the grid's bends. Under the discs low down it under-lifts.
+- **Puffs:** the wake's vortices landing make the lift come in puffs (the note's [25]). The law carries the mean, as §4.3 does, so this is the near field's, w9-village-physics 2.14.
+- **Re-deposition:** pieces blown into a node do not refill its supply; that is the drawn side's state. A node leaving and re-entering the window starts full (the window's truncation, §4.4).
+- **Bare surfaces' litter:** belt_bare's twigs and litter, and tilled's straw, lift no bits; twig bits are no class.
+- **No measured threshold:** none was found for litter, chaff or straw bits, and no measured fall speed of a dry leaf in air. The starts rest on Beaufort's force 4 and the force balance, the supply's φ on assumption.
 
 ### 6. One law with the props' stems (`PropStems`)
 
@@ -318,7 +406,8 @@ Each frame:
    - band is the mechanics' index in that wash grid, or −1 for a plant the grid does not integrate.
    - For a grid band the sampler reads the fine grid first and then the coarse one.
    - Without a wash use `plants.Wind(...)`.
-4. Dust: `wash.DustAt(x, z, out DustSample d)` gives u*, the threshold, whether dust lifts, White's flux (kg/m/s), whether the surface is a film, and the surface id.
+4. Dust: `wash.DustAt(x, z, out DustSample d)` gives u*, the threshold, whether dust lifts, White's flux (kg/m/s), whether the surface is a film, and the surface id. It reads the live grid, on the thread that ticks it.
+5. Dust and loose bits on another thread (1.4a, §5b): `wash.TakeGround(frameTime)` once a drawn frame gives the newest finished tick's `WashGround`, whole (per node the dust and the bits' u*, and per class the pieces lifted per m² per s; `ChaffLaw.Piece` gives each piece's size, mass, settling speed and keep threshold).
 
 `PlantBend` is the bend from the drawn rest (rad, world X and Z: the top's way times the angle) and its rate (rad/s). It never passes π/2.
 
@@ -374,6 +463,7 @@ Each frame:
 | `PlantWashTests.AHoverFlattensItsPatchAndLeansItsRing` | the patch and ring on the grids |
 | `PlantWashTests.DustRisesAsTheDroneComesLower` | §5's onset per surface, dry and wet; covered and saturated none |
 | `PlantWashTests.TheWashIsDeterministicAllocatesNothingAndItsCostIsKnown` | bit-identical grids, 0 B, the tick's cost |
+| `PlantWashTests`' five bits tests (§5b) | the pieces and supplies; the lift by height, rain and thrust against the hand; the supply's limit; the shelter; the ground handed whole, 0 B |
 
 ### 10. Still not met, and for whom
 
