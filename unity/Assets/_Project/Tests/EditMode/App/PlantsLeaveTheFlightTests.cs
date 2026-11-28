@@ -22,8 +22,10 @@ namespace Fpv450.Tests.App
     /// flight, headless on the development keyboard (the seed, the keys, the clock), over the farmland in Windy from the village's
     /// start, flown twice: once alone, once with the plants' CPU side reading it all the while on three threads of their own as
     /// PlantField's helpers do (the wash grids ticked from its published poses on its wind field and world, and the wind's mean
-    /// on a grid round the drone, each frame's samples beside them; the samples that read the wash grids run on the wash's thread, as PlantField exports them). The two logs are the same byte for byte. (The GPU side draws
-    /// only; nothing it writes is read by anything but the plants' shaders.)
+    /// on a grid round the drone, each frame's samples beside them; the samples that read the wash grids run on the wash's thread, as PlantField exports them), and the pieces in the air (1.4) on the coarse
+    /// grid's thread after each of its ticks, given the props' cuts from the flight's signals each frame as FarmlandPlants gives
+    /// them. The two logs are the same byte for byte. (The GPU side draws only; nothing it writes is read by anything but the plants'
+    /// shaders.)
     /// </summary>
     public sealed class PlantsLeaveTheFlightTests
     {
@@ -68,6 +70,7 @@ namespace Fpv450.Tests.App
             var stop = new ManualResetEventSlim();
             var threads = new List<Thread>();
             int ticks = 0, means = 0;
+            PlantPieces pieces = null;
             try
             {
                 void Run(int ms, KeyboardKeys keys)
@@ -81,7 +84,7 @@ namespace Fpv450.Tests.App
                 }
                 Run(10, KeyboardKeys.None);
                 session.Start();
-                if (plants) threads = Plants(session, inputs, stop, () => ticks++, () => means++);
+                if (plants) threads = Plants(session, inputs, stop, () => ticks++, () => means++, out pieces);
                 Run(1000, KeyboardKeys.None);
                 Run(100, KeyboardKeys.ArmToggle);
                 Run(400, KeyboardKeys.None);
@@ -97,14 +100,17 @@ namespace Fpv450.Tests.App
                 const int Frame = 16;
                 while (session.Core.State.Step < 15000 && !session.Core.State.Crashed)
                 {
-                    PoseFrame pose = session.Poses.Read().Current;
+                    ref readonly PosePair pair = ref session.Poses.Read();
+                    PoseFrame pose = pair.Current;
+                    pieces?.Field(pair.Signals, session.Poses);
                     Run(Frame, pilot.Next(pose, Frame * 1e-3));
                 }
                 stop.Set();
                 foreach (Thread t in threads) t.Join();
                 PoseFrame end = session.Poses.Read().Current;
                 note = $"{end.TimeS:0.0} s, at ({end.Position.X:0.0}, {end.Position.Y:0.0}, {end.Position.Z:0.0}), {pilot.Now}" +
-                       (plants ? $"; the plants' threads ran {ticks} wash ticks and {means} means" : "");
+                       (plants ? $"; the plants' threads ran {ticks} wash ticks and {means} means; the pieces: {pieces.DustEmitted * 1000:0.0} g of dust, " +
+                                 $"{pieces.CutsBorn} cut pieces, {pieces.BitsBorn} bits, {pieces.MissedFields} fields missed, {pieces.LateTicks} late ticks" : "");
                 Run(100, KeyboardKeys.ArmToggle);
                 session.EndFlight();
                 string log = session.LogPath;
@@ -122,7 +128,7 @@ namespace Fpv450.Tests.App
 
         // The plants' CPU side on the flight, as PlantField's helpers run it: the wash grids from its poses, and the wind's mean (and
         // a frame's samples) round the drone, until stopped.
-        static List<Thread> Plants(FlightSession session, SessionInputs inputs, ManualResetEventSlim stop, Action ticked, Action meant)
+        static List<Thread> Plants(FlightSession session, SessionInputs inputs, ManualResetEventSlim stop, Action ticked, Action meant, out PlantPieces pieces)
         {
             FlightCore core = session.Core;
             FlightSetup setup = session.Setup;
@@ -135,6 +141,9 @@ namespace Fpv450.Tests.App
             var washAir = new PlantAir(core.Wind);
             var fine = new PlantWash(setup.Tether, radius, motors, core.World.Query, washAir, grass, inputs.Surfaces, moisture, 32, 0.05);
             var coarse = new PlantWash(setup.Tether, radius, motors, core.World.Query, washAir, grass, inputs.Surfaces, moisture, 32, 0.15);
+            var clockwise = setup.Propulsion.Motors.Select(m => m.Clockwise).ToArray();
+            var flown = new PlantPieces(core.World.Query, core.Wind, inputs.Surfaces, moisture, k => core.Contacts.Cover(k), motors, clockwise, air);
+            pieces = flown;
             // The wash's two helpers, as PlantField's: the fine grid on one, the coarse on the other, at once.
             var fineWash = new Thread(() =>
             {
@@ -151,7 +160,7 @@ namespace Fpv450.Tests.App
             {
                 while (!stop.IsSet)
                 {
-                    coarse.Advance(session.Poses);
+                    flown.Advance(coarse, session.Poses);
                     Thread.Sleep(1);
                 }
             }) { IsBackground = true, Name = "plants: the coarse wash (test)" };
