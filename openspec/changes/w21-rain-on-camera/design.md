@@ -139,3 +139,110 @@ Per field, `LensWater.Drops` holds `LensDrop`s:
 | Drops stay in fast flight and travel with the airflow | 20 m/s pitched 25°: a 0.1 mm³ drop stays; a 10 mm³ drop slides down the glass, and stays pinned in the same pose without the air |
 | Goldens unchanged | flightbench and worldbench `--golden`; a rain flight's final state the same with the lens stepping beside it; two lenses on the same poses identical bit for bit |
 | Bounds and 0 B | a long Severe rain flight: count ≤ Capacity, trails ≤ TrailPoints, the water's books balance; `Advance` allocates 0 B in steady state |
+
+## 1.3 The wet look (tech artist)
+
+The rain on the world's surfaces (VIS-03, D-126). **One input:** the sim's moisture for the flight's rain (`SurfaceTable.MoistureOf`: Sunny Dry, Rain Wet, Severe rain Saturated). Every lit shader reads it through the global keyword `FPV450_WET` and three globals (`Shaders/WetLaw.hlsl`), with the numbers `WetOptics` computes (`Scripts/Feed/Core`, tested in `WetOpticsTests`). Nothing is tuned per asset: each surface darkens from its own drawn albedo.
+
+- **Labels:** published / derived / assumed / numerical, as in 1.1.
+- **Hand numbers:** `WetOptics` itself, checked against the paper's printed values; the extinction against the lens's spectrum (3.1).
+
+### 1. The darkening: Lekner and Dorf 1988
+
+A wetted rough surface lies under water whose top is the air. Light the grains reflect diffusely meets that top from inside; a share p goes back down to the grains, which absorb a share again (Lekner and Dorf, Appl. Opt. 27, 1278, 1988, published). Per colour channel, with A the surface's drawn diffuse albedo (URP's `BRDFData.diffuse`, a Lambert shader's albedo) and a_d = 1 − A:
+
+> a_w = a_d·(c·(1 − a_d) + a_d) (the grains under water absorb more, LD eq. 10–11)
+>
+> D = T·(1 − a_w)·(1 − p)/(1 − p·(1 − a_w)) (the light that leaves the water, LD eq. 1 without the top's own reflection)
+
+| Number | Value | Label |
+|---|---|---|
+| n_l, water's index | 4/3 | published (1.333 at 589 nm, 20 °C; LD take 4/3) |
+| n_r, the grains' index | 1.5 | assumed (quartz 1.54, feldspars 1.52–1.58, calcite 1.49–1.66, cellulose about 1.53: published ranges) |
+| R̄(n) | ∫₀¹ R(x, n) dx, x = sin²θ | published (LD eq. 7); numerical (midpoint rule, 2¹⁶ steps) |
+| T = 1 − R̄(n_l) | 0.9335 | derived |
+| p = 1 − T/n_l² | 0.4749 | derived (LD print 0.475; Ångström's 1 − 1/n² is 0.437); equals R̄(1/n_l) to 1e-9 |
+| c = (1 − R̄(n_r/n_l))/(1 − R̄(n_r)) | 1.0677 | derived (LD print 1.07, 1.08 and 1.10 at n_r 1.5, 2 and 2.5; reproduced) |
+| Water's F0 = ((n_l − 1)/(n_l + 1))² | 1/49 = 0.0204 | derived |
+
+| Dry A | 0.05 | 0.10 | 0.15 | 0.20 | 0.30 | 0.50 |
+|---|---|---|---|---|---|---|
+| Wet D | 0.0235 | 0.0482 | 0.0743 | 0.1019 | 0.1621 | 0.3073 |
+| D/A | 0.469 | 0.482 | 0.495 | 0.509 | 0.540 | 0.615 |
+
+- **Checks:** Ångström's sand, 0.182 dry, gives 0.092 wet against the 0.091 he measured (LD's table III). His black mould, 0.141, gives 0.070 against 0.084: the law's known shortfall on some soils (Zhang and Voss, Appl. Opt. 2006).
+- **The colour holds:** D/A rises with A, so darker channels darken more (K§8.7 R4, "dark ground that keeps its colour").
+- **A metal** (A = 0) has no body to darken; its specular stays its own.
+- **Where:** every lit surface in the world, plants included (assumed: a flight's 10–20 min under rain wets everything; a roof's shelter is not modelled).
+
+### 2. The top
+
+The wetted surface shows the sky through water: the dielectric part of its specular takes water's F0. Its smoothness stays the material's own: the film, 0.1–0.3 mm (`RainPreset`'s film), is thinner than the relief of soil, bark, render or concrete and takes its slopes (assumed). So a wet surface is glossier by the darker body under the same reflection of the sky, not by a smoothing tuned by eye. Lambert shaders (grass, leaves) have no specular term, so they only darken.
+
+### 3. Standing water (Severe rain)
+
+Severe rain (the sim's Saturated set) stands water on hard, flat faces, deeper than their texture, so the water's top is what is seen.
+
+- **Hard:** the sim's rigid surfaces. These are `physics_materials.json`'s rows without a stiffness (steel, timber, masonry, concrete, glass, cable, bark, deadwood, asbestos cement, plastic, carbon composite) and `surfaces.json`'s rigid sets (asphalt, the concrete slab). Each asset's `AssetPhysicsMeta` names a slot's physics by its visual material. A renderer drawing a rigid slot's material carries rendering-layer bit 7 while it rains (`WetSurfaces.Hard`, `WetLook.HardLayer`).
+- **Flat:** the triangle's own plane (screen-space derivatives of the position, not the normal map), within the slope that drains a pavement: 2 % (published practice: carriageways are built at a 2–2.5 % cross-fall; assumed as the threshold), a normal's y of at least 0.99980.
+- **The water's top:** that plane, at smoothness 0.766. GGX α = √0.003 = 0.055 comes from calm water's mean square slope (Cox and Munk 1954, the zero-wind intercept, published; assumed for standing water, whose fetch is too short for wind waves). The rain's own ripples are not modelled.
+
+### 4. The rain's extinction
+
+Koschmieder's law over the drops between the camera and each opaque pixel: c' = c·T + air·(1 − T), T = e^(−β·d), d the pixel's distance along its ray.
+
+- **β from the drop spectrum** at the flight's rate (RainField's draw): Marshall and Palmer's N(D) = N0·e^(−ΛD) with `RainPreset`'s D0, N0 set so the spectrum carries the rate at Atlas et al.'s fall speed (as the lens's bins, 3.1), then β = Q·π·N0/(2Λ³) (derived).
+- **Q = 1** (derived): Q_ext = 2 for drops far larger than the wavelength (van de Hulst 1957, published), but the diffracted half stays within λ/D, 0.03° for a 1 mm drop, far under the feed's pixel of about 0.2°.
+- **The air** is the fog's colour, the horizon the scene's light gives the haze. On top of the scene's own fog the two transmissions multiply, which is the law for two media under one light.
+
+| Rate, mm/h | 2.5 | 6.25 (Rain's middle) | 10 | 30 (Severe's middle) | 50 |
+|---|---|---|---|---|---|
+| N0, m⁻³ mm⁻¹ | 6 748 | 6 807 | 6 876 | 7 142 | 7 321 |
+| β, 1/km | 0.274 | 0.492 | 0.668 | 1.387 | 1.961 |
+| T at 200 m | 0.947 | 0.906 | 0.875 | 0.758 | 0.676 |
+| Visibility (2 % contrast) | 14 km | 8.0 km | 5.9 km | 2.8 km | 2.0 km |
+
+- **Rain as well as Severe rain:** one law, the rate decides. Rain's is weak, as K§8.7 R3 asks for clip P ("weak rain extinction"); VIS-03 names it for Severe rain, where it shows.
+- **Drawn** by `Shaders/RainExtinction.shader`: a full-screen pass on the scene's cameras after the transparents, never on the feed's output camera. It reads the camera's own depth buffer, not the depth texture: the latter comes from SSAO's depth-normals prepass, which the farmland's grass and leaves shaders have no pass for, so their pixels read the ground behind them (seen in the first captures: crowns hazed like the far ground). The sky keeps its own colour.
+
+### 5. How it is drawn
+
+- **The project's and the farmland's shaders** (`LayeredSurface`, `Leaf`, `Impostor`, `Plant Bark`, `Plant Leaves`, `Plant Grass`, `Farm Land/Grass`, `Tree Bark`, `Tree Leaves`) declare `#pragma multi_compile_fragment _ FPV450_WET`. Their PBR passes include `WetLit.hlsl` before URP's `Lighting.hlsl`; it wraps URP's `InitializeBRDFData` (the body and the top) and `UniversalFragmentPBR` (the standing water). Their Lambert passes call `Fpv450WetAlbedo`.
+- **URP/Lit and URP's Terrain/Lit,** which the project can't edit, have wet copies (`Shaders/Wet/`): URP 17.3's forward pass verbatim with `WetLit.hlsl`, every other pass URP's own by `UsePass`. While it rains, `WetLook` swaps each renderer's URP/Lit material, and each terrain's template, for a twin on the copy with the same properties, keywords, queue and passes. Sunny puts the originals back.
+- **Sunny touches nothing.** `WetLook.Apply(Dry)` only undoes an earlier rain, and the keyword is never set, so each edited shader draws its keyword-off variant: its old source, token for token.
+- **The player** carries the copies and their keyword sets through `Settings/Wet/Resources/WetShaders.asset` and `WetVariants.shadervariants`, written by `WetVariants` before every build. `WetLookTests` holds the collection to the project's materials.
+- **The flight** applies the look in `FlightScene.Look`, after the light, at the flight's rate (the class's middle in the setup's preview). The farmland keeps its own light (D-088) and gets wet under it.
+
+### 6. Evidence (`WetStills`, 2026-11-28)
+
+`Fpv450.WetStills.Run -out <folder>`: each map's still view (`MapStills.json`'s pose, the farmland's Explore spawn), Sunny, Rain and Severe rain at the same light, before the feed. The test range and ХАНТЕР-09 use the overcast preset, the rain's; the farmland uses its own light. The stills stay local (scratch, never committed).
+
+**The law on a ground patch** (the frame's lower middle, 29 440 pixels; fog, extinction and post off). The dry albedo per pixel is A = L_dry/I, from the render with the specular off (probe 1) and the diffuse light alone (probe 2). The law's wet light is Body(A)·I, against the wet render's.
+
+| Map | Patch | Mean drawn albedo | Rain: measured / law | Severe rain: measured / law | With the specular (Rain) |
+|---|---|---|---|---|---|
+| Test range | the yard's ground (the gallery floor, URP/Lit's twin) | 0.1208 | 0.4887 / 0.4887 (per pixel ≤ 0.08 %) | 0.4887 / 0.4887 | 0.507 |
+| Farmland | bare ground before the stand (the terrain's wet copy) | 0.1305 | 0.4933 / 0.4930 | 0.4933 / 0.4930 | 0.495 |
+| ХАНТЕР-09 | the meadow (terrain and grass) | 0.2473 | 0.5619 / 0.5612 | 0.5612 / 0.5612 | 0.561 |
+
+- **Within the capture's error:** at most 0.13 %; the meadow's grass sways between renders.
+- **The dry reference through the wet shaders at identity**, against the true Sunny render: on the test range 1 pixel of 921 600 differs, by 0.0015 (linear). On the farmland and ХАНТЕР-09 the grass and leaves sway on the editor's clock between renders, so most pixels differ there.
+
+**The cost** (8 renders a sync at 1920 × 1080, Sunny, Rain and Severe rain interleaved over 15 rounds, medians). It was measured on battery: the machine ran on its Radeon 680M iGPU, so this is not PLT-07 evidence.
+
+| Map | Sunny | Rain | Severe rain | p10–p90 |
+|---|---|---|---|---|
+| Test range | 7.19 ms | +1.94 ms | +1.04 ms | 3.0–3.3 ms |
+| Farmland | 64.13 ms | +1.96 ms | +1.21 ms | 8.3–12.4 ms |
+| ХАНТЕР-09 | 56.79 ms | +2.27 ms | +1.44 ms | 8.0–10.0 ms |
+
+### 7. Limits
+
+- **Hard is per renderer:** a renderer is hard if any slot it draws is rigid. A slot is matched by its visual material's name, so a layered material composed from a slot (the houses' facades, the car's paint) is not matched.
+- **No standing water on some surfaces:**
+  - the farmland's village carries no `AssetPhysicsMeta`, so none of its faces is hard;
+  - the sim's contact table makes sheet metal compliant, so car bodies and roof sheets are not hard.
+- **Everything is wet:** interiors and undersides are wetted too; a roof's shelter is not modelled.
+- **The extinction:**
+  - its distance ignores an off-axis projection's shift;
+  - with the scene's fog off it still applies, as its own medium.

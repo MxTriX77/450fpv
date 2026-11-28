@@ -13,7 +13,7 @@ Each task is its own branch off the build branch (`unity/physics/physics-integra
 - [ ] 1.2 [tech-artist] **The drops drawn** (FEED-13). Needs the GPU. After 1.1's shape.
   - Out-of-focus refractive blobs and smears ahead of the analog stages, from 1.1's drops; `FlightFeedSignals.RainRateMmPerHour` from the physics when live, not the stub.
   - Checked in recorded rain flights (hover, forward flight, banks, into and away from the wind); the frame-rate cost on AC.
-- [ ] 1.3 [tech-artist] **The wet look** (VIS-03). Needs the GPU.
+- [x] 1.3 [tech-artist] **The wet look** (VIS-03). Needs the GPU. Design in `design.md` (1.3); its frame cost on AC is still to measure (6).
   - Wetted materials darken and gloss by a published wet-surface law (for example Lekner and Dorf 1988) from each material's own albedo, at the flight's rain; Severe rain adds standing-water sheen on hard surfaces and rain extinction in the distance from the drop spectrum.
   - Captures Sunny against Rain against Severe rain at the same light; the frame-rate cost on AC.
 
