@@ -4,6 +4,8 @@
     "references": [
         "Fpv450.Editor",
         "Fpv450.Feed",
+        "Fpv450.Feed.Core",
+        "Fpv450.Feed.Editor",
         "Fpv450.Input",
         "Fpv450.Sim",
         "Fpv450.World",
