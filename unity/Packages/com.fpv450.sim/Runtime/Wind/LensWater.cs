@@ -163,8 +163,10 @@ namespace Fpv450.Sim.Wind
         const double Pi = 3.141592653589793;
         const double Homann = 1.312, Blasius = 0.332; // axisymmetric stagnation's f''(0) and the flat plate's (published)
         const double Hit = 0.75;                       // the radius on the blade where a disk's hit share is taken, R (numerical)
-        static readonly double[] Edges = { 0.1, 0.2, 0.3, 0.5, 0.7, 1.0, 1.3, 1.7, 2.2, 2.8, 3.5, 4.5, 6.0 }; // mm
-        static readonly int[] Rings = { 1, 6, 12 };
+
+        // The bins' diameter edges, mm (numerical: 0.1–6 mm, note §2), and the facets' rings: a centre disc, 6 and 12 sectors.
+        readonly double[] _edges = { 0.1, 0.2, 0.3, 0.5, 0.7, 1.0, 1.3, 1.7, 2.2, 2.8, 3.5, 4.5, 6.0 };
+        readonly int[] _rings = { 1, 6, 12 };
 
         readonly LensSpec _lens;
         readonly Double3 _apex;
@@ -222,7 +224,7 @@ namespace Fpv450.Sim.Wind
             _minVolume = _capShape * _lens.MinRadius * _lens.MinRadius * _lens.MinRadius;
 
             // The rain's bins: Marshall–Palmer's slope, the intercept set so the bins carry the rate (design §3.1).
-            _bins = Edges.Length - 1;
+            _bins = _edges.Length - 1;
             _binN = new double[_bins];
             _binD0 = new double[_bins];
             _binD1 = new double[_bins];
@@ -233,7 +235,7 @@ namespace Fpv450.Sim.Wind
             double carried = 0;
             for (int b = 0; b < _bins; b++)
             {
-                double d0 = Edges[b], d1 = Edges[b + 1], l = _slope;
+                double d0 = _edges[b], d1 = _edges[b + 1], l = _slope;
                 double n = (DetMath.Exp(-l * d0) - DetMath.Exp(-l * d1)) / l;
                 double mean = (Cube(d1, l) - Cube(d0, l)) / n; // mm³
                 double mid = DetMath.Sqrt(d0 * d1);
@@ -250,7 +252,7 @@ namespace Fpv450.Sim.Wind
 
             // The dome's facets (design §2).
             _facets = 0;
-            foreach (int r in Rings) _facets += r;
+            foreach (int r in _rings) _facets += r;
             _fx = new double[_facets];
             _fy = new double[_facets];
             _fArea = new double[_facets];
@@ -260,11 +262,11 @@ namespace Fpv450.Sim.Wind
             _fp1 = new double[_facets];
             _fn = new Double3[_facets];
             int f = 0;
-            for (int ring = 0; ring < Rings.Length; ring++)
-                for (int s = 0; s < Rings[ring]; s++, f++)
+            for (int ring = 0; ring < _rings.Length; ring++)
+                for (int s = 0; s < _rings[ring]; s++, f++)
                 {
-                    double r0 = _lens.ClearRadius * ring / Rings.Length, r1 = _lens.ClearRadius * (ring + 1) / Rings.Length;
-                    double p0 = 2 * Pi * s / Rings[ring], p1 = 2 * Pi * (s + 1) / Rings[ring];
+                    double r0 = _lens.ClearRadius * ring / _rings.Length, r1 = _lens.ClearRadius * (ring + 1) / _rings.Length;
+                    double p0 = 2 * Pi * s / _rings[ring], p1 = 2 * Pi * (s + 1) / _rings[ring];
                     double rc = ring > 0 ? DetMath.Sqrt(0.5 * (r0 * r0 + r1 * r1)) : 0;
                     DetMath.SinCos(0.5 * (p0 + p1), out double sp, out double cp);
                     _fx[f] = rc * cp;
