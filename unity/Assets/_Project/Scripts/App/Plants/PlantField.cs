@@ -100,6 +100,7 @@ namespace Fpv450.App
         readonly PlantAir _frame, _meanAir;
         readonly WindField _wind;
         readonly PlantWash _fine, _coarse;
+        readonly PlantPieces _pieces;
         readonly PoseBuffer _poses;
         readonly IWorldQuery _world;
         readonly Grid[] _grids;
@@ -135,10 +136,13 @@ namespace Fpv450.App
 
         /// <param name="threads">False: no helper threads; each Draw computes the snapshots its time needs and ticks the wash grids
         /// itself first, one after the other (the EditMode suite's port check, frame by frame).</param>
+        /// <param name="pieces">The pieces in the air (1.4), stepped on the coarse grid's helper right after each of its ticks, in its
+        /// air and on its ground; null for none.</param>
         public PlantField(PlantMechanics[] mechanics, WindField wind, IWorldQuery world, PoseBuffer poses, PlantWash fine, PlantWash coarse,
-            ComputeShader shader, bool threads = true)
+            ComputeShader shader, bool threads = true, PlantPieces pieces = null)
         {
             _threads = threads;
+            _pieces = coarse != null ? pieces : null;
             _m = mechanics;
             _wind = wind;
             _frame = new PlantAir(wind);
@@ -305,9 +309,11 @@ namespace Fpv450.App
         public double WashTickMs { get; private set; }
 
         /// <summary>The wash's last tick by part, ms: the fine grid's tick and export, the steady air (the fine helper's), the
-        /// coarse grid's tick and export (the coarse helper's; a tick that catches up on several steps' ticks counts them all).</summary>
+        /// coarse grid's tick and export, and the pieces' tick (the coarse helper's; a tick that catches up on several steps' ticks
+        /// counts them all).</summary>
         public double WashPartMs(int part) => _washParts[part];
-        readonly double[] _washParts = new double[5], _washStepMs = new double[2];
+        public const int WashParts = 6;
+        readonly double[] _washParts = new double[WashParts], _washStepMs = new double[2];
 
         /// <summary>The flight time (s) of the wash state a wash level drew in the last frame (its tick's two states interpolated),
         /// NaN before its first.</summary>
@@ -957,18 +963,20 @@ namespace Fpv450.App
         {
             PlantWash g = grid == 0 ? _fine : _coarse;
             if (g == null) return;
-            long t0 = Stopwatch.GetTimestamp();
-            g.Advance(_poses);
+            long t0 = Stopwatch.GetTimestamp(), pieces = 0;
+            if (grid == 1 && _pieces != null) pieces = AdvanceWithPieces(g);
+            else g.Advance(_poses);
             long tick = g.LastTick;
             if (tick == last || tick < 0) return;
             long t1 = Stopwatch.GetTimestamp();
+            if (grid == 1 && _pieces != null) _washParts[5] = Ms(pieces);
             (grid == 0 ? _washFine : _washCoarse).Export(_poses, _world, g.Rotors);
             long t2 = Stopwatch.GetTimestamp();
             bool steady = _steady != null && g == (_fine ?? _coarse);
             if (steady) _steady.Export(_poses, _world);
             long t3 = Stopwatch.GetTimestamp();
             last = tick;
-            _washParts[3 * grid] = Ms(t1 - t0);
+            _washParts[3 * grid] = Ms(t1 - t0 - pieces);
             _washParts[3 * grid + 1] = Ms(t2 - t1);
             if (steady) _washParts[2] = Ms(t3 - t2);
             _washStepMs[grid] = Ms(t3 - t0);
@@ -976,6 +984,12 @@ namespace Fpv450.App
         }
 
         static double Ms(long ticks) => ticks * 1000.0 / Stopwatch.Frequency;
+
+        long AdvanceWithPieces(PlantWash g)
+        {
+            _pieces.Advance(g, _poses);
+            return (long)(_pieces.LastAdvanceMs * Stopwatch.Frequency / 1000.0);
+        }
 
         void WashLoop(int grid)
         {

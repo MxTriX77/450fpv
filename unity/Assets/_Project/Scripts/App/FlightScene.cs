@@ -114,6 +114,9 @@ namespace Fpv450.App
         /// <summary>The OSD's content (p4-feed 1.5), as the feed draws it.</summary>
         public FlightOsd Osd => _signals.Osd;
 
+        /// <summary>The feed's signals in this flight (the scene's luminance the camera's exposure reads; the pieces', 1.4).</summary>
+        public FlightFeedSignals Signals => _signals;
+
         /// <summary>The props' drawing (w13-props-in-frame): the current flight's rotors, turning.</summary>
         public PropView Props => _props;
 
