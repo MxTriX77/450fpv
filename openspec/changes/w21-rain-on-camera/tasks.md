@@ -4,7 +4,7 @@ Each task is its own branch off the build branch (`unity/physics/physics-integra
 
 ## 1. Rain on camera
 
-- [ ] 1.1 [physics-engineer] **The lens's water** (D-126, FEED-13). Design first in `design.md`. No GPU. Branch `--w21-lens-water`.
+- [x] 1.1 [physics-engineer] **The lens's water** (D-126, FEED-13). Design first in `design.md`. No GPU. Branch `--w21-lens-water`.
   - Research: drop-on-surface adhesion (contact-angle hysteresis, the retention force), sliding under shear and body force, coalescence and shedding, for a coated glass or plastic camera lens in rain; the impingement of rain on a moving, tilted surface; each number labelled with its source.
   - The water arriving: Marshall–Palmer drops at `RainPreset`'s rate and fall speed, carried by the air at the camera (`AirVelocityAtCamera`), relative to the camera's velocity, onto the lens's facing at the attitude; the airframe's shelter from the drone's own geometry (`drone.json`).
   - The drops on the lens: each held by its adhesion and moved by the air's shear at the lens and the specific force in the lens's frame (gravity at the tilt, minus the camera's acceleration, plus the rotation's terms from `CameraAngularVelocity`); merging, trails and shedding.
