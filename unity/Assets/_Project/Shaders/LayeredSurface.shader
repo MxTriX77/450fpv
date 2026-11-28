@@ -257,6 +257,9 @@ Shader "Fpv450/LayeredSurface"
                 outSurfaceData.occlusion = surface.occlusion;
             }
 
+            // The wet look while it rains (w21-rain-on-camera 1.3, WetLit.hlsl); without the keyword, nothing.
+            #pragma multi_compile_fragment _ FPV450_WET
+            #include "WetLit.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"
             ENDHLSL
         }

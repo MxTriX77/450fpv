@@ -87,6 +87,9 @@ Shader "Fpv450/Plant Leaves"
             #pragma multi_compile_fog
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            // The wet look while it rains (w21-rain-on-camera 1.3, WetLaw.hlsl): the wetted body; no specular to wet.
+            #pragma multi_compile_fragment _ FPV450_WET
+            #include "WetLaw.hlsl"
 
             struct Attributes
             {
@@ -131,6 +134,9 @@ Shader "Fpv450/Plant Leaves"
                 ClipEdgeOnCard(input.positionWS);
 
                 half3 albedo = lerp(base.rgb, dot(base.rgb, half3(0.299, 0.587, 0.114)), _Desaturate) * input.color * _BaseColor.rgb;
+                #if defined(FPV450_WET)
+                    albedo = Fpv450WetAlbedo(albedo);
+                #endif
                 float3 normalWS = normalize(input.normalWS);
                 float3 viewWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
                 Light light = GetMainLight(TransformWorldToShadowCoord(input.positionWS));

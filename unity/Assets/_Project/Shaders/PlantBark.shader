@@ -93,6 +93,9 @@ Shader "Fpv450/Plant Bark"
             #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
             #pragma multi_compile_fog
 
+            // The wet look while it rains (w21-rain-on-camera 1.3, WetLit.hlsl); without the keyword, nothing.
+            #pragma multi_compile_fragment _ FPV450_WET
+            #include "WetLit.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             struct Attributes

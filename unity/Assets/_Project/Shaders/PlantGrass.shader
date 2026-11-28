@@ -100,6 +100,9 @@ Shader "Fpv450/Plant Grass"
             #pragma multi_compile_fog
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            // The wet look while it rains (w21-rain-on-camera 1.3, WetLaw.hlsl): the wetted body; no specular to wet.
+            #pragma multi_compile_fragment _ FPV450_WET
+            #include "WetLaw.hlsl"
 
             struct Attributes
             {
@@ -145,6 +148,9 @@ Shader "Fpv450/Plant Grass"
             {
                 half4 base = SampleBaseAndClip(input.uv, input.positionWS, input.positionCS.xy);
                 half3 albedo = base.rgb * _BaseColor.rgb;
+                #if defined(FPV450_WET)
+                    albedo = Fpv450WetAlbedo(albedo);
+                #endif
                 half occlusion = lerp(1, SAMPLE_TEXTURE2D(_MaskMap, sampler_MaskMap, input.uv).g, _OcclusionStrength);
 
                 float3 normalWS = normalize(input.normalWS);
