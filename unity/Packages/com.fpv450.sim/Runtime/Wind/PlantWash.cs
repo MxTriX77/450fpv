@@ -31,7 +31,7 @@ namespace Fpv450.Sim.Wind
     ///   moisture factor √(1 + 1.21·(w − w′)^0.68), w′ = 0.0014c² + 0.17c (published; w the gravimetric water %, c the clay %,
     ///   assumed per surface) holds only up to FecanMaximum, the moisture it was fitted to; past it, none. "Wet" is what the sim
     ///   knows: the flight's rain (SurfaceTable.MoistureOf). Covered surfaces (sod, weeds, straw, litter) shelter the soil and
-    ///   lift none (published in kind, Kok et al. 2012): their chaff is the cut pieces' (1.4).
+    ///   lift none (published in kind, Kok et al. 2012): the wash lifts their loose chaff, straws and leaves instead (ChaffLaw).
     /// - **The flux** past the threshold, Q = 2.61·(ρ/g)·u*³·(1 − r²)·(1 + r), r = u*_t/u* (White 1979, recalled).
     /// </summary>
     public static class DustLaw
@@ -123,6 +123,293 @@ namespace Fpv450.Sim.Wind
         }
     }
 
+    /// <summary>The loose plant bits' size classes (ChaffLaw; w16-plants-in-the-air 1.4a): the index of a class's rate in
+    /// WashGround.BitsRate and of its piece in ChaffLaw.Piece.</summary>
+    public enum BitClass : byte
+    {
+        /// <summary>Fine chaff: glumes, husks and broken blade and leaf fragments, about a centimetre.</summary>
+        Chaff = 0,
+        /// <summary>Straw bits: broken dead culms and straws, a few centimetres long.</summary>
+        Straw = 1,
+        /// <summary>Dead leaves: whole, dry and curled, a few centimetres across.</summary>
+        Leaf = 2,
+    }
+
+    /// <summary>One size class's piece (ChaffLaw.Piece), for the drawing and the law: its size (m: Length along it, Width across
+    /// it, Thickness through it; a straw bit's Width and Thickness are its diameter), its mass (kg, with the water it holds at
+    /// the flight's moisture), its settling speed in still air (m/s, tumbling, as it falls), the wall jet's friction velocity
+    /// u* that starts a piece lying in the cover moving (Start, the median over the pieces, m/s; +∞ where none moves) and that
+    /// keeps a moving one moving (Keep, m/s), and the pieces' spread about Start (the geometric standard deviation of their
+    /// thresholds, ≥ 1).</summary>
+    public struct BitPiece
+    {
+        public double Length, Width, Thickness, Mass, Settling, Start, Keep, Spread;
+    }
+
+    /// <summary>
+    /// The loose plant bits the props' wash lifts from covered ground (w16-plants-in-the-air 1.4a, design.md §5b;
+    /// plants-in-the-air.md §5.4): on sod, weeds, straw and litter the cover shelters the soil (no dust, DustLaw), and the wash
+    /// lifts the loose dead pieces lying on it instead (clip H's leaves and straws). Each number's label is the note's §5.4.
+    /// - **The pieces** (BitPiece): fine chaff and dead leaves are flat pieces of their mass per area σ; a straw bit is the surface
+    ///   table's straw (3.5 mm, its wall share and density, 2.03 g a metre), 4 cm long.
+    /// - **What starts one:** the wall jet's friction velocity u* over the cover's roughness (DustLaw.Friction) against the
+    ///   piece's hold. A flat piece slides when c·ρu*²·A passes μ·m·g, so u*_t ∝ √σ: the leaves' 0.46 m/s is the Beaufort
+    ///   scale's force 4 (dust, leaves and loose paper lifted, 5.5–7.9 m/s at 10 m) over open grass (z₀ 0.03 m), and chaff
+    ///   takes it by √(σ_chaff/σ_leaf) (derived). A straw bit rolls out of its groove on the mat when the drag on it at its
+    ///   centre's speed (the rough wall's (8.5 + 5.75·log₁₀(y/k_s))·u*, y = d/2 over k_s = d) passes tan 30° of its weight
+    ///   (derived: two touching neighbours), at the median of its ways across the flow (|sin θ| = sin 45°). Moving, a piece
+    ///   keeps moving down to KeepRatio of that.
+    /// - **Wet** (Rain, Severe rain): the piece holds its water (dead leaves and chaff LitterWater of their dry mass, straw the
+    ///   surface table's straw_density_wet) and a meniscus of water along its contact with the wet mat holds it by 2γ per metre
+    ///   of contact (its rim; a straw's length): u*_t grows by √((m_wet·g + 2γ·contact)/(m·g)). Chaff then needs over 6 m/s, past
+    ///   any wash; wet leaves about 2.3 m/s, only at the discs' outwash; wet straw bits about 1.1 m/s, under a low hover.
+    /// - **Shelter:** among standing stems (the world's stem field under the node: its stems per m², their drawn heights and
+    ///   the cover rows' allometry) the loose pieces feel only the ground's share of u* (Shelter, Raupach et al. 1993); a mat or
+    ///   litter with no standing stems shelters nothing.
+    /// - **The supply:** each covered surface holds a loose top layer per class, its plan cover φ over the piece's area
+    ///   (pieces per m², assumed; the litter's and the straw's published masses bound it). A piece's threshold is spread over
+    ///   the pieces log-normally (Spread) about the class's Start, so a node lifts the share F(u*) = Φ(ln(u*/Start)/ln Spread)
+    ///   of its supply as its wash first passes u* (the pieces whose thresholds lie under it): what lifted is gone, so a hover
+    ///   lifts its whiff and then clears, and more throttle or a lower drone (a higher u*, the wall jet's own scaling) lifts
+    ///   more.
+    /// </summary>
+    public static class ChaffLaw
+    {
+        /// <summary>The size classes (BitClass).</summary>
+        public const int Classes = 3;
+
+        /// <summary>The geometric standard deviation of the pieces' thresholds about their class's Start: 1.5 (assumed: the dry
+        /// leaf mass per area's published 30–120 g/m² spread of ×0.7–1.4 on √σ, with each piece's snag and exposure on the mat; the
+        /// 5–95 % pieces start at 0.51–1.95 of the median).</summary>
+        public const double Spread = 1.5;
+
+        /// <summary>The u* that keeps a moving piece moving over the one that starts it: 0.8 (published for sand grains, Bagnold's
+        /// impact threshold against the fluid threshold, restated by Kok et al. 2012; assumed for litter).</summary>
+        public const double KeepRatio = 0.8;
+
+        /// <summary>Water's surface tension, N/m (published, 20 °C).</summary>
+        public const double SurfaceTension = 0.072;
+
+        /// <summary>A flat piece falling broadside: 1.17 (published, a flat plate normal to the flow, Hoerner 1965, recalled); a
+        /// straw across its axis, also its drag lying on the mat: 1.1 (published, a circular cylinder at Re 10²–10³, recalled).</summary>
+        public const double PlateDrag = 1.17, CylinderDrag = 1.1;
+
+        /// <summary>The water an air-dry dead leaf or chaff holds, kg per kg dry: 0.1 (assumed, dry weather's litter); wet: 2.0
+        /// (published, litter's specific water-holding capacity 2.0–2.1 l per kg oven-dry, whatever the species).</summary>
+        public const double LitterAirDry = 0.1, LitterWater = 2.0;
+
+        /// <summary>The dry mass per area of fine chaff, kg/m²: 0.05 (assumed: glumes and dead blades toward the low side of the
+        /// published leaf mass per area, 30–120 g/m², Wright et al. 2004); of a dead leaf the surface table's leaf row (0.06).</summary>
+        public const double ChaffMassPerArea = 0.05, LeafMassPerArea = 0.06;
+
+        /// <summary>A dry leaf's start, u* m/s: 0.46 (derived: the Beaufort scale's force 4 lifts dust, leaves and loose paper at
+        /// 5.5–7.9 m/s 10 m up, published, NWS; over open flat grass, z₀ 0.03 m (published, WMO), u* = 0.4·U/ln(10/z₀) is
+        /// 0.38–0.54, and 0.46 its middle).</summary>
+        public const double LeafStart = 0.46;
+
+        /// <summary>The straw table's: its diameter (m, the surface table's straw row's note: 3.5 mm), wall share and dry wall
+        /// density (kg/m³) as the row has them, and its wet mass factor (straw_density_wet).</summary>
+        public const double StrawDiameter = 0.0035, StrawWallShare = 0.12, StrawDensity = 500, StrawWet = 1.3;
+
+        // The pieces' sizes, m (assumed: a glume or a dead blade's bit; a straw bit; a locust or ash leaflet to a small maple
+        // leaf, the belts' species).
+        const double ChaffLength = 0.008, ChaffWidth = 0.003, ChaffThickness = 0.0002, StrawLength = 0.04,
+            LeafLength = 0.05, LeafWidth = 0.03, LeafThickness = 0.0003;
+
+        // Air's density for the settling, kg/m³ (the line's table's, tether.json).
+        const double Air = 1.225;
+
+        /// <summary>A class's piece at the flight's moisture (Wet and Saturated alike: the cover table has one wet set).</summary>
+        public static BitPiece Piece(BitClass c, Moisture moisture)
+        {
+            bool wet = moisture != Moisture.Dry;
+            double g = PlantLaw.Gravity;
+            var p = new BitPiece { Spread = Spread };
+            if (c == BitClass.Straw)
+            {
+                double d = StrawDiameter, inner = d * (1 - 2 * StrawWallShare);
+                double line = StrawDensity * PlantLaw.Pi / 4 * (d * d - inner * inner); // kg/m, at the table's ~10 % moisture
+                double centre = 8.5 + 5.75 * DetMath.Log(0.5) / 2.302585092994046; // the rough wall's u/u* at d/2 over k_s = d
+                double start = DetMath.Sqrt(2 * Tan30 * line * g / (Air * CylinderDrag * d * Sin45)) / centre;
+                double m = line * StrawLength, factor = wet ? StrawWet : 1;
+                p.Length = StrawLength;
+                p.Width = d;
+                p.Thickness = d;
+                p.Mass = m * factor;
+                p.Settling = DetMath.Sqrt(2 * line * factor * g / (Air * CylinderDrag * d));
+                p.Start = wet ? start * DetMath.Sqrt((m * factor * g + 2 * SurfaceTension * StrawLength) / (m * g)) : start;
+            }
+            else
+            {
+                bool leaf = c == BitClass.Leaf;
+                double a = leaf ? LeafLength : ChaffLength, b = leaf ? LeafWidth : ChaffWidth;
+                double dry = leaf ? LeafMassPerArea : ChaffMassPerArea, sigma = dry * (1 + (wet ? LitterWater : LitterAirDry));
+                double area = PlantLaw.Pi / 4 * a * b, airDry = dry * (1 + LitterAirDry) * area;
+                double start = LeafStart * DetMath.Sqrt(dry / LeafMassPerArea);
+                p.Length = a;
+                p.Width = b;
+                p.Thickness = leaf ? LeafThickness : ChaffThickness;
+                p.Mass = sigma * area;
+                p.Settling = DetMath.Sqrt(2 * sigma * g / (Air * PlateDrag));
+                p.Start = wet ? start * DetMath.Sqrt((p.Mass * g + 2 * SurfaceTension * Rim(a, b)) / (airDry * g)) : start;
+            }
+            p.Keep = KeepRatio * p.Start;
+            return p;
+        }
+
+        const double Tan30 = 0.57735026918962576, Sin45 = 0.70710678118654752;
+
+        // An ellipse's rim of axes a and b, m (Ramanujan's first approximation).
+        static double Rim(double a, double b)
+        {
+            double x = a / 2, y = b / 2;
+            return PlantLaw.Pi * (3 * (x + y) - DetMath.Sqrt((3 * x + y) * (x + 3 * y)));
+        }
+
+        /// <summary>A surface's loose pieces of a class lying on its cover, per m² (0 on a surface with none): its loose top
+        /// layer's plan cover φ over the piece's area (assumed per surface, design.md §5b): meadow_sod (the root-bound sod's
+        /// thatch; the track map's grass) chaff 0.1, straw 0.05; weeds chaff, straw and leaves 0.05 each; belt_straw (the belt's
+        /// straw mat) chaff 0.05, straw 0.3, leaves 0.1; yard_litter (leaf litter) chaff 0.1, leaves 0.6.</summary>
+        public static double Supply(string surface, BitClass c)
+        {
+            double chaff = 0, straw = 0, leaf = 0;
+            switch (surface)
+            {
+                case "meadow_sod": chaff = 0.1; straw = 0.05; break;
+                case "weeds": chaff = 0.05; straw = 0.05; leaf = 0.05; break;
+                case "belt_straw": chaff = 0.05; straw = 0.3; leaf = 0.1; break;
+                case "yard_litter": chaff = 0.1; leaf = 0.6; break;
+                default: return 0;
+            }
+            double area = c == BitClass.Straw ? StrawLength * StrawDiameter
+                : c == BitClass.Leaf ? PlantLaw.Pi / 4 * LeafLength * LeafWidth : PlantLaw.Pi / 4 * ChaffLength * ChaffWidth;
+            return (c == BitClass.Chaff ? chaff : c == BitClass.Straw ? straw : leaf) / area;
+        }
+
+        /// <summary>A surface's cover roughness k_s for the wall jet's u* over it, m (0 on a surface with no loose cover): the
+        /// lying elements' diameter (assumed, Nikuradse's k_s of the order of a bed's elements): the thatch's blades and the
+        /// soil among the weeds 2 mm, the straw mat's straws 3.5 mm, the litter's curled leaves 5 mm.</summary>
+        public static double Roughness(string surface)
+        {
+            switch (surface)
+            {
+                case "meadow_sod": case "weeds": return 0.002;
+                case "belt_straw": return StrawDiameter;
+                case "yard_litter": return 0.005;
+                default: return 0;
+            }
+        }
+
+        /// <summary>Raupach et al. 1993's partition of a surface's stress among standing roughness elements: the share of the u*
+        /// that reaches the ground between them, [(1 − mσλ)(1 + mβλ)]^(−1/2), m 0.5 (published, the recommended value), β 90
+        /// (published, the ratio of an element's drag coefficient to the bare surface's, Raupach et al. 1993's value, recalled), λ
+        /// the stems' frontal area per ground area; a stem's σ (its basal over its frontal area, πd/4h) is under 0.01 and its term
+        /// left out (derived).</summary>
+        public const double ShelterM = 0.5, ShelterBeta = 90;
+
+        /// <summary>The share of the wall's u* that reaches the loose pieces among standing stems of frontal area index λ.</summary>
+        public static double Shelter(double frontalIndex) =>
+            frontalIndex > 0 ? 1 / DetMath.Sqrt(1 + ShelterM * ShelterBeta * frontalIndex) : 1;
+
+        /// <summary>The share of a class's pieces whose start lies under u* (m/s): Φ(ln(u*/start)/ln Spread); 0 at u* 0 or an
+        /// infinite start.</summary>
+        public static double Share(double friction, double start)
+        {
+            if (!(friction > 0) || !(start < double.PositiveInfinity)) return 0;
+            return WakeGridMath.Phi(DetMath.Log(friction / start) / LnSpread);
+        }
+
+        const double LnSpread = 0.4054651081081644; // ln Spread
+    }
+
+    /// <summary>
+    /// One wash tick's ground as the drawn side reads it (w16-plants-in-the-air 1.4a; design.md §5b): per node of the grid's
+    /// window, the dust (DustLaw) and the loose plant bits (ChaffLaw) the wash lifts there. The thread that ticks the grid fills
+    /// one and hands it whole to the render thread through PlantWash.TakeGround (a triple buffer: the ticking thread never
+    /// waits, and a snapshot taken stays unchanged until the taking thread's next TakeGround). Three are made with the grid;
+    /// nothing is allocated after.
+    /// - **Layout:** Size × Size nodes. Node (a, b) is the world cell (StartI + a, StartJ + b) of Cell m, its centre at world
+    ///   X = (StartI + a + 0.5)·Cell, Z = (StartJ + b + 0.5)·Cell, its index a + Size·b (X fastest, PlantField's order). The
+    ///   window is the grid's at the tick, about the drone by whole cells.
+    /// - **Per node:** Surface (IWorldQuery's id, 0 where there is no ground); the dust: DustFriction u* (m/s, the wall jet's
+    ///   over the bare soil's roughness), DustThreshold u*_t (m/s, +∞ where none lifts) and DustFlux (kg/m/s, White's
+    ///   saltation flux, &gt; 0 where dust lifts); the bits: BitsFriction u* (m/s, the u* the loose pieces feel: the wall jet's
+    ///   over the cover's roughness, times the standing stems' shelter; 0 on a surface with no loose cover). Compare a landed
+    ///   drawn piece's ChaffLaw.Piece(…).Keep with it. Each u* is 0 where the wash is under PlantWash.MinWash.
+    /// - **Per node and class:** BitsRate[index·ChaffLaw.Classes + (int)class], the pieces of that class the wash lifts there,
+    ///   per m² of ground per second, over the tick that ended at Tick. The pieces a cell lifts over a drawn frame of dt s are
+    ///   BitsRate·Cell²·dt; each piece's size, mass, settling speed and the u* that keeps it moving are ChaffLaw.Piece(class,
+    ///   the flight's moisture).
+    /// </summary>
+    public sealed class WashGround
+    {
+        /// <summary>The tick's flight step (−1 before the first), its length (s).</summary>
+        public long Tick = -1;
+        public double TickSeconds;
+
+        /// <summary>The window: the world cell of node (0, 0), the nodes a side, the cell (m).</summary>
+        public long StartI, StartJ;
+        public readonly int Size;
+        public readonly double Cell;
+
+        /// <summary>Per node (index a + Size·b).</summary>
+        public readonly byte[] Surface;
+        public readonly double[] DustFriction, DustThreshold, DustFlux, BitsFriction;
+
+        /// <summary>Per node and class (index (a + Size·b)·ChaffLaw.Classes + class): pieces per m² per s.</summary>
+        public readonly double[] BitsRate;
+
+        readonly bool[] _film;
+
+        internal WashGround(int size, double cell, bool[] film)
+        {
+            Size = size;
+            Cell = cell;
+            _film = film;
+            int n = size * size;
+            Surface = new byte[n];
+            DustFriction = new double[n];
+            DustThreshold = new double[n];
+            DustFlux = new double[n];
+            BitsFriction = new double[n];
+            BitsRate = new double[n * ChaffLaw.Classes];
+        }
+
+        /// <summary>The node under world (x, z) (the cell it lies in), false outside the window or before the first tick.</summary>
+        public bool Node(double x, double z, out int node)
+        {
+            node = -1;
+            if (Tick < 0) return false;
+            long a = FloorL(x / Cell) - StartI, b = FloorL(z / Cell) - StartJ;
+            if (a < 0 || a >= Size || b < 0 || b >= Size) return false;
+            node = (int)(a + Size * b);
+            return true;
+        }
+
+        /// <summary>The dust at world (x, z), as PlantWash.DustAt gives it on the ticking thread. False outside the window.</summary>
+        public bool DustAt(double x, double z, out DustSample dust)
+        {
+            dust = default;
+            if (!Node(x, z, out int s)) return false;
+            dust.Friction = DustFriction[s];
+            dust.Threshold = DustThreshold[s];
+            dust.Flux = DustFlux[s];
+            dust.Lifts = DustFlux[s] > 0;
+            dust.Film = _film[Surface[s]];
+            dust.Surface = Surface[s];
+            return true;
+        }
+
+        /// <summary>A class's lift rate at node (pieces per m² per s).</summary>
+        public double Rate(int node, BitClass c) => BitsRate[node * ChaffLaw.Classes + (int)c];
+
+        static long FloorL(double v)
+        {
+            long t = (long)v;
+            return t > v ? t - 1 : t;
+        }
+    }
+
     /// <summary>
     /// The props' wash on the ground's plants and dust (w16-plants-in-the-air design.md §4–§5): a world-anchored grid of nodes
     /// around the drone, each a stand of stems of every band the drawn side asks for, integrated in the rotors' air at a fixed
@@ -137,7 +424,9 @@ namespace Fpv450.Sim.Wind
     ///   natural lean (PropStems' mean, its way by the node's world hash). The wash's bend is the stand's lean less its rest.
     /// - **The window** follows the drone by whole cells; a node entering it starts at rest, one leaving it is dropped (what it
     ///   held is lost: the window's size bounds the trail a fast low pass leaves; design.md §4.4).
-    /// - **Dust** per node from its lowest samples (DustLaw), for the surface under it at the flight's moisture.
+    /// - **Dust** per node from its lowest samples (DustLaw), for the surface under it at the flight's moisture; and the loose
+    ///   plant bits from covered ground (ChaffLaw), from the same samples over the cover's roughness.
+    /// - **The drawn side** takes each tick's dust and bits whole, on another thread, through TakeGround (WashGround).
     /// Deterministic (DetMath only, a fixed tick, the world's own hash), allocation-free after the constructor.
     /// </summary>
     public sealed class PlantWash
@@ -177,9 +466,28 @@ namespace Fpv450.Sim.Wind
         readonly Double3[] _samples;
         readonly PlantState[] _now, _was;
 
+        // Per slot the bits' u* this tick and the highest since the node entered the window (what it has lifted), the standing
+        // stems' shelter (the share of the wall's u* the pieces feel), and per slot and class their lift rate this tick
+        // (pieces/m²/s).
+        readonly double[] _bitsFriction, _felt, _shelter, _bitsRate;
+
+        // The stems' 1 m diameter by StemKind (the cover rows' diameter_m), and the stem query's buffer.
+        readonly double[] _stemDiameter = new double[4];
+        readonly StemPatch[] _patches = new StemPatch[64];
+
         // The surfaces' dust (by IWorldQuery's id).
         readonly double[] _surfaceThreshold = new double[256], _surfaceRoughness = new double[256];
         readonly bool[] _surfaceFilm = new bool[256];
+
+        // The surfaces' bits (by id): the cover's roughness, per class the supply (pieces/m²); per class the start at the
+        // flight's moisture.
+        readonly double[] _coverRoughness = new double[256], _supply = new double[256 * ChaffLaw.Classes], _start = new double[ChaffLaw.Classes];
+
+        // The ground's snapshots for the drawn side (a triple buffer: the ticking thread fills the back one and swaps it with
+        // the ready one; TakeGround swaps the ready one with the front one).
+        WashGround _groundBack, _groundReady, _groundFront;
+        bool _groundFresh, _groundShown;
+        readonly object _groundLock = new object();
 
         // The tick's inputs.
         readonly Double3[] _hub = new Double3[4], _relative = new Double3[4];
@@ -249,6 +557,18 @@ namespace Fpv450.Sim.Wind
             _samples = new Double3[n * _heightCount];
             _now = new PlantState[n * _bands.Length];
             _was = new PlantState[n * _bands.Length];
+            _bitsFriction = new double[n];
+            _felt = new double[n];
+            _shelter = new double[n];
+            _bitsRate = new double[n * ChaffLaw.Classes];
+            foreach (CoverRow row in surfaces.Cover) // StemKind k is cover kind GrassBlade + k − 1 (PropStems')
+            {
+                int k = (int)row.Kind - (int)CoverKind.GrassBlade + 1;
+                if (k >= 1 && k < _stemDiameter.Length) _stemDiameter[k] = row.Dry.Diameter;
+            }
+            _groundBack = new WashGround(size, cell, _surfaceFilm);
+            _groundReady = new WashGround(size, cell, _surfaceFilm);
+            _groundFront = new WashGround(size, cell, _surfaceFilm);
             for (int s = 0; s < 256; s++) _surfaceThreshold[s] = double.PositiveInfinity;
             for (int s = 1; s < 256; s++)
             {
@@ -257,7 +577,10 @@ namespace Fpv450.Sim.Wind
                 _surfaceThreshold[s] = DustLaw.Threshold(name, moisture, surfaces, out DustLaw.Row row);
                 _surfaceRoughness[s] = row.Roughness;
                 _surfaceFilm[s] = row.Film;
+                _coverRoughness[s] = ChaffLaw.Roughness(name);
+                for (int c = 0; c < ChaffLaw.Classes; c++) _supply[s * ChaffLaw.Classes + c] = ChaffLaw.Supply(name, (BitClass)c);
             }
+            for (int c = 0; c < ChaffLaw.Classes; c++) _start[c] = ChaffLaw.Piece((BitClass)c, moisture).Start;
         }
 
         /// <summary>The bands' count, and the flight step of the last tick (−1 before the first).</summary>
@@ -322,6 +645,53 @@ namespace Fpv450.Sim.Wind
             Recentre(pose.Position);
             for (int s = 0; s < _size * _size; s++) Node(s);
             _tick = pose.Step;
+            PublishGround();
+        }
+
+        // The tick's dust and bits to the back snapshot in window order, then swapped in as the ready one.
+        void PublishGround()
+        {
+            WashGround g = _groundBack;
+            g.Tick = _tick;
+            g.TickSeconds = _dt;
+            g.StartI = _startI;
+            g.StartJ = _startJ;
+            for (int b = 0; b < _size; b++)
+                for (int a = 0; a < _size; a++)
+                {
+                    int s = Slot(_startI + a, _startJ + b), i = a + _size * b;
+                    bool ground = _ground[s] > double.NegativeInfinity;
+                    g.Surface[i] = ground ? _surface[s] : (byte)0;
+                    g.DustFriction[i] = _friction[s];
+                    g.DustThreshold[i] = _threshold[s];
+                    g.DustFlux[i] = _flux[s];
+                    g.BitsFriction[i] = _bitsFriction[s];
+                    for (int c = 0; c < ChaffLaw.Classes; c++) g.BitsRate[i * ChaffLaw.Classes + c] = _bitsRate[s * ChaffLaw.Classes + c];
+                }
+            lock (_groundLock)
+            {
+                (_groundBack, _groundReady) = (_groundReady, _groundBack);
+                _groundFresh = true;
+            }
+        }
+
+        /// <summary>
+        /// The render thread, once a drawn frame: the newest finished tick's dust and bits at or before the frame's flight time
+        /// (s; the time PlantAir.Begin takes), null before the first. The snapshot stays unchanged until this thread's next call;
+        /// the thread that ticks the grid (Advance) never waits on it. One thread takes, one ticks.
+        /// </summary>
+        public WashGround TakeGround(double time)
+        {
+            lock (_groundLock)
+            {
+                if (_groundFresh && _groundReady.Tick * FlightCore.Dt <= time + 1e-9)
+                {
+                    (_groundReady, _groundFront) = (_groundFront, _groundReady);
+                    _groundFresh = false;
+                    _groundShown = true;
+                }
+            }
+            return _groundShown ? _groundFront : null;
         }
 
         // The window by whole cells about the drone: a cell newly in it takes a free slot, its ground and its stands at rest.
@@ -364,6 +734,27 @@ namespace Fpv450.Sim.Wind
             }
             _friction[s] = 0;
             _flux[s] = 0;
+            _bitsFriction[s] = 0;
+            _felt[s] = 0;
+            for (int c = 0; c < ChaffLaw.Classes; c++) _bitsRate[s * ChaffLaw.Classes + c] = 0;
+            _shelter[s] = ChaffLaw.Shelter(FrontalIndex(_one[0]));
+        }
+
+        // The standing stems' frontal area per ground area over a cell (the world's stem field in the circle of its area): each
+        // layer's stems per m² by its drawn tops' middle height h and the kind's allometry, d = d₁·h^(1/1.53).
+        double FrontalIndex(XZ centre)
+        {
+            double r = _cell * 0.56418958354775628, circle = PlantLaw.Pi * r * r, lambda = 0; // r = cell/√π
+            int count = _world.StemsNear(centre, r, 0, _patches);
+            if (count > _patches.Length) count = _patches.Length;
+            for (int p = 0; p < count; p++)
+            {
+                StemPatch patch = _patches[p];
+                double d1 = (int)patch.Kind < _stemDiameter.Length ? _stemDiameter[(int)patch.Kind] : 0, h = 0.5 * (patch.HeightMin + patch.HeightMax);
+                if (!(d1 > 0) || !(h > 0)) continue;
+                lambda += patch.Density * patch.Area / circle * d1 * DetMath.Exp(PropStrikes.StemAllometry * DetMath.Log(h)) * h;
+            }
+            return lambda;
         }
 
         // One node's tick: its air, each band's stand, its dust.
@@ -416,6 +807,8 @@ namespace Fpv450.Sim.Wind
         {
             _friction[s] = 0;
             _flux[s] = 0;
+            _bitsFriction[s] = 0;
+            for (int c = 0; c < ChaffLaw.Classes; c++) _bitsRate[s * ChaffLaw.Classes + c] = 0;
             if (_still[s]) return; // u* everywhere the wash blows (1.4 may use it), the flux only past a finite threshold
             double peak = 0;
             int k0 = s * _heightCount;
@@ -435,6 +828,27 @@ namespace Fpv450.Sim.Wind
             double f = DustLaw.Friction(peak, height, r, _sourceDistance, _surfaceRoughness[_surface[s]]);
             _friction[s] = f;
             _flux[s] = DustLaw.Flux(f, _threshold[s], _density);
+            Bits(s, peak, height, r);
+        }
+
+        // The node's loose bits (ChaffLaw): the same wall jet's u* over the cover's roughness; per class the share of the supply
+        // whose starts its u* passes for the first time since the node entered the window, over the tick.
+        void Bits(int s, double peak, double height, double r)
+        {
+            int surface = _surface[s];
+            double k = _coverRoughness[surface];
+            if (!(k > 0) || !(_ground[s] > double.NegativeInfinity)) return; // no loose cover
+            double f = _shelter[s] * DustLaw.Friction(peak, height, r, _sourceDistance, k), felt = _felt[s];
+            _bitsFriction[s] = f;
+            if (!(f > felt)) return;
+            for (int c = 0; c < ChaffLaw.Classes; c++)
+            {
+                double supply = _supply[surface * ChaffLaw.Classes + c];
+                if (!(supply > 0)) continue;
+                double lifted = ChaffLaw.Share(f, _start[c]) - ChaffLaw.Share(felt, _start[c]);
+                _bitsRate[s * ChaffLaw.Classes + c] = lifted > 0 ? supply * lifted / _dt : 0;
+            }
+            _felt[s] = f;
         }
 
         static int Floor(double v)

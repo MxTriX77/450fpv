@@ -288,5 +288,342 @@ namespace Fpv450.Sim.Tests
                     plants.Sample(bands[i % bands.Length], i % bands.Length, grid, new Double3(4 + 0.3 * i, 0, 0.2 * i), 0, out _);
             }
         }
+
+        // ---- the loose plant bits (ChaffLaw, 1.4a; design.md §5b) ----
+
+        static readonly string[] Covered = { "meadow_sod", "weeds", "belt_straw", "yard_litter" };
+
+        // plant_bits.py: each class's piece, dry and wet: mass (mg), settling (m/s), start and keep (u*, m/s).
+        static readonly (BitClass C, bool Wet, double Mg, double Settling, double Start, double Keep)[] HandPieces =
+        {
+            (BitClass.Chaff, false, 1.04, 0.8676, 0.4199, 0.3359), (BitClass.Chaff, true, 2.83, 1.4327, 6.7745, 5.4196),
+            (BitClass.Straw, false, 81.28, 2.9069, 0.3880, 0.3104), (BitClass.Straw, true, 105.66, 3.3144, 1.1331, 0.9065),
+            (BitClass.Leaf, false, 77.75, 0.9504, 0.4600, 0.3680), (BitClass.Leaf, true, 212.06, 1.5695, 2.3827, 1.9062),
+        };
+
+        // plant_bits.py: each covered surface's loose pieces per m² (chaff, straw, leaves).
+        static readonly (string Surface, double Chaff, double Straw, double Leaf)[] HandSupply =
+        {
+            ("meadow_sod", 5305.2, 357.1, 0), ("weeds", 2652.6, 357.1, 42.4), ("belt_straw", 2652.6, 2142.9, 84.9), ("yard_litter", 5305.2, 0, 509.3),
+        };
+
+        // The pieces against the hand, and their numbers against the surface table's own straw and leaf rows (one set of numbers).
+        [Test]
+        public void TheBitsAreTheHandCalculation()
+        {
+            foreach (var (c, wet, mg, settling, start, keep) in HandPieces)
+            {
+                BitPiece p = ChaffLaw.Piece(c, wet ? Moisture.Wet : Moisture.Dry);
+                Print($"{c} {(wet ? "wet" : "dry")}: {p.Length * 1e3:F1} × {p.Width * 1e3:F1} × {p.Thickness * 1e3:F2} mm, {p.Mass * 1e6:F2} mg, "
+                    + $"settling {p.Settling:F4} m/s, start {p.Start:F4} m/s, keep {p.Keep:F4} m/s, spread {p.Spread}");
+                Assert.That(p.Mass * 1e6, Is.EqualTo(mg).Within(0.006), c + " mass");
+                Assert.That(p.Settling, Is.EqualTo(settling).Within(1e-4), c + " settling");
+                Assert.That(p.Start, Is.EqualTo(start).Within(1e-4), c + " start");
+                Assert.That(p.Keep, Is.EqualTo(keep).Within(1e-4), c + " keep");
+                BitPiece s = ChaffLaw.Piece(c, Moisture.Saturated);
+                Assert.That(wet ? s.Start == p.Start && s.Mass == p.Mass : s.Start > p.Start, c + ": saturated is the wet set");
+            }
+            foreach (var (surface, chaff, straw, leaf) in HandSupply)
+            {
+                Assert.That(ChaffLaw.Supply(surface, BitClass.Chaff), Is.EqualTo(chaff).Within(0.06), surface + " chaff");
+                Assert.That(ChaffLaw.Supply(surface, BitClass.Straw), Is.EqualTo(straw).Within(0.06), surface + " straw");
+                Assert.That(ChaffLaw.Supply(surface, BitClass.Leaf), Is.EqualTo(leaf).Within(0.06), surface + " leaves");
+            }
+            foreach (string bare in new[] { "belt_bare", "tilled", "dirt_track", "asphalt" })
+                for (int c = 0; c < ChaffLaw.Classes; c++)
+                    Assert.That(ChaffLaw.Supply(bare, (BitClass)c), Is.Zero, bare + ": no loose cover");
+            SurfaceTable table = SoilScenarios.Table();
+            CoverSet strawRow = default, leafRow = default;
+            foreach (CoverRow row in table.Cover)
+            {
+                if (row.Kind == CoverKind.Straw) strawRow = row.Dry;
+                if (row.Kind == CoverKind.Leaf) leafRow = row.Dry;
+            }
+            Assert.That(ChaffLaw.StrawWallShare, Is.EqualTo(strawRow.WallShare), "the straw row's wall");
+            Assert.That(ChaffLaw.StrawDensity, Is.EqualTo(strawRow.Density), "the straw row's density");
+            Assert.That(ChaffLaw.LeafMassPerArea, Is.EqualTo(leafRow.DryMassPerArea), "the leaf row's mass per area");
+            Assert.That(ChaffLaw.StrawWet, Is.EqualTo(table.Wetting.StrawDensityWet), "the straw's wet factor");
+            Assert.That(ChaffLaw.Shelter(0), Is.EqualTo(1));
+            Assert.That(ChaffLaw.Shelter(0.3), Is.EqualTo(1 / Math.Sqrt(1 + 0.5 * 90 * 0.3)).Within(1e-12), "Raupach's partition");
+        }
+
+        static PoseFrame Pose(long step, double h, double throttle)
+        {
+            PoseFrame p = Pose(step, h);
+            double t = Thrust * throttle;
+            p.RotorThrust = new Corners { RearRight = t, FrontRight = t, RearLeft = t, FrontLeft = t };
+            return p;
+        }
+
+        // The pieces a grid's last tick lifted per class over its window (pieces: rate × tick × cell²), and its most u*.
+        static double[] Lifted(PlantWash grid, double cell, out double most)
+        {
+            WashGround g = grid.TakeGround(double.MaxValue);
+            var total = new double[ChaffLaw.Classes];
+            most = 0;
+            for (int i = 0; i < g.Size * g.Size; i++)
+            {
+                most = Math.Max(most, g.BitsFriction[i]);
+                for (int c = 0; c < ChaffLaw.Classes; c++) total[c] += g.Rate(i, (BitClass)c) * g.TickSeconds * cell * cell;
+            }
+            return total;
+        }
+
+        // plant_bits.py: the pieces (chaff, straw, leaves) a hover from rest lifts in its first tick over the 32 × 0.15 m window,
+        // by stem_wash.py's field at 200 heights to 0.1 m a node and design.md §5's peak height; dry and wet, the hubs at BitHeights[k].
+        static readonly double[] BitHeights = { 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0 };
+
+        static readonly (string Surface, double[,] Dry, double[,] Wet)[] HandHoverBits =
+        {
+            ("meadow_sod",
+                new[,] { { 41868.3, 3212.6, 0 }, { 41464.5, 3181.5, 0 }, { 39716.8, 3045.6, 0 }, { 25553.3, 1963.3, 0 }, { 23964.9, 1866.7, 0 }, { 22987.9, 1811.5, 0 }, { 20098.2, 1631.0, 0 }, { 16494.5, 1385.7, 0 }, { 9532.0, 862.6, 0 }, { 4751.0, 461.6, 0 } },
+                new[,] { { 3.6, 382.3, 0 }, { 2.5, 377.1, 0 }, { 0.2, 329.1, 0 }, { 0, 150.2, 0 }, { 0, 88.7, 0 }, { 0, 57.4, 0 }, { 0, 23.3, 0 }, { 0, 9.2, 0 }, { 0, 1.4, 0 }, { 0, 0.2, 0 } }),
+            ("weeds",
+                new[,] { { 20934.2, 3212.6, 285.6 }, { 20732.2, 3181.5, 282.9 }, { 19858.4, 3045.6, 271.4 }, { 12776.6, 1963.3, 174.6 }, { 11982.4, 1866.7, 160.5 }, { 11494.0, 1811.5, 151.4 }, { 10049.1, 1631.0, 127.2 }, { 8247.2, 1385.7, 99.8 }, { 4766.0, 862.6, 52.5 }, { 2375.5, 461.6, 24.0 } },
+                new[,] { { 1.8, 382.3, 5.8 }, { 1.3, 377.1, 5.2 }, { 0.1, 329.1, 2.3 }, { 0, 150.2, 0.3 }, { 0, 88.7, 0.1 }, { 0, 57.4, 0 }, { 0, 23.3, 0 }, { 0, 9.2, 0 }, { 0, 1.4, 0 }, { 0, 0.2, 0 } }),
+            ("belt_straw",
+                new[,] { { 25721.9, 23392.2, 710.8 }, { 25474.1, 23172.2, 703.9 }, { 24385.2, 22192.3, 674.0 }, { 15070.1, 13806.4, 415.1 }, { 14381.8, 13310.6, 390.2 }, { 13988.0, 13061.3, 374.7 }, { 12660.7, 12106.9, 328.0 }, { 10813.2, 10653.3, 269.2 }, { 6784.4, 7151.5, 155.0 }, { 3644.4, 4109.3, 76.6 } },
+                new[,] { { 4.3, 3038.4, 17.7 }, { 3.1, 3010.7, 16.3 }, { 0.3, 2752.2, 8.4 }, { 0, 1338.8, 1.4 }, { 0, 843.4, 0.5 }, { 0, 577.8, 0.2 }, { 0, 257.2, 0 }, { 0, 109.7, 0 }, { 0, 18.9, 0 }, { 0, 3.3, 0 } }),
+            ("yard_litter",
+                new[,] { { 58823.6, 0, 4928.0 }, { 58273.0, 0, 4880.5 }, { 55815.4, 0, 4671.9 }, { 33599.5, 0, 2790.5 }, { 32368.3, 0, 2655.5 }, { 31722.3, 0, 2574.7 }, { 29293.9, 0, 2310.1 }, { 25635.5, 0, 1950.4 }, { 16951.2, 0, 1189.6 }, { 9566.6, 0, 619.7 } },
+                new[,] { { 15.4, 0, 140.1 }, { 11.3, 0, 130.9 }, { 1.1, 0, 74.9 }, { 0, 0, 14.1 }, { 0, 0, 5.4 }, { 0, 0, 2.3 }, { 0, 0, 0.5 }, { 0, 0, 0.1 }, { 0, 0, 0 }, { 0, 0, 0 } }),
+        };
+
+        // A hover from rest over each covered surface lifts in its first tick what the hand does, dry and wet, more the lower it
+        // hovers and the harder it pushes (the wall jet's own scaling, no knob); bare ground lifts none.
+        [Test]
+        public void GrassBitsLiftMoreAsTheDroneComesLowerAndThrottlesUp()
+        {
+            foreach (var (surface, handDry, handWet) in HandHoverBits)
+                foreach (RainLevel rain in new[] { RainLevel.Sunny, RainLevel.Rain })
+                {
+                    double[,] hand = rain == RainLevel.Sunny ? handDry : handWet;
+                    double[] last = null;
+                    for (int k = 0; k < BitHeights.Length; k++)
+                    {
+                        PlantWash grid = Grid(surface, rain, new PlantMechanics[0], out _, 32);
+                        grid.Advance(Pose(0, BitHeights[k]));
+                        double[] got = Lifted(grid, 0.15, out double most);
+                        Print($"{surface} {rain}, hubs {BitHeights[k]} m: chaff {got[0]:F1} (hand {hand[k, 0]}), straw {got[1]:F1} ({hand[k, 1]}), "
+                            + $"leaves {got[2]:F1} ({hand[k, 2]}); u* up to {most:F3} m/s");
+                        for (int c = 0; c < ChaffLaw.Classes; c++)
+                        {
+                            // The grid reads the jet at its own 5 heights to 0.1 m, the hand at 200: within 6 % or 3 pieces (4.4 % at most here).
+                            Assert.That(got[c], Is.EqualTo(hand[k, c]).Within(Math.Max(3, 0.06 * hand[k, c])), $"{surface} {rain} {BitHeights[k]} m, {(BitClass)c}");
+                            if (last != null && hand[k, c] > 0) Assert.That(got[c], Is.LessThan(last[c]), $"{surface} {rain}: lower lifts more, {(BitClass)c}");
+                        }
+                        last = got;
+                    }
+                }
+            foreach (string surface in Covered)
+                foreach (double h in new[] { 1.0, 3.0, 6.0 })
+                {
+                    PlantWash normal = Grid(surface, RainLevel.Sunny, new PlantMechanics[0], out _, 32), hard = Grid(surface, RainLevel.Sunny, new PlantMechanics[0], out _, 32);
+                    normal.Advance(Pose(0, h, 1.0));
+                    hard.Advance(Pose(0, h, 1.4));
+                    double[] a = Lifted(normal, 0.15, out double ua), b = Lifted(hard, 0.15, out double ub);
+                    Print($"{surface}, hubs {h} m, thrust ×1 → ×1.4: u* {ua:F3} → {ub:F3} m/s; pieces {a[0] + a[1] + a[2]:F0} → {b[0] + b[1] + b[2]:F0}");
+                    Assert.That(ub, Is.GreaterThan(ua), surface + ": more thrust, more u*");
+                    for (int c = 0; c < ChaffLaw.Classes; c++)
+                        if (a[c] > 0) Assert.That(b[c], Is.GreaterThan(a[c]), $"{surface} {h} m: more thrust lifts more {(BitClass)c}");
+                }
+            foreach (string bare in new[] { "belt_bare", "tilled", "dirt_track" })
+            {
+                PlantWash grid = Grid(bare, RainLevel.Sunny, new PlantMechanics[0], out _, 32);
+                grid.Advance(Pose(0, 0.3));
+                double[] got = Lifted(grid, 0.15, out double most);
+                Assert.That(got[0] + got[1] + got[2], Is.Zero, bare + ": bare ground lifts dust, no bits");
+                Assert.That(most, Is.Zero, bare + ": no cover's u*");
+            }
+        }
+
+        // Supply-limited: a hover lifts its whiff in its first tick and then nothing; a throttle punch lifts a new whiff, and the two
+        // whiffs together are what a hover from rest at the punch's thrust lifts at once. A wet straw mat lifts only low.
+        [Test]
+        public void AHoverLiftsItsWhiffThenClearsAndAPunchLiftsAnother()
+        {
+            PlantWash grid = Grid("belt_straw", RainLevel.Sunny, new PlantMechanics[0], out _, 32);
+            grid.Advance(Pose(0, 1.5));
+            double[] first = Lifted(grid, 0.15, out _);
+            double later = 0;
+            for (int t = 1; t <= 25; t++)
+            {
+                grid.Advance(Pose(t * TickSteps, 1.5));
+                double[] got = Lifted(grid, 0.15, out _);
+                later += got[0] + got[1] + got[2];
+            }
+            grid.Advance(Pose(26 * TickSteps, 1.5, 1.4));
+            double[] punch = Lifted(grid, 0.15, out _);
+            PlantWash fresh = Grid("belt_straw", RainLevel.Sunny, new PlantMechanics[0], out _, 32);
+            fresh.Advance(Pose(0, 1.5, 1.4));
+            double[] once = Lifted(fresh, 0.15, out _);
+            Print($"belt_straw, hubs 1.5 m: the first tick lifts {first[0]:F0} chaff, {first[1]:F0} straws, {first[2]:F0} leaves; the next 1 s {later}; "
+                + $"a ×1.4 punch {punch[0]:F0} / {punch[1]:F0} / {punch[2]:F0}; from rest at ×1.4 {once[0]:F0} / {once[1]:F0} / {once[2]:F0}");
+            Assert.That(first[0] + first[1] + first[2], Is.GreaterThan(1000), "the first whiff");
+            Assert.That(later, Is.Zero, "a steady hover has nothing more to lift");
+            for (int c = 0; c < ChaffLaw.Classes; c++)
+            {
+                Assert.That(punch[c], Is.GreaterThan(0), (BitClass)c + ": the punch lifts a new whiff");
+                Assert.That(first[c] + punch[c], Is.EqualTo(once[c]).Within(1e-9 * once[c]), (BitClass)c + ": the whiffs add up to the supply's share");
+            }
+        }
+
+        // A world of flat ground under a uniform stand of green grass: n culms per m² of drawn tops h (StemsNear's patch over the
+        // query circle), the rest FloorWorld's.
+        sealed class StandWorld : IWorldQuery
+        {
+            readonly FloorWorld _floor;
+            readonly double _n, _h;
+
+            public StandWorld(string surface, double n, double h)
+            {
+                _floor = new FloorWorld(0, surface, "steel");
+                _n = n;
+                _h = h;
+            }
+
+            public int StemsNear(XZ centre, double radius, double height, Span<StemPatch> results)
+            {
+                if (results.Length < 1 || !(height < _h)) return 0;
+                results[0] = new StemPatch { Kind = StemKind.GreenBlade, Area = Math.PI * radius * radius, Density = _n, HeightMin = _h, HeightMax = _h };
+                return 1;
+            }
+
+            public ulong ContentHash => _floor.ContentHash;
+            public int QueryVersion => _floor.QueryVersion;
+            public void SampleGround(ReadOnlySpan<XZ> points, Span<GroundSample> results) => _floor.SampleGround(points, results);
+            public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results, QueryFilter filter = QueryFilter.None) =>
+                _floor.StaticContacts(previous, current, margin, results, filter);
+            public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits, QueryFilter filter = QueryFilter.None) =>
+                _floor.Raycast(rays, maxDistance, hits, filter);
+            public bool Geometry(int obj, int shape, out ShapeGeometry geometry) => _floor.Geometry(obj, shape, out geometry);
+            public bool ShapeContact(int obj, int shape, in Capsule previous, in Capsule current, double margin, out StaticContact contact) =>
+                _floor.ShapeContact(obj, shape, previous, current, margin, out contact);
+            public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results) => _floor.MicroDetailNear(centre, radius, kinds, results);
+            public int WiresNear(Double3 centre, double radius, Span<Conductor> results) => _floor.WiresNear(centre, radius, results);
+            public int SnagsNear(Double3 centre, double radius, Span<SnagSegment> results) => _floor.SnagsNear(centre, radius, results);
+            public bool Feature(int obj, int shape, out GroundFeature feature) => _floor.Feature(obj, shape, out feature);
+            public int AddObject(string name, ReadOnlySpan<ShapeGeometry> shapes) => _floor.AddObject(name, shapes);
+            public void ResetRuntimeObjects() => _floor.ResetRuntimeObjects();
+            public string ObjectName(int obj) => _floor.ObjectName(obj);
+            public string MaterialName(ushort material) => _floor.MaterialName(material);
+            public ushort MaterialId(string name) => _floor.MaterialId(name);
+            public string SurfaceName(byte surface) => _floor.SurfaceName(surface);
+        }
+
+        // Standing grass shelters the loose pieces in its thatch (Raupach et al. 1993 on the world's own stems): 400 green culms
+        // of 0.6 m a m² (a sward's order, stem-properties.md §3) take u* at the pieces to Shelter(λ) of the bare mat's, λ by the
+        // cover row's allometry; so a hover lifts its first bits from lower down.
+        [Test]
+        public void StandingGrassSheltersTheBits()
+        {
+            SurfaceTable table = SoilScenarios.Table();
+            double d1 = 0;
+            foreach (CoverRow row in table.Cover)
+                if (row.Kind == CoverKind.GrassBlade) d1 = row.Dry.Diameter;
+            double lambda = 400 * d1 * Math.Pow(0.6, 1 / 1.53) * 0.6, shelter = ChaffLaw.Shelter(lambda);
+            var plants = new PlantAir(new WindField(WindSetup.Of(WindLevel.Still), new FlightRandom(1)));
+            double[] open = new double[BitHeights.Length], stand = new double[BitHeights.Length];
+            for (int k = 0; k < BitHeights.Length; k++)
+            {
+                var bare = new PlantWash(SoilScenarios.StemAir(), R, Motors, new FloorWorld(0, "meadow_sod", "steel"), plants, new PlantMechanics[0], table, Moisture.Dry);
+                var grassy = new PlantWash(SoilScenarios.StemAir(), R, Motors, new StandWorld("meadow_sod", 400, 0.6), plants, new PlantMechanics[0], table, Moisture.Dry);
+                bare.Advance(Pose(0, BitHeights[k]));
+                grassy.Advance(Pose(0, BitHeights[k]));
+                WashGround a = bare.TakeGround(1), b = grassy.TakeGround(1);
+                for (int i = 0; i < a.Size * a.Size; i++)
+                    Assert.That(b.BitsFriction[i], Is.EqualTo(shelter * a.BitsFriction[i]).Within(1e-12 + 1e-12 * a.BitsFriction[i]), "u* at the pieces");
+                double[] x = Lifted(bare, 0.15, out _), y = Lifted(grassy, 0.15, out _);
+                open[k] = x[0] + x[1];
+                stand[k] = y[0] + y[1];
+            }
+            Print($"400 culms of 0.6 m a m²: λ {lambda:F3}, the pieces feel {shelter:F3} of u*; pieces a first tick lifts by hub height "
+                + string.Join(", ", Array.ConvertAll(BitHeights, h => h.ToString())) + " m: bare thatch "
+                + string.Join(" ", Array.ConvertAll(open, v => v.ToString("F0"))) + "; under the stand " + string.Join(" ", Array.ConvertAll(stand, v => v.ToString("F0"))));
+            Assert.That(lambda, Is.EqualTo(0.30).Within(0.03), "λ of a sward");
+            for (int k = 0; k < BitHeights.Length; k++) Assert.That(stand[k], Is.LessThan(open[k]), BitHeights[k] + " m: the stand shelters");
+            Assert.That(stand[BitHeights.Length - 1], Is.LessThan(0.01 * open[BitHeights.Length - 1]), "high up the stand lifts almost none");
+        }
+
+        // The ground reaches the drawn side whole: none before the first tick, the newest tick at or before the frame's time, two
+        // grids over the same poses bit for bit, 0 B a tick and a take, and a helper ticking while this thread takes never hands
+        // over a torn snapshot (each snapshot equals the sequential run's for its tick).
+        [Test]
+        public void TheGroundIsHandedWholeDeterministicallyAndAllocatesNothing()
+        {
+            PlantWash a = Grid("belt_straw", RainLevel.Sunny, new PlantMechanics[0], out _, 32), b = Grid("belt_straw", RainLevel.Sunny, new PlantMechanics[0], out _, 32);
+            Assert.That(a.TakeGround(1e9), Is.Null, "no tick yet");
+            const int Count = 120;
+            var poses = new PoseFrame[Count];
+            for (int t = 0; t < Count; t++)
+            {
+                poses[t] = Pose(t * TickSteps, 2.5 - 0.018 * t, 1 + 0.003 * t);
+                poses[t].Position = new Double3(0.004 * t * TickSteps, poses[t].Position.Y, 0.001 * t * TickSteps);
+            }
+            var sums = new System.Collections.Generic.Dictionary<long, ulong>();
+            for (int t = 0; t < Count; t++)
+            {
+                a.Advance(poses[t]);
+                b.Advance(poses[t]);
+                WashGround ga = a.TakeGround(poses[t].Step * FlightCore.Dt), gb = b.TakeGround(poses[t].Step * FlightCore.Dt);
+                Assert.That(ga.Tick, Is.EqualTo(poses[t].Step), "the newest tick at the frame's time");
+                ulong sa = Sum(ga), sb = Sum(gb);
+                Assert.That(sa, Is.EqualTo(sb), $"tick {t}: bit for bit");
+                sums[ga.Tick] = sa;
+            }
+            a.Advance(Pose(Count * TickSteps, 1.0));
+            Assert.That(a.TakeGround((Count * TickSteps - 1) * FlightCore.Dt).Tick, Is.EqualTo((Count - 1) * TickSteps), "a tick past the frame waits");
+            Assert.That(a.TakeGround(Count * TickSteps * FlightCore.Dt).Tick, Is.EqualTo(Count * TickSteps));
+            long before = AllocProbe.Before();
+            for (int t = 1; t <= 20; t++)
+            {
+                a.Advance(Pose((Count + t) * TickSteps, 1.0 - 0.02 * t));
+                a.TakeGround(1e9);
+            }
+            long bytes = AllocProbe.After(before);
+            Print($"{bytes} B over 20 ticks and their takes");
+            Assert.That(bytes, Is.Zero, AllocProbe.Report());
+
+            PlantWash c = Grid("belt_straw", RainLevel.Sunny, new PlantMechanics[0], out _, 32);
+            var helper = new System.Threading.Thread(() =>
+            {
+                for (int t = 0; t < Count; t++) c.Advance(poses[t]);
+            });
+            helper.Start();
+            int taken = 0;
+            long lastTick = -1;
+            while (helper.IsAlive || lastTick < poses[Count - 1].Step)
+            {
+                WashGround g = c.TakeGround(1e9);
+                if (g == null || g.Tick == lastTick) continue;
+                Assert.That(g.Tick, Is.GreaterThan(lastTick), "ticks in order");
+                Assert.That(Sum(g), Is.EqualTo(sums[g.Tick]), $"tick {g.Tick}: whole");
+                lastTick = g.Tick;
+                taken++;
+            }
+            helper.Join();
+            Print($"a helper ticking {Count} ticks while this thread took {taken} snapshots: each whole");
+            Assert.That(lastTick, Is.EqualTo(poses[Count - 1].Step), "the last tick reached the taker");
+        }
+
+        // A snapshot's FNV-1a over its window, its tick and every per-node number's bits.
+        static ulong Sum(WashGround g)
+        {
+            ulong h = 14695981039346656037UL;
+            void Mix(ulong v) { h = (h ^ v) * 1099511628211UL; }
+            Mix((ulong)g.Tick);
+            Mix((ulong)g.StartI);
+            Mix((ulong)g.StartJ);
+            for (int i = 0; i < g.Size * g.Size; i++)
+            {
+                Mix(g.Surface[i]);
+                Mix((ulong)BitConverter.DoubleToInt64Bits(g.DustFriction[i]));
+                Mix((ulong)BitConverter.DoubleToInt64Bits(g.DustThreshold[i]));
+                Mix((ulong)BitConverter.DoubleToInt64Bits(g.DustFlux[i]));
+                Mix((ulong)BitConverter.DoubleToInt64Bits(g.BitsFriction[i]));
+                for (int c = 0; c < ChaffLaw.Classes; c++) Mix((ulong)BitConverter.DoubleToInt64Bits(g.BitsRate[i * ChaffLaw.Classes + c]));
+            }
+            return h;
+        }
     }
 }

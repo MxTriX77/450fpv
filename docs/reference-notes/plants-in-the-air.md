@@ -201,11 +201,78 @@ u* = u_m·√(c_f/2) with [16]'s smooth-wall c_f, and on a rough wall u* = u_m /
 | `dry_crust` (crusted silty field) | 0.5–1.0 | assumed, between disturbed crusts 0.46–0.87 and loose loam [18]; intact old crusts reach 3.76 | **about 1–3 m, growing lower**: the pilot's "dust whiffs as you land closer to the ground" | sparse, as the crust abrades |
 | `rubble` (brick and mortar) | 0.25–0.5 | assumed (a fine fraction among coarse debris) | about 1.5–5 m, supply-limited | red-grey brick dust |
 | `asphalt`, `concrete_slab` | 0.2–0.3 for the film on them | assumed | from 5–10 m, one short whiff, then clean | grey |
-| `meadow_sod`, `weeds`, `belt_straw`, `yard_litter` | the cover shelters the soil [14] | published in kind | **no soil dust**; chaff and litter pieces lift instead (H's straw mat) | straw and leaf bits |
+| `meadow_sod`, `weeds`, `belt_straw`, `yard_litter` | the cover shelters the soil [14] | published in kind | **no soil dust**; chaff and litter pieces lift instead (H's straw mat; §5.4) | straw and leaf bits |
 | any surface **wet** | × 1.5–3.3 by water content | published [14], [15] | wet loam (15–25 % water) needs 0.5–1 m/s: **only under about 1 m, or none** (H's dark soil) | — |
 | **saturated** | — | assumed: no loose grains | **none** | — |
 
 **What a whiff looks like** (derived): the fines (under 20 µm) settle at under 3 cm/s (Stokes), so the dust hangs and drifts with the wind and the wake's recirculation for many seconds; the sand-sized grains that knock it loose (about 100 µm) hop and fall back within a second. The unsteady wake (its vortices landing, [25]) makes the lift come in puffs at first; low and long over loose dry ground it becomes F's continuous veil.
+
+### 5.4 The loose plant bits on covered ground (w16 1.4a)
+
+The pilot (2026-11-28): "not only dust - when in grass it also whiffs grass particles". On the covered surfaces of §5.3 the wash lifts the loose dead pieces lying on the cover: dead leaves, straw bits and fine chaff (glumes, husks, bits of dead blades and leaves). Clip H's thrown leaves and straws (§1.2) are these. The law is design.md §5b; the hand is `tools/flightbench/handcalc/plant_bits.py`.
+
+#### Published
+
+| Finding | Value | Conditions | Source | Read |
+|---|---|---|---|---|
+| **Beaufort force 4** lifts "dust, leaves and loose paper"; force 3 keeps leaves (on the trees) and small twigs in constant motion | force 4 **5.5–7.9 m/s**; force 3 3.4–5.4 m/s | the wind 10 m up, the land criteria | [26] | page (search excerpt of the NWS tables) |
+| Open flat terrain with grass: the roughness length | z₀ **0.03 m** | the standard open exposure | [27] | recalled |
+| Leaf mass per area, monocots | **48.7 g/m²** (22–215) | 132 species | stem-properties.md [2] | full (as stem-properties.md reads it) |
+| Leaf mass per area, temperate broadleaves | 30–120 g/m²; the surface table's leaf row 60 g/m² | — | Wright et al. 2004, via `assets-src/surfaces.json` | as the table carries it |
+| **Litter's water-holding capacity** | **2.0–2.1 l per kg** oven-dry, whatever the species | forest-floor litter | [28] | search excerpt |
+| The highest terminal velocity of a combine's waste (chaff, straw bits) | **2.3 m/s**; single grains at least 6.5 m/s | a head-feeding combine | [29] | abstract |
+| Wheat straw pieces under 6 cm: the highest terminal velocity among the straws | **4.9 m/s**; air separates the grain from the straw between 4.85 and 7.04 m/s | Canadian wheat | [30] | search excerpt |
+| Wheat's dry matter not in the grain | about **9 t/ha** (18.4 t/ha at a 51 % harvest index), about half of it baled as straw | UK wheat | [31] | search excerpt |
+| Crop residue left on fields | **3–10 t/ha** | Australian cropping | [32] | search excerpt |
+| Chaff's share of the plant | about 17–25 % | combine harvest | [33] | search excerpt |
+| **Leaf litterfall**, temperate hardwood stands | **4.4–5.3 t/ha a year** | two Massachusetts stands | [34] | search excerpt |
+| **Shear partition** among standing roughness elements: the share of u* reaching the ground between them | R = [(1 − mσλ)(1 + mβλ)]^(−1/2), **m ≈ 0.5**; β the elements' drag coefficient over the bare surface's | wind-tunnel data of Gillette and Stockton 1989 | [35] | abstract and review excerpts; β 90 recalled |
+| The impact threshold (keeps grains moving) against the fluid threshold (starts them) | about 0.8 | sand | Bagnold 1941, restated in [14] | recalled |
+| A flat plate's drag broadside; a circular cylinder's across, Re 10²–10³ | 1.17; 1.0–1.2 | — | Hoerner 1965 | recalled |
+| A wind-tunnel threshold for leaf litter, chaff or straw bits themselves | **none found** | the residue studies give the soil's threshold under residue, not the residue's own | [36] | search |
+| A dry tree leaf's measured fall speed in air | **none found** | the ballistic litterfall models (Jonard et al. 2006, Nickmans et al. 2019) take one; its value was not read | [37] | search |
+
+#### The pieces (derived, with the assumptions named)
+
+| Class | Piece | Mass, dry / wet | Settling, dry / wet | Start u*, dry (5–95 %) / wet | Keep |
+|---|---|---|---|---|---|
+| Chaff | 8 × 3 × 0.2 mm (assumed), σ 0.05 kg/m² (assumed, near the monocots' 48.7 g/m²), 10 % water (assumed) | 1.04 / 2.83 mg | 0.87 / 1.43 m/s | 0.42 (0.22–0.82) / **6.8** m/s | 0.8 × start |
+| Straw | the surface table's straw (3.5 mm, wall share 0.12, 500 kg/m³: 2.03 g a metre), 4 cm (assumed) | 81 / 106 mg | 2.91 / 3.31 m/s | 0.39 (0.20–0.76) / **1.13** m/s | |
+| Leaf | 50 × 30 × 0.3 mm (assumed: a locust or ash leaflet to a small maple leaf), the table's 0.06 kg/m², 10 % water | 78 / 212 mg | 0.95 / 1.57 m/s | 0.46 (0.24–0.90) / **2.38** m/s | |
+
+- **The start** is a force balance on the wall's shear.
+  - A flat piece slides when c·ρu*²·A passes μ·m·g, so u*_t ∝ √σ.
+  - Beaufort's force 4 over z₀ 0.03 m is u* = 0.4·U/ln(10/z₀) = **0.38–0.54 m/s**. Its middle, 0.46, is the leaves' start. This is the one anchor, and chaff scales from it by √σ.
+  - A straw bit rolls out of its groove between two touching neighbours (tan 30°). It goes when the drag at its centre's speed passes that share of its weight. The centre's speed is the rough wall's 6.77·u* at d/2 over k_s = d, with C_d 1.1, at the median of its ways across the flow (sin 45°).
+- **The settling:** a flat piece falls broadside at √(2σg/(1.17ρ)), a straw across its axis at √(2λg/(1.1ρd)).
+  - Both lie under the published bounds: combine waste at most 2.3 m/s [29], straws under 6 cm at most 4.9 m/s [30].
+  - The settling is not anchored to a measured leaf (none found).
+- **The spread:** the pieces' thresholds are log-normal about the start, geometric deviation 1.5 (assumed: σ's published spread on √σ, and each piece's curl and snag on the mat).
+- **Wet** (Rain, Severe rain):
+  - The piece holds its water: litter's 2.0 kg/kg [28], straw the table's ×1.3.
+  - A meniscus along its contact with the wet mat holds it with 2γ a metre: γ 0.072 N/m (published), along the rim of a flat piece and the length of a straw (assumed).
+  - u*_t grows by √((m_wet·g + 2γ·contact)/(m·g)): ×16 for chaff, ×5.2 for a leaf, ×2.9 for a straw. The small pieces stick hardest, as wet chaff does.
+
+#### Per surface (assumed supply; the cover's roughness assumed)
+
+| Surface | Loose top layer, plan cover φ (chaff / straw / leaves) | Pieces per m² | Mass | k_s |
+|---|---|---|---|---|
+| `meadow_sod` (the thatch; the track map's grass) | 0.1 / 0.05 / 0 | 5,305 / 357 / 0 | 35 g/m² | 2 mm (the blades) |
+| `weeds` | 0.05 / 0.05 / 0.05 | 2,653 / 357 / 42 | 35 g/m² | 2 mm |
+| `belt_straw` (the belt's straw mat) | 0.05 / 0.3 / 0.1 | 2,653 / 2,143 / 85 | 184 g/m² | 3.5 mm (the straws) |
+| `yard_litter` (leaf litter) | 0.1 / 0 / 0.6 | 5,305 / 0 / 509 | 45 g/m² | 5 mm (curled leaves) |
+
+The supplies are a fraction of the published masses: straw and chaff 300–1,000 g/m² [31], [32], leaves 440–530 g/m² a year [34]. The loose top layer is what the wash can take. Standing stems shelter the pieces under them by [35], on the world's own stem field (design.md §5b): a sward of 400 green culms of 0.6 m a m² has λ 0.31, so its pieces feel 0.27 of u*.
+
+**Onset by hover height** (the hand over a bare floor of each surface, no standing stems; the first tick from rest over the 32 × 0.15 m window, design.md §5b). Dry, every class lifts from at least 8 m up; the light pieces go first, and the share grows as the drone comes lower:
+- meadow chaff: 4,750 at 8 m, 20,100 at 3 m, 25,600 at 1 m, 41,900 at 0.3 m.
+- Wet chaff: none above about 0.75 m (0.2–3.6 pieces under).
+- Wet leaves: a handful under 1–1.5 m (yard_litter 14 at 1 m, 140 at 0.3 m).
+- Wet straw: 3,040 at 0.3 m over the straw mat, 110 at 4 m.
+
+Under standing grass the dry onset drops to about 1–2 m: under 400 culms a m², 9 pieces at 4 m, 462 at 1 m and 2,530 at 0.3 m.
+
+**Against clip H:** the creep at 0.3–0.6 m over mats has u* of 2.2–2.8 m/s at the discs' outwash, past nearly every dry piece's start. A leaf settling at about 1 m/s, thrown by 3–8 m/s of outwash, tumbles across the view as H's leaves do. Its damp-looking soil is not wet in the sim on a dry day (§5.3): its mats' bits lift as dry.
 
 ## 6. The drone in what it flies through
 
@@ -290,5 +357,17 @@ u* = u_m·√(c_f/2) with [16]'s smooth-wall c_f, and on a rough wall u* = u_m /
 23. Tanner P.E., Overmeyer A.D., Jenkins L.N., Yao C.-S., Bartram S.M. (2015). Experimental investigation of rotorcraft outwash in ground effect. AHS 71st Forum, NASA NTRS 20160006428 (full, as `openspec/changes/p7d-tether/design.md` decision 19 reads it).
 24. Poreh M., Tsuei Y.G., Cermak J.E. (1967). Investigation of a turbulent radial wall jet. *J. Appl. Mech.* 34; Verhoff A. (1963), the wall jet's profile (both as decision 19 reads them).
 25. Rotorcraft brownout research on a model rotor over a mobile bed (University of Maryland theses: https://drum.lib.umd.edu/handle/1903/12357 and https://drum.lib.umd.edu/bitstream/1903/15914/1/Mulinti_umd_0117E_15592.pdf; record and search excerpt).
+26. The Beaufort scale's land criteria as the US National Weather Service tables them: https://www.weather.gov/boi/beaufort ("dust, leaves, and loose paper lifted" at force 4) and the Paducah Skywarn handout, https://weather.gov/media/pah/Skywarn/BEAUFORTSCALEHANDOUT.pdf (search excerpts).
+27. The roughness length of open flat grassland, 0.03 m: the WMO's standard open exposure and the Davenport–Wieringa classification (Wieringa J. 1992, *J. Wind Eng. Ind. Aerodyn.* 41–44), recalled.
+28. A forest-hydrology study of litter's water storage: its specific water-holding capacity 2.0–2.1 l per kg oven-dry, whatever the species (search excerpt; which of the results it came from was not identified: https://snr.unl.edu/szilagyi/AFM19.pdf, or *Mt. Res. Dev.* 38(3), doi:10.1659/MRD-JOURNAL-D-17-00002.1, on broadleaved, coniferous and mixed litter).
+29. Nonami K., Umeda M., Yuzaki Y., Kimura A. (2002). Studies on the separation performance for head feeding combine, 2: Terminal velocity of grain and wastes. *J. Jpn. Soc. Agric. Machinery* 64(3): 51–54. https://agris.fao.org/search/en/records/647242c22c1d629bc9791fda (abstract).
+30. *Agriculture* 12(9): 1457 (2022), on the aerodynamic separation of Canadian wheat from straw: https://www.mdpi.com/2077-0472/12/9/1457 (search excerpt; the page refused automated reads).
+31. AHDB, The main components of yield in wheat: https://ahdb.org.uk/knowledge-library/the-main-components-of-yield-in-wheat (search excerpt).
+32. Australian Agriculture in 2020, part 2 chapter 9 (Charles Sturt University): https://cdn.csu.edu.au/__data/assets/pdf_file/0018/4313142/Australian-Agriculture-in-2020-Pt2Ch9.pdf (search excerpt).
+33. The chaff's share of a cereal plant at harvest: *Plants* 13(2): 181 (2024), https://mdpi.com/2223-7747/13/2/181, and the AGROinLOG study in *Energies* 13: 1766 (2020), https://zenodo.org/records/3784520 (search excerpts).
+34. McClaugherty et al. (1982), *Ecology*, on two Harvard Forest stands: https://harvardforest1.fas.harvard.edu/publications/pdfs/McClaugherty_Ecology_1982.pdf (search excerpt: leaf litterfall 4.4 and 5.3 Mg/ha/yr; the paper itself not read).
+35. Raupach M.R., Gillette D.A., Leys J.F. (1993). The effect of roughness elements on wind erosion threshold. *J. Geophys. Res.* 98(D2): 3023–3029 (record https://scilit.com/publications/534d2c46f272b3a1b4dbe2e1d72df823 and review excerpts restating its formula and m ≈ 0.5; β 90 recalled).
+36. The searches for a litter, chaff or straw entrainment threshold: the USDA-ARS residue papers (e.g. https://infosys.ars.usda.gov/WindErosion/publications/pdf/Crop%20residue%20effects%20on%20aerodynamic%20processes%20and%20wind%20erosi.pdf) give the soil's threshold under flat residue, not the residue's own (search excerpts).
+37. Jonard M., André F., Ponette Q. (2006). Modeling leaf dispersal in mixed hardwood forests using a ballistic approach. *Ecology* 87(9): 2306–2318 (record https://research.dial.uclouvain.be/handle/2078.5/133181; its fall speeds not read).
 
 Companion references used through the companions: stem-properties.md (the stems' sections, moduli, cutting and stand densities), p7d-tether design 19 and 20 (the wash's law and the wall's roughness law), Niklas K.J. (1995), *Ann. Bot.* 75: 133–142 (the stems' height–diameter allometry, through `assets-src/surfaces.json`).
