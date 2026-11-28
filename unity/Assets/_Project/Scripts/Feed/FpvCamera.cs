@@ -59,6 +59,12 @@ namespace Fpv450.Feed
 
         Texture2D shutterTrack;
 
+        // The lens's water (w21-rain-on-camera 1.2): the map's texture, made at its first wet field, and the pupil's depth
+        // for the glass it was derived for.
+        Texture2D lensMap;
+        Vector4 pupilFor;
+        float pupilDepth;
+
         Camera fpv;
         RenderTexture scene;
         // The OSD (task 1.4): this field's codes, uploaded once per field as the Godot feed did, and the ROM's atlas.
@@ -106,6 +112,42 @@ namespace Fpv450.Feed
                 return;
             shutterTrack.SetPixelData(Shutter.Track, 0);
             shutterTrack.Apply(false);
+        }
+
+        /// The water on the lens (w21-rain-on-camera 1.2, FEED-13) for the next frames: the map uploaded as it is, drawn by
+        /// the feed's lens pass ahead of the analog stages. Null or a dry map draws nothing, and the feed is as before.
+        public void ShowLens(LensMap map)
+        {
+            if (!Running)
+                return;
+            if (map == null || !map.Wet)
+            {
+                Feed.LensWet = false;
+                return;
+            }
+            if (lensMap == null)
+            {
+                lensMap = new Texture2D(LensMap.Size, LensMap.Size, TextureFormat.RGBAFloat, false, true)
+                {
+                    name = "LensMap",
+                    filterMode = FilterMode.Bilinear,
+                    wrapMode = TextureWrapMode.Clamp,
+                    hideFlags = HideFlags.DontSave,
+                };
+                Feed.LensMap = lensMap;
+            }
+            lensMap.SetPixelData(map.Texels, 0);
+            lensMap.Apply(false);
+            var glass = new Vector4(map.ClearRadius, map.CurvatureRadius, settings.K1, settings.focalHalfWidths);
+            if (glass != pupilFor)
+            {
+                pupilFor = glass;
+                pupilDepth = LensMap.PupilDepth(map.ClearRadius, map.CurvatureRadius, settings.K1, settings.focalHalfWidths);
+                Debug.Log($"[Feed] lens drops: glass {map.ClearRadius * 1e3f:0.00} mm clear, dome {map.CurvatureRadius * 1e3f:0.0} mm, " +
+                          $"entrance pupil {2e3f * LensMap.PupilRadiusM:0.00} mm across at {pupilDepth * 1e3f:0.00} mm behind the apex (the picture's corner at the clear radius)");
+            }
+            Feed.LensGlass = new Vector4(map.ClearRadius * 1e3f, map.CurvatureRadius * 1e3f, LensMap.PupilRadiusM * 1e3f, pupilDepth * 1e3f);
+            Feed.LensWet = true;
         }
 
         /// Starts the rig: the camera's intrinsics and reduced target, the output camera, the scheduler. OnEnable
@@ -226,6 +268,9 @@ namespace Fpv450.Feed
             if (shutterTrack != null)
                 DestroyNow(shutterTrack);
             shutterTrack = null;
+            if (lensMap != null)
+                DestroyNow(lensMap);
+            lensMap = null;
             scene.Release();
             DestroyNow(scene);
             scene = null;

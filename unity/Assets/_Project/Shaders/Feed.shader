@@ -36,6 +36,11 @@
 // nor tinted by P7's highlight cast. Only the OSD's own insertion changes, so away from the glyphs the pass is the one
 // above, bit for bit.
 // _OsdChannel = 0 is Godot's OSD (the FEED-00 A/B).
+// One addition, only with water on the lens (w21-rain-on-camera 1.2, FEED-13, LensMap.cs): two passes before the field pass
+// (3 LensScene, the render in linear light at half size, its mips made by FeedFeature; 4 Lens, the picture's light through
+// the water into a small layer), and the field pass's FEED_LENS variant mixes that layer into each sensor read, so the drops
+// take the channel's softness, noise and colour with the picture. Without the keyword the pass is the one above, token for
+// token: a dry lens, Sunny, draws as before.
 Shader "Hidden/Fpv450/Feed"
 {
     Properties
@@ -105,6 +110,22 @@ Shader "Hidden/Fpv450/Feed"
     float _OsdChannel;
     static float4 g_tap[8];
     static int g_taps;
+
+    // The water on the lens (w21-rain-on-camera 1.2, LensMap.cs). _LensMap: LensMap.Size texels a side over the front glass's
+    // clear square, row 0 at -Y: x the signed distance to the nearest contact line (mm, + in the water), y and z the water
+    // surface's slope over the glass, w its curvature (1/mm). _LensLayer: the lens pass's picture, premultiplied linear light
+    // through the water in rgb and the pupil's wetted share in a. _LensGlass (mm): x the clear radius, y the dome's radius of
+    // curvature, z the entrance pupil's radius, w its depth behind the dome's apex. _LensDraw: x water's index, y the lens
+    // scene's pixels per radian at its centre, z a pupil sample's radius (mm), w the pinhole's f in half-widths.
+    // _LensSceneEncoded: 1 when the scene is code values already (a still).
+    TEXTURE2D(_LensMap);
+    TEXTURE2D(_LensLayer);
+    float4 _LensGlass;
+    float4 _LensDraw;
+    float _LensSceneEncoded;
+    SAMPLER(sampler_lens_trilinear_clamp); // the lens scene's mips, blended between levels
+    #define LENS_SAMPLES 16             // LensMap.PupilSamples
+    #define GOLDEN_ANGLE 2.39996323     // the Vogel spiral's turn, rad
 
     // --- the constants, literal (gd:70-101) ---------------------------------------------------------------------
     #define GD_TWO_PI 6.2831853         // gd:70 (core RP defines its own TWO_PI)
@@ -231,10 +252,102 @@ Shader "Hidden/Fpv450/Feed"
     }
 
     // gd:114-117. The sensor's vertical aperture lives on the sensor, so the lens maps each of its two reads.
+    // w21-rain-on-camera 1.2: with water on the lens, the sensor's read is the dry share of the pupil's light plus the light
+    // through the water (the layer, premultiplied), summed in linear light; where no water reaches, the read as above.
     float3 sensor_read(float2 uv)
     {
+        #if defined(FEED_LENS)
+        float3 dry = 0.5 * (screen_tex(uv - float2(0.0, APERTURE_V / LINES))
+            + screen_tex(uv + float2(0.0, APERTURE_V / LINES)));
+        float4 wet = SAMPLE_TEXTURE2D_LOD(_LensLayer, sampler_LinearClamp, float2(uv.x, 1.0 - uv.y), 0);
+        if (wet.a <= 0.0)
+        {
+            return dry;
+        }
+        return LinearToSRGB(SRGBToLinear(dry) * (1.0 - wet.a) + wet.rgb);
+        #else
         return 0.5 * (screen_tex(uv - float2(0.0, APERTURE_V / LINES))
             + screen_tex(uv + float2(0.0, APERTURE_V / LINES)));
+        #endif
+    }
+
+    // --- the water on the lens (w21-rain-on-camera 1.2, FEED-13; docs/reference-notes/lens-drops.md §8) ------------------
+    // The lens is focused far away, so its front glass is deep out of focus: a picture point is the bundle of parallel rays
+    // that fills the entrance pupil, and the bundle crosses the glass over a footprint the pupil's size. Each of the pupil's
+    // LENS_SAMPLES rays (a Vogel spiral) is traced out of the pupil along the point's direction to the dome; where water covers
+    // it, it leaves the glass into the water and the water's surface into the air by Snell's law (the glass keeps the dry
+    // ray's tangential part, so its own index drops out), and takes that direction's scene at the mip of the spread its share
+    // of the pupil stands for, times the water surface's Fresnel transmission; a ray past the critical angle is reflected
+    // back into the lens and brings no scene. The dry rays are the field pass's own read.
+
+    // The ray's scene at mip lod, linear, through the camera's read at this row (its middle tap: the drops ride the camera,
+    // the scene they show turns with the read; the exposure's blur inside a drop is far under its defocus).
+    float3 lens_scene(float3 ray, float lod)
+    {
+        float2 halfSize = float2(1.0, 1.0 / _Lens.z);
+        float cover = _Lens.y;
+        if (_Shutter.x > 0.5)
+        {
+            ray = rotate_q(g_tap[g_taps / 2], ray);
+            cover = _Shutter.z;
+        }
+        float2 pr = _LensDraw.w * float2(ray.x, -ray.y) / max(ray.z, 1e-4);
+        float2 s = 0.5 + 0.5 * pr / (cover * halfSize);
+        return SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_lens_trilinear_clamp, float2(s.x, 1.0 - s.y), lod).rgb;
+    }
+
+    // The picture point uv (top-down): its light through the water (premultiplied, linear) and the pupil's wetted share.
+    float4 lens_layer(float2 uv)
+    {
+        shutter_row(floor(uv.y * _FieldSize.y));
+        float2 halfSize = float2(1.0, 1.0 / _Lens.z);
+        float2 pd = (uv - 0.5) * 2.0 * halfSize;
+        float2 pu = pd * (1.0 + _Lens.x * dot(pd, pd));
+        float3 d = normalize(float3(pu.x, -pu.y, _LensDraw.w));   // the point's ray, camera axes: x right, y up, z out
+        float ac = _LensGlass.x, rc = _LensGlass.y, nw = _LensDraw.x, feather = _LensDraw.z;
+        float3 light = float3(0.0, 0.0, 0.0);
+        float wetted = 0.0;
+        [loop] for (int k = 0; k < LENS_SAMPLES; k++)
+        {
+            float rr = _LensGlass.z * sqrt((float(k) + 0.5) / LENS_SAMPLES);
+            float a = float(k) * GOLDEN_ANGLE;
+            float3 e = float3(rr * cos(a), rr * sin(a), -_LensGlass.w);
+            // Out along d to the dome (apex at the origin, centre at (0, 0, -rc)): LensMap.Dome.
+            float3 o = e + float3(0.0, 0.0, rc);
+            float b = dot(o, d), c = dot(o, o) - rc * rc;
+            float3 q = e + (-b + sqrt(max(b * b - c, 0.0))) * d;
+            float4 m = SAMPLE_TEXTURE2D_LOD(_LensMap, sampler_LinearClamp, q.xy / (2.0 * ac) + 0.5, 0);
+            float w = saturate(0.5 + m.x / (2.0 * feather));
+            if (w <= 0.0)
+            {
+                continue;
+            }
+            wetted += w;
+            // The glass's outward normal and its tangents along X and Y; the water's surface tilted from it by its slope.
+            float3 ng = float3(q.xy, q.z + rc) / rc;
+            float3 tx = normalize(float3(ng.z, 0.0, -ng.x));
+            float3 ty = cross(ng, tx);
+            float3 nc = normalize(ng - m.y * tx - m.z * ty);
+            // Into the water through the glass, then out of its surface into the air.
+            float3 tw = (d - dot(d, ng) * ng) / nw;
+            float3 dw = tw + sqrt(max(1.0 - dot(tw, tw), 0.0)) * ng;
+            float ci = dot(dw, nc);
+            float3 ta = (dw - ci * nc) * nw;
+            float s2 = dot(ta, ta);
+            if (s2 >= 1.0)
+            {
+                continue;   // total internal reflection at the water's surface: no scene on this ray
+            }
+            float ct = sqrt(1.0 - s2);
+            float3 da = ta + ct * nc;
+            float rs = (nw * ci - ct) / (nw * ci + ct), rp = (ci - nw * ct) / (ci + nw * ct);
+            float t = 1.0 - 0.5 * (rs * rs + rp * rp);
+            // The sample's share of the pupil spans 2 feather on the glass, over which the surface turns the ray by
+            // (n - 1) times its curvature: that spread, in the lens scene's pixels there (the pinhole's 1/cos² off axis).
+            float spread = 2.0 * feather * (nw - 1.0) * m.w * _LensDraw.y / max(da.z * da.z, 1e-3);
+            light += w * t * lens_scene(da, log2(max(spread, 1.0)));
+        }
+        return float4(light, wetted) / LENS_SAMPLES;
     }
 
     // gd:119-121
@@ -652,6 +765,7 @@ Shader "Hidden/Fpv450/Feed"
             #pragma fragment FragField
             #pragma target 4.5
             #pragma multi_compile_local _ FEED_NOISE_OFF
+            #pragma multi_compile_local _ FEED_LENS
             float4 FragField(Varyings i) : SV_Target
             {
                 float row = floor((1.0 - i.texcoord.y) * _FieldSize.y);
@@ -677,6 +791,40 @@ Shader "Hidden/Fpv450/Feed"
                 // P8 receiver border, gd:415
                 rgb *= step(0.0037, gy) * step(gy, 0.9981);
                 return float4(SRGBToLinear(rgb), 1.0);
+            }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "LensScene"
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment FragLensScene
+            // w21-rain-on-camera 1.2: the render in linear light at half size (one bilinear tap at a half-size texel's
+            // centre is its four texels' mean), into sRGB storage so its mips average light.
+            float4 FragLensScene(Varyings i) : SV_Target
+            {
+                float3 c = SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_LinearClamp, i.texcoord, 0).rgb;
+                if (_LensSceneEncoded > 0.5)
+                {
+                    c = SRGBToLinear(c);
+                }
+                return float4(saturate(c), 1.0);
+            }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "Lens"
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment FragLens
+            #pragma target 4.5
+            float4 FragLens(Varyings i) : SV_Target
+            {
+                return lens_layer(float2(i.texcoord.x, 1.0 - i.texcoord.y));
             }
             ENDHLSL
         }

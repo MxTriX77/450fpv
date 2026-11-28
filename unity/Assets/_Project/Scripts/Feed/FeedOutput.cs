@@ -27,5 +27,12 @@ namespace Fpv450.Feed
         /// and x = 1 to read through it (0: the old read), y = the pinhole's f in half-widths, z = the render's coverage.
         public Texture ShutterTrack;
         public Vector4 Shutter;
+        /// The water on the lens (w21-rain-on-camera 1.2, FEED-13): <see cref="LensMap"/>'s texture, and whether it holds any
+        /// water. Dry, the feature adds no pass and the field pass is the one before, keyword for keyword.
+        public Texture LensMap;
+        public bool LensWet;
+        /// The glass and its pupil for the lens pass, mm: x the clear radius, y the dome's radius of curvature, z the entrance
+        /// pupil's radius, w its depth behind the dome's apex (<see cref="Feed.LensMap.PupilDepth"/>).
+        public Vector4 LensGlass;
     }
 }

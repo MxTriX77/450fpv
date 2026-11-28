@@ -11,15 +11,26 @@ namespace Fpv450.Feed
     /// <c>video_feed.gdshader</c> ported, drawn on every camera that carries a <see cref="FeedOutput"/> and on no
     /// other. Three blits: the scene to sRGB code values (skipped for a still that already is), the analog chain at
     /// field resolution (<see cref="FeedSettings.fieldWidth"/> × <see cref="FeedSettings.FieldRows"/>), and the bob
-    /// deinterlace with the border into the camera's colour.
+    /// deinterlace with the border into the camera's colour. With water on the lens (w21-rain-on-camera 1.2, FEED-13)
+    /// three more come before the analog chain: the scene in linear light at half size with its mips, the lens pass (the
+    /// picture's light through the water, <see cref="LensMap"/>) into a small layer, and the field pass mixes the layer in
+    /// at the sensor's read.
     /// </summary>
     public sealed class FeedFeature : ScriptableRendererFeature
     {
-        public const int EncodePass = 0, FieldPass = 1, OutputPass = 2;
+        public const int EncodePass = 0, FieldPass = 1, OutputPass = 2, LensScenePass = 3, LensPass = 4;
 
         /// The Field pass's variant with the analog noise off (D-078, <see cref="FeedUniforms.NoiseOff"/>): N1's grain and
         /// N2's impulses compiled out. Without the keyword the pass is the ported one, token for token.
         public const string NoiseOffKeyword = "FEED_NOISE_OFF";
+
+        /// The Field pass's variant with water on the lens (w21-rain-on-camera 1.2): the lens pass's layer mixed into each
+        /// sensor read. Without the keyword (a dry lens, Sunny) the pass is the one before, token for token.
+        public const string LensKeyword = "FEED_LENS";
+
+        /// The lens pass's layer over the picture, texels (numerical: four of the field's 1920 columns to one; its light
+        /// varies over the pupil's footprint on the glass and the drop's defocus, 2° and more, 30 columns and more).
+        public const int LensLayerWidth = 480, LensLayerHeight = 270;
 
         [SerializeField] Shader shader;
 
@@ -74,7 +85,10 @@ namespace Fpv450.Feed
                 FieldSize = Shader.PropertyToID("_FieldSize"), ShutterTrack = Shader.PropertyToID("_ShutterTrack"),
                 Shutter = Shader.PropertyToID("_Shutter"), StickBox = Shader.PropertyToID("_StickBox"),
                 StickSize = Shader.PropertyToID("_StickSize"), StickCursor = Shader.PropertyToID("_StickCursor"),
-                OsdChannel = Shader.PropertyToID("_OsdChannel");
+                OsdChannel = Shader.PropertyToID("_OsdChannel"),
+                LensMapId = Shader.PropertyToID("_LensMap"), LensLayer = Shader.PropertyToID("_LensLayer"),
+                LensGlass = Shader.PropertyToID("_LensGlass"), LensDraw = Shader.PropertyToID("_LensDraw"),
+                LensSceneEncoded = Shader.PropertyToID("_LensSceneEncoded");
 
             // The stick overlay's sizes (D-084): a box, then the cursor, as fractions of the picture.
             static readonly Vector4 StickSizes = new Vector4(FeedSticks.BoxW * FeedSticks.TexelW, FeedSticks.BoxH * FeedSticks.TexelH,
@@ -135,6 +149,29 @@ namespace Fpv450.Feed
 
                 TextureHandle source = sceneByIdentifier ? renderGraph.ImportTexture(scene, sceneInfo) : renderGraph.ImportTexture(scene);
                 bool byIdentifier = sceneByIdentifier;
+
+                // The water on the lens (w21-rain-on-camera 1.2): the scene in linear light at half size with its mips (sRGB
+                // storage, so the mips average light), then the picture's light through the water into the layer.
+                TextureHandle layer = TextureHandle.nullHandle;
+                if (Wet(output))
+                {
+                    var lit = renderGraph.CreateTexture(new TextureDesc(Mathf.Max(1, output.Scene.width / 2), Mathf.Max(1, output.Scene.height / 2))
+                    {
+                        colorFormat = GraphicsFormat.R8G8B8A8_SRGB,
+                        useMipMap = true,
+                        autoGenerateMips = false,
+                        filterMode = FilterMode.Trilinear,
+                        name = "_FeedLensScene",
+                    });
+                    AddBlit(renderGraph, "Feed lens scene", source, byIdentifier, lit, LensScenePass);
+                    AddMips(renderGraph, lit);
+                    layer = renderGraph.CreateTexture(new TextureDesc(LensLayerWidth, LensLayerHeight)
+                    {
+                        colorFormat = GraphicsFormat.R16G16B16A16_SFloat,
+                        name = "_FeedLensLayer",
+                    });
+                    AddBlit(renderGraph, "Feed lens", lit, false, layer, LensPass);
+                }
                 if (!output.SceneEncoded)
                 {
                     var encoded = renderGraph.CreateTexture(new TextureDesc(output.Scene.width, output.Scene.height)
@@ -152,39 +189,65 @@ namespace Fpv450.Feed
                     colorFormat = GraphicsFormat.R8G8B8A8_UNorm,
                     name = "_FeedField",
                 });
-                AddBlit(renderGraph, "Feed field", source, byIdentifier, field, FieldPass);
+                AddBlit(renderGraph, "Feed field", source, byIdentifier, field, FieldPass, layer);
                 AddBlit(renderGraph, "Feed output", field, false, resources.activeColorTexture, OutputPass);
             }
 
+            static bool Wet(FeedOutput o) => o.LensWet && o.LensMap != null;
+
             sealed class BlitData
             {
-                public TextureHandle Source;
+                public TextureHandle Source, Layer;
                 public bool ByIdentifier;
                 public Material Material;
                 public int Pass;
             }
 
+            sealed class MipData
+            {
+                public TextureHandle Texture;
+            }
+
             /// A full-screen blit of one of the shader's passes. RenderGraph's own AddBlitPass reads the source's
-            /// descriptor, which an imported still (a Texture2D) does not have, so this is the plain raster pass.
+            /// descriptor, which an imported still (a Texture2D) does not have, so this is the plain raster pass. A valid
+            /// layer is the lens pass's, bound for the field pass.
             void AddBlit(RenderGraph renderGraph, string name, TextureHandle source, bool byIdentifier, TextureHandle destination,
-                int shaderPass)
+                int shaderPass, TextureHandle layer = default)
             {
                 using (var builder = renderGraph.AddRasterRenderPass<BlitData>(name, out var data, profilingSampler))
                 {
                     data.Source = source;
+                    data.Layer = layer;
                     data.ByIdentifier = byIdentifier;
                     data.Material = material;
                     data.Pass = shaderPass;
                     builder.UseTexture(source);
+                    if (layer.IsValid())
+                        builder.UseTexture(layer);
                     builder.SetRenderAttachment(destination, 0);
                     builder.SetRenderFunc(static (BlitData d, RasterGraphContext ctx) =>
                     {
                         var scaleBias = new Vector4(1f, 1f, 0f, 0f);
+                        if (d.Layer.IsValid())
+                            d.Material.SetTexture(LensLayer, (RTHandle)d.Layer);
                         if (d.ByIdentifier)
                             Blitter.BlitTexture(ctx.cmd, (RenderTargetIdentifier)(RTHandle)d.Source, scaleBias, d.Material, d.Pass);
                         else
                             Blitter.BlitTexture(ctx.cmd, d.Source, scaleBias, d.Material, d.Pass);
                     });
+                }
+            }
+
+            /// The texture's mips from its first level (the lens's scene: the lens pass reads each sample's blur from them).
+            void AddMips(RenderGraph renderGraph, TextureHandle texture)
+            {
+                using (var builder = renderGraph.AddUnsafePass<MipData>("Feed lens mips", out var data, profilingSampler))
+                {
+                    data.Texture = texture;
+                    builder.UseTexture(texture, AccessFlags.ReadWrite);
+                    builder.AllowPassCulling(false);
+                    builder.SetRenderFunc(static (MipData d, UnsafeGraphContext ctx) =>
+                        CommandBufferHelpers.GetNativeCommandBuffer(ctx.cmd).GenerateMips(((RTHandle)d.Texture).rt));
                 }
             }
 
@@ -236,6 +299,20 @@ namespace Fpv450.Feed
                 bool track = o.ShutterTrack != null && o.Shutter.x > 0.5f;
                 m.SetTexture(ShutterTrack, track ? o.ShutterTrack : Texture2D.blackTexture);
                 m.SetVector(Shutter, track ? o.Shutter : Vector4.zero);
+                // The water on the lens (w21-rain-on-camera 1.2): dry, the field pass's ported variant and nothing bound.
+                bool wet = Wet(o);
+                if (wet)
+                    m.EnableKeyword(LensKeyword);
+                else
+                    m.DisableKeyword(LensKeyword);
+                m.SetTexture(LensMapId, wet ? o.LensMap : Texture2D.blackTexture);
+                m.SetTexture(LensLayer, Texture2D.blackTexture);
+                m.SetVector(LensGlass, o.LensGlass);
+                // x water's index, y the lens scene's pixels per radian at its centre (half the render's), z a pupil
+                // sample's radius in mm (the contact line's feather and a sample's blur), w the pinhole's f in half-widths.
+                m.SetVector(LensDraw, new Vector4(LensMap.WaterIndex, (float)(0.5 * o.Settings.PixelsPerRad), LensMap.SampleRadiusM * 1e3f,
+                    o.Settings.focalHalfWidths));
+                m.SetFloat(LensSceneEncoded, o.SceneEncoded ? 1f : 0f);
             }
         }
     }
