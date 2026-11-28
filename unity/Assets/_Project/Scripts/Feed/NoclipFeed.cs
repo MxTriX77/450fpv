@@ -21,7 +21,9 @@ namespace Fpv450.Feed
     /// passes' GPU time from their "Feed" profiling sampler, so it needs a development build) and quits, exit code 1
     /// over FEED-10's 1.0 ms. With <c>-feedshutter &lt;s&gt;</c> it reads through the camera's rolling shutter
     /// (p7e-camera-feel 1.7): a track for the pilot's full-stick yaw, 300 °/s (fc-profiles.md), at that exposure, so
-    /// daylight's 1/8192 s reads one tap a row and dusk's 1/50 s eight, the flight's worst case.
+    /// daylight's 1/8192 s reads one tap a row and dusk's 1/50 s eight, the flight's worst case. With
+    /// <c>-feedlens &lt;file&gt;</c> the lens holds a recorded rain flight's water (a LensMap that Fpv450.RainFields' <c>-dump</c>
+    /// wrote, w21-rain-on-camera 1.2), drawn through the feed: the drops' cost.
     /// </remarks>
     [DefaultExecutionOrder(-100)] // samples the camera's pose after every mover and before the rig steps its field
     public sealed class NoclipFeed : MonoBehaviour
@@ -86,10 +88,21 @@ namespace Fpv450.Feed
             rig.enabled = IntArg(args, "-feed", 1) != 0;
             if (!rig.enabled)
                 Debug.Log("[Feed] off at start (-feed 0); V turns it on.");
+            at = Array.IndexOf(args, "-feedlens");
+            if (at >= 0 && at + 1 < args.Length)
+                lens = LensMap.Load(args[at + 1]);
         }
+
+        LensMap lens;
 
         IEnumerator Start()
         {
+            if (lens != null)
+            {
+                yield return null; // the rig has begun (its Start)
+                rig.ShowLens(lens);
+                Debug.Log($"[Feed] -feedlens: a recorded rain flight's lens on the noclip camera, {lens.Drops} drops and {lens.Pearls} trail pearls (w21-rain-on-camera 1.2)");
+            }
             if (Array.IndexOf(Environment.GetCommandLineArgs(), "-feedcost") >= 0)
                 yield return Cost();
         }
