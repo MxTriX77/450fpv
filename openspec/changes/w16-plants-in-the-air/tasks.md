@@ -59,6 +59,12 @@ The change lives on the physics line, `unity/physics/physics-integration-2`, fro
   - Every piece moves with the sim's air (the wash and the wind) and settles by its own fall speed; dust hangs and drifts.
   - A bounded piece count; the frame-rate cost measured low over grass on AC.
   - Checked against clip H's ending (cut pieces, straw bits) and clip F (dust).
+  - **As built** (design.md "## 1.4"; `PlantPieces`, `PlantPiecesView`, `Shaders/PlantPieces.shader`):
+    - **Where:** on the coarse wash grid's helper after each of its ticks (its `RotorAir` and `TakeGround`), the props' cuts from the signals once a frame; drawn a tick behind the field as the wash is, in one pass on the flight's camera before its post-processing: the pieces at the render's resolution, the dust at a quarter of it (the feed's field's). `-pieces 0` for the A/B. Bounded: 512 puffs, 256 cut pieces, 1024 bits.
+    - **The laws:** quadratic drag to each piece's settling speed in the wind (the plants' `PlantAir.Air` on a lattice) and the wash (`RotorAir.At`), plus the surface layer's eddy (σ_u, σ_v, σ_w 2.3, 1.9, 1.25 u*); dust without inertia, anisotropic Gaussian puffs spreading by K = κu*z, its flux α·Q (Marticorena and Bergametti's α on DustLaw's White flux), its mass extinction 283 m²/kg; a film's fines run out cell by cell (AP-42's silt loadings; the track's layer assumed). Cut pieces at the blade's speed at the cuts' mean radius, their section the stem kind the map grows there; bits by 1.4a's rates and pieces.
+    - **A replay draws the same pieces:** births hashed from the flight's own data, fixed steps in flight time; `PlantPiecesTests` (the same flight, the same digests tick for tick), `PlantsLeaveTheFlightTests` (the log the same byte for byte with the pieces flown).
+    - **The drawing against its rules** (`PlantPiecesDrawTests`, a GPU): a straw's coverage 89.0 px² against its own 87.5, still and swept; a puff's centre 0.124 against the closed form's 0.124; a wall in front takes 0.955 of its far part against the closed form's 0.955.
+    - **The look:** `Fpv450.PieceFields.Run` (stills through the feed in the editor) and the bench's shots; sheets by letter in `reference/_compare/w16-pieces/` (local).
 - [x] 1.5 [physics-engineer] **The drone feels what it flies through** (`w9-village-physics` 2.10, extended), after 1.2. No GPU.
   - The stems' forces on the legs and the body: touchdown jitter and drag when skimming weeds (PHY-05).
   - A crown's leaves and twigs on the body and the props.
